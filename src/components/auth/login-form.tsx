@@ -1,8 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { useRouter } from 'next/navigation';
-import { useAuth, useUser } from '@/firebase';
+import { useAuth } from '@/firebase';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -25,9 +24,7 @@ const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
 
 
 export function LoginForm() {
-  const router = useRouter();
   const auth = useAuth();
-  const { user, isUserLoading } = useUser();
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
@@ -42,7 +39,7 @@ export function LoginForm() {
 
     try {
       await signInWithEmailAndPassword(auth, email, password);
-      // The onAuthStateChanged listener will handle the redirect
+      // The onAuthStateChanged listener in AuthLayout will handle the redirect
     } catch (err: any) {
       setError(err.message || 'Failed to sign in. Please check your credentials.');
       setIsSubmitting(false);
@@ -55,18 +52,12 @@ export function LoginForm() {
     const provider = new GoogleAuthProvider();
     try {
       await signInWithPopup(auth, provider);
-      // The onAuthStateChanged listener will handle the redirect
+      // The onAuthStateChanged listener in AuthLayout will handle the redirect
     } catch (err: any) {
       setError(err.message || 'Failed to sign in with Google.');
       setIsSubmitting(false);
     }
   };
-
-  React.useEffect(() => {
-    if (!isUserLoading && user) {
-      router.replace('/dashboard');
-    }
-  }, [user, isUserLoading, router]);
 
   return (
     <div className="grid gap-6">
