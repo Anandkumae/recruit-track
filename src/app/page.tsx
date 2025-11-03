@@ -7,6 +7,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Briefcase, Zap, Users, BarChart, ArrowRight } from 'lucide-react';
 import Image from 'next/image';
 import { useAuth } from '@/hooks/use-auth';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
 const features = [
   {
@@ -30,6 +31,29 @@ const features = [
     description: 'Gain valuable insights into your recruitment process to make data-driven decisions.',
   },
 ];
+
+const faqs = [
+    {
+        question: "What is RecruitTrack?",
+        answer: "RecruitTrack is a modern, AI-powered internal hiring platform designed to streamline your recruitment process. It helps you manage job postings, track candidates, and use AI to find the best-fit applicants from within your talent pool."
+    },
+    {
+        question: "How does the AI-powered matching work?",
+        answer: "Our advanced AI analyzes the text from a candidate's resume and compares it against the job description you provide. It calculates a match score based on skills, experience, and other key factors, giving you a quick way to identify top contenders."
+    },
+    {
+        question: "Is RecruitTrack suitable for small businesses?",
+        answer: "Absolutely! RecruitTrack is scalable and designed to be intuitive for teams of all sizes. Whether you're a small startup or a large enterprise, our platform can help you organize and simplify your hiring workflow."
+    },
+    {
+        question: "Is my data secure?",
+        answer: "Yes, data security is our top priority. All data is encrypted in transit and at rest. We follow industry best practices to ensure your company and candidate information is always protected."
+    },
+    {
+        question: "How do I get started?",
+        answer: "Getting started is easy! Click the 'Get Started' button, sign in with a demo role, and you can begin exploring the platform's features immediately. You can create jobs, view candidates, and test the AI resume matcher."
+    }
+]
 
 export default function LandingPage() {
   const { user } = useAuth();
@@ -121,6 +145,33 @@ export default function LandingPage() {
               ))}
             </div>
           </div>
+        </section>
+        
+        {/* FAQ Section */}
+        <section className="w-full py-20 md:py-32 bg-gray-50 dark:bg-gray-900/50">
+            <div className="container px-4 md:px-6">
+                <div className="flex flex-col items-center justify-center space-y-4 text-center">
+                    <div className="space-y-2">
+                        <div className="inline-block rounded-lg bg-secondary px-3 py-1 text-sm">FAQ</div>
+                        <h2 className="text-3xl font-bold tracking-tighter sm:text-5xl">Frequently Asked Questions</h2>
+                        <p className="max-w-[900px] text-muted-foreground md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed">
+                            Have questions? We've got answers. Here are some of the most common questions we get.
+                        </p>
+                    </div>
+                </div>
+                <div className="mx-auto max-w-3xl mt-12">
+                    <Accordion type="single" collapsible className="w-full">
+                        {faqs.map((faq, index) => (
+                            <AccordionItem key={index} value={`item-${index}`}>
+                                <AccordionTrigger className="text-left">{faq.question}</AccordionTrigger>
+                                <AccordionContent className="text-muted-foreground">
+                                    {faq.answer}
+                                </AccordionContent>
+                            </AccordionItem>
+                        ))}
+                    </Accordion>
+                </div>
+            </div>
         </section>
 
       </main>
