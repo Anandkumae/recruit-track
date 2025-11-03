@@ -3,10 +3,10 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Briefcase } from 'lucide-react';
-
-import { useAuth } from '@/hooks/use-auth';
+import { useUser } from '@/firebase';
 import { cn } from '@/lib/utils';
-import { navItems } from '@/lib/data';
+import { navItems, users as mockUsers } from '@/lib/data'; // We'll get user roles from mock data for now
+import type { Role } from '@/lib/types';
 import {
   Sidebar,
   SidebarContent,
@@ -18,14 +18,20 @@ import {
 
 export function AppSidebar() {
   const pathname = usePathname();
-  const { user } = useAuth();
+  const { user } = useUser();
 
   if (!user) {
     return null;
   }
+  
+  // This is a temporary solution. In a real app, you'd get the user's role
+  // from custom claims or a Firestore document.
+  // For now, let's assume the first user is an admin for demo purposes.
+  // We'll give the anonymous user an 'HR' role to see most of the nav items.
+  const userRole: Role = 'HR';
 
   const allowedNavItems = navItems.filter((item) =>
-    item.roles.includes(user.role)
+    item.roles.includes(userRole)
   );
 
   return (

@@ -2,23 +2,23 @@
 
 import * as React from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '@/hooks/use-auth';
+import { useUser } from '@/firebase';
 import { AppSidebar } from '@/components/layout/app-sidebar';
 import { AppHeader } from '@/components/layout/app-header';
 import { Loader2 } from 'lucide-react';
 import { SidebarProvider } from '@/components/ui/sidebar';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
-  const { user, isLoading } = useAuth();
+  const { user, isUserLoading } = useUser();
   const router = useRouter();
 
   React.useEffect(() => {
-    if (!isLoading && !user) {
+    if (!isUserLoading && !user) {
       router.replace('/login');
     }
-  }, [user, isLoading, router]);
+  }, [user, isUserLoading, router]);
 
-  if (isLoading || !user) {
+  if (isUserLoading || !user) {
     return (
       <div className="flex h-screen w-full items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />

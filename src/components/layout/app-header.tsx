@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useAuth } from '@/hooks/use-auth';
+import { useUser, useAuth } from '@/firebase';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -15,17 +15,20 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useRouter } from 'next/navigation';
 import { SidebarTrigger } from '../ui/sidebar';
 import { Briefcase } from 'lucide-react';
+import { signOut } from 'firebase/auth';
 
 export function AppHeader() {
-  const { user, logout } = useAuth();
+  const { user } = useUser();
+  const auth = useAuth();
   const router = useRouter();
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await signOut(auth);
     router.push('/login');
   };
 
-  const getInitials = (name: string) => {
+  const getInitials = (name?: string | null) => {
+    if (!name) return 'U';
     return name
       .split(' ')
       .map((n) => n[0])
@@ -49,17 +52,17 @@ export function AppHeader() {
               className="overflow-hidden rounded-full"
             >
               <Avatar>
-                <AvatarImage src={user?.avatarUrl} alt={user?.name} />
-                <AvatarFallback>{user ? getInitials(user.name) : 'U'}</AvatarFallback>
+                <AvatarImage src={user?.photoURL || undefined} alt={user?.displayName || ''} />
+                <AvatarFallback>{getInitials(user?.displayName)}</AvatarFallback>
               </Avatar>
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuLabel>
               <div className="flex flex-col space-y-1">
-                <p className="text-sm font-medium leading-none">{user?.name}</p>
+                <p className="text-sm font-medium leading-none">{user?.displayName || 'Anonymous User'}</p>
                 <p className="text-xs leading-none text-muted-foreground">
-                  {user?.email}
+                  {user?.email || 'No email'}
                 </p>
               </div>
             </DropdownMenuLabel>

@@ -17,19 +17,20 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { jobs as allJobs, users } from '@/lib/data';
 import type { Job } from '@/lib/types';
-import { useAuth } from '@/hooks/use-auth';
+import { useUser } from '@/firebase';
 import { format, parseISO } from 'date-fns';
 
 export default function JobsPage() {
   const [searchTerm, setSearchTerm] = useState('');
-  const { user } = useAuth();
+  const { user } = useUser();
 
   const filteredJobs = allJobs.filter((job) =>
     job.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
     job.department.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const canCreateJob = user?.role === 'Admin' || user?.role === 'HR';
+  // In a real app, role would come from custom claims or a Firestore document
+  const canCreateJob = true; // For demo, let's assume the user can create jobs
 
   const getPosterName = (userId: string) => {
     return users.find(u => u.id === userId)?.name || 'Unknown';

@@ -1,4 +1,3 @@
-
 'use client';
 
 import Link from 'next/link';
@@ -6,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Briefcase, Zap, Users, BarChart, ArrowRight } from 'lucide-react';
 import Image from 'next/image';
-import { useAuth } from '@/hooks/use-auth';
+import { useUser } from '@/firebase';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
 const features = [
@@ -51,12 +50,12 @@ const faqs = [
     },
     {
         question: "How do I get started?",
-        answer: "Getting started is easy! Click the 'Get Started' button, sign in with a demo role, and you can begin exploring the platform's features immediately. You can create jobs, view candidates, and test the AI resume matcher."
+        answer: "Getting started is easy! Click the 'Get Started' button, sign in, and you can begin exploring the platform's features immediately. You can create jobs, view candidates, and test the AI resume matcher."
     }
 ]
 
 export default function LandingPage() {
-  const { user } = useAuth();
+  const { user } = useUser();
   
   return (
     <div className="flex flex-col min-h-screen">
