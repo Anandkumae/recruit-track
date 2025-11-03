@@ -11,7 +11,11 @@ import {
   signInWithEmailAndPassword,
   GoogleAuthProvider,
   signInWithPopup,
+  RecaptchaVerifier,
+  signInWithPhoneNumber,
+  type ConfirmationResult,
 } from 'firebase/auth';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="24px" height="24px" {...props}>
@@ -27,6 +31,25 @@ export function LoginForm() {
   const auth = useAuth();
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  
+  // Phone auth state
+  const [phone, setPhone] = React.useState('');
+  const [verificationCode, setVerificationCode] = React.useState('');
+  const [confirmationResult, setConfirmationResult] = React.useState<ConfirmationResult | null>(null);
+  const recaptchaVerifierRef = React.useRef<RecaptchaVerifier | null>(null);
+
+  React.useEffect(() => {
+    // This effect sets up the reCAPTCHA verifier. It runs only once.
+    if (!recaptchaVerifierRef.current && auth) {
+        recaptchaVerifierRef.current = new RecaptchaVerifier(auth, 'recaptcha-container', {
+            'size': 'invisible',
+            'callback': (response: any) => {
+              // reCAPTCHA solved, allow signInWithPhoneNumber.
+            }
+        });
+    }
+  }, [auth]);
+
 
   const handleEmailLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -39,10 +62,10 @@ export function LoginForm() {
 
     try {
       await signInWithEmailAndPassword(auth, email, password);
-      // The onAuthStateChanged listener in AuthLayout will handle the redirect
     } catch (err: any) {
       setError(err.message || 'Failed to sign in. Please check your credentials.');
-      setIsSubmitting(false);
+    } finally {
+        setIsSubmitting(false);
     }
   };
 
@@ -52,42 +75,131 @@ export function LoginForm() {
     const provider = new GoogleAuthProvider();
     try {
       await signInWithPopup(auth, provider);
-      // The onAuthStateChanged listener in AuthLayout will handle the redirect
     } catch (err: any) {
       setError(err.message || 'Failed to sign in with Google.');
+    } finally {
+        setIsSubmitting(false);
+    }
+  };
+
+  const handlePhoneCodeSend = async () => {
+    setError(null);
+    setIsSubmitting(true);
+    try {
+      if (!recaptchaVerifierRef.current) throw new Error("reCAPTCHA not initialized.");
+      const result = await signInWithPhoneNumber(auth, phone, recaptchaVerifierRef.current);
+      setConfirmationResult(result);
+    } catch (err: any) {
+      setError(err.message || 'Failed to send verification code.');
+      // In case of error, you might need to reset reCAPTCHA
+      recaptchaVerifierRef.current?.clear();
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handlePhoneCodeVerify = async () => {
+    if (!confirmationResult) return;
+    setError(null);
+    setIsSubmitting(true);
+    try {
+      await confirmationResult.confirm(verificationCode);
+    } catch (err: any) {
+      setError(err.message || 'Failed to verify code.');
+    } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
     <div className="grid gap-6">
+       <div id="recaptcha-container"></div>
       {error && (
         <Alert variant="destructive">
           <AlertTitle>Login Failed</AlertTitle>
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
-      <form onSubmit={handleEmailLogin} className="grid gap-4">
-        <div className="grid gap-2">
-          <Label htmlFor="email">Email</Label>
-          <Input
-            id="email"
-            name="email"
-            type="email"
-            placeholder="m@example.com"
-            required
-            disabled={isSubmitting}
-          />
-        </div>
-        <div className="grid gap-2">
-          <Label htmlFor="password">Password</Label>
-          <Input id="password" name="password" type="password" required disabled={isSubmitting} />
-        </div>
-        <Button type="submit" className="w-full" disabled={isSubmitting}>
-          {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          Sign In with Email
-        </Button>
-      </form>
+
+      <Tabs defaultValue="email" className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="email">Email</TabsTrigger>
+            <TabsTrigger value="phone">Phone</TabsTrigger>
+        </TabsList>
+        <TabsContent value="email">
+            <form onSubmit={handleEmailLogin} className="grid gap-4 pt-4">
+                <div className="grid gap-2">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                    id="email"
+                    name="email"
+                    type="email"
+                    placeholder="m@example.com"
+                    required
+                    disabled={isSubmitting}
+                />
+                </div>
+                <div className="grid gap-2">
+                <Label htmlFor="password">Password</Label>
+                <Input id="password" name="password" type="password" required disabled={isSubmitting} />
+                </div>
+                <Button type="submit" className="w-full" disabled={isSubmitting}>
+                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Sign In with Email
+                </Button>
+            </form>
+        </TabsContent>
+        <TabsContent value="phone">
+            <div className="grid gap-4 pt-4">
+                {!confirmationResult ? (
+                     <div className="grid gap-4">
+                        <div className="grid gap-2">
+                            <Label htmlFor="phone">Phone Number</Label>
+                            <Input
+                                id="phone"
+                                name="phone"
+                                type="tel"
+                                placeholder="+1 555-555-5555"
+                                required
+                                value={phone}
+                                onChange={(e) => setPhone(e.target.value)}
+                                disabled={isSubmitting}
+                            />
+                        </div>
+                        <Button onClick={handlePhoneCodeSend} className="w-full" disabled={isSubmitting || !phone}>
+                            {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            Send Verification Code
+                        </Button>
+                    </div>
+                ) : (
+                    <div className="grid gap-4">
+                        <div className="grid gap-2">
+                            <Label htmlFor="code">Verification Code</Label>
+                            <Input
+                                id="code"
+                                name="code"
+                                type="text"
+                                placeholder="123456"
+                                required
+                                value={verificationCode}
+                                onChange={(e) => setVerificationCode(e.target.value)}
+                                disabled={isSubmitting}
+                            />
+                        </div>
+                        <Button onClick={handlePhoneCodeVerify} className="w-full" disabled={isSubmitting || !verificationCode}>
+                            {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            Verify & Sign In
+                        </Button>
+                         <Button variant="link" size="sm" onClick={() => { setConfirmationResult(null); setError(null); }} disabled={isSubmitting}>
+                            Back
+                        </Button>
+                    </div>
+                )}
+            </div>
+        </TabsContent>
+      </Tabs>
+
+      
       <div className="relative">
         <div className="absolute inset-0 flex items-center">
           <span className="w-full border-t" />
