@@ -16,10 +16,6 @@ import {
   type ConfirmationResult,
 } from 'firebase/auth';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import PhoneInput from 'react-phone-number-input/react-hook-form-input';
-import { isPossiblePhoneNumber } from 'react-phone-number-input';
-import 'react-phone-number-input/style.css';
-import { useForm } from 'react-hook-form';
 
 const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="24px" height="24px" {...props}>
@@ -35,22 +31,18 @@ export function LoginForm() {
   const auth = useAuth();
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
-  const { control, handleSubmit, formState, watch } = useForm<{ phone: string }>();
-  const phoneValue = watch('phone');
   
   // Phone auth state
+  const [phone, setPhone] = React.useState('');
   const [verificationCode, setVerificationCode] = React.useState('');
   const [confirmationResult, setConfirmationResult] = React.useState<ConfirmationResult | null>(null);
   const recaptchaVerifierRef = React.useRef<RecaptchaVerifier | null>(null);
 
   React.useEffect(() => {
-    // This effect sets up the reCAPTCHA verifier. It runs only once.
     if (!recaptchaVerifierRef.current && auth) {
         recaptchaVerifierRef.current = new RecaptchaVerifier(auth, 'recaptcha-container', {
             'size': 'invisible',
-            'callback': (response: any) => {
-              // reCAPTCHA solved, allow signInWithPhoneNumber.
-            }
+            'callback': (response: any) => {}
         });
     }
   }, [auth]);
@@ -80,27 +72,27 @@ export function LoginForm() {
     const provider = new GoogleAuthProvider();
     try {
       await signInWithPopup(auth, provider);
-    } catch (err: any) {
-      setError(err.message || 'Failed to sign in with Google.');
+    } catch (err: any)      setError(err.message || 'Failed to sign in with Google.');
     } finally {
         setIsSubmitting(false);
     }
   };
 
-  const handlePhoneCodeSend = async (data: {phone: string}) => {
-    if (!data.phone || !isPossiblePhoneNumber(data.phone)) {
-        setError("Please enter a valid phone number.");
+  const handlePhoneCodeSend = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const phoneNumber = `+91${phone}`;
+    if (phoneNumber.length !== 13) { // +91 and 10 digits
+        setError("Please enter a valid 10-digit Indian phone number.");
         return;
     }
     setError(null);
     setIsSubmitting(true);
     try {
       if (!recaptchaVerifierRef.current) throw new Error("reCAPTCHA not initialized.");
-      const result = await signInWithPhoneNumber(auth, data.phone, recaptchaVerifierRef.current);
+      const result = await signInWithPhoneNumber(auth, phoneNumber, recaptchaVerifierRef.current);
       setConfirmationResult(result);
     } catch (err: any) {
       setError(err.message || 'Failed to send verification code.');
-      // In case of error, you might need to reset reCAPTCHA
       if (recaptchaVerifierRef.current) {
         recaptchaVerifierRef.current.render().then((widgetId) => {
           if (typeof grecaptcha !== 'undefined' && grecaptcha.reset) {
@@ -165,25 +157,32 @@ export function LoginForm() {
             </form>
         </TabsContent>
         <TabsContent value="phone">
-            <form onSubmit={handleSubmit(handlePhoneCodeSend)} className="grid gap-4 pt-4">
+            <div className="grid gap-4 pt-4">
                 {!confirmationResult ? (
-                     <div className="grid gap-4">
+                     <form onSubmit={handlePhoneCodeSend} className="grid gap-4">
                         <div className="grid gap-2">
                             <Label htmlFor="phone">Phone Number</Label>
-                             <PhoneInput
-                                name="phone"
-                                control={control}
-                                international
-                                defaultCountry="US"
-                                placeholder="Enter phone number"
-                                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
-                            />
+                             <div className="relative">
+                                <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                                    <span className="text-muted-foreground sm:text-sm">+91</span>
+                                </div>
+                                <Input
+                                    type="tel"
+                                    name="phone"
+                                    id="phone"
+                                    placeholder="98765 43210"
+                                    className="pl-12"
+                                    value={phone}
+                                    onChange={(e) => setPhone(e.target.value.replace(/\D/g, ''))}
+                                    maxLength={10}
+                                />
+                             </div>
                         </div>
-                        <Button type="submit" className="w-full" disabled={isSubmitting || !phoneValue || (phoneValue && !isPossiblePhoneNumber(phoneValue))}>
+                        <Button type="submit" className="w-full" disabled={isSubmitting || phone.length !== 10}>
                             {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                             Send Verification Code
                         </Button>
-                    </div>
+                    </form>
                 ) : (
                     <div className="grid gap-4">
                         <div className="grid gap-2">
@@ -208,7 +207,7 @@ export function LoginForm() {
                         </Button>
                     </div>
                 )}
-            </form>
+            </div>
         </TabsContent>
       </Tabs>
 
