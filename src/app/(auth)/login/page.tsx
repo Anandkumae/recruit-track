@@ -13,7 +13,7 @@ export default function LoginPage() {
       <CardHeader>
         <CardTitle className="text-2xl">Welcome to RecruitTrack</CardTitle>
         <CardDescription>
-          Sign in to access the internal hiring platform.
+          Sign in to your account to continue.
         </CardDescription>
       </CardHeader>
       <CardContent>
