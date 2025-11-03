@@ -1,0 +1,240 @@
+{
+  "entities": {
+    "User": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "User",
+      "type": "object",
+      "description": "Represents a user within the RecruitTrack platform.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the User entity."
+        },
+        "name": {
+          "type": "string",
+          "description": "The user's full name."
+        },
+        "email": {
+          "type": "string",
+          "description": "The user's email address.",
+          "format": "email"
+        },
+        "role": {
+          "type": "string",
+          "description": "The user's role within the system (e.g., Admin, HR, Manager, Candidate)."
+        },
+        "department": {
+          "type": "string",
+          "description": "The department the user belongs to."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp indicating when the user account was created.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "email",
+        "role",
+        "department",
+        "createdAt"
+      ]
+    },
+    "Job": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Job",
+      "type": "object",
+      "description": "Represents a job posting within the RecruitTrack platform.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Job entity."
+        },
+        "title": {
+          "type": "string",
+          "description": "The title of the job posting."
+        },
+        "department": {
+          "type": "string",
+          "description": "The department the job belongs to."
+        },
+        "description": {
+          "type": "string",
+          "description": "Detailed description of the job responsibilities."
+        },
+        "requirements": {
+          "type": "array",
+          "description": "An array of requirements for the job.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "status": {
+          "type": "string",
+          "description": "The status of the job posting (e.g., open, closed)."
+        },
+        "postedBy": {
+          "type": "string",
+          "description": "Reference to User. (Relationship: User 1:N Job) The user who created the job posting."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp indicating when the job posting was created.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "department",
+        "description",
+        "requirements",
+        "status",
+        "postedBy",
+        "createdAt"
+      ]
+    },
+    "Candidate": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Candidate",
+      "type": "object",
+      "description": "Represents a candidate who has applied for a job.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Candidate entity."
+        },
+        "name": {
+          "type": "string",
+          "description": "The candidate's full name."
+        },
+        "email": {
+          "type": "string",
+          "description": "The candidate's email address.",
+          "format": "email"
+        },
+        "phone": {
+          "type": "string",
+          "description": "The candidate's phone number."
+        },
+        "skills": {
+          "type": "array",
+          "description": "An array of skills possessed by the candidate.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "resumeUrl": {
+          "type": "string",
+          "description": "URL of the candidate's resume stored in cloud storage."
+        },
+        "jobAppliedFor": {
+          "type": "string",
+          "description": "Reference to Job. (Relationship: Job 1:N Candidate) The job the candidate applied for."
+        },
+        "status": {
+          "type": "string",
+          "description": "The candidate's status in the hiring process (e.g., Applied, Shortlisted, Interviewed, Hired, Rejected)."
+        },
+        "notes": {
+          "type": "string",
+          "description": "Any notes or comments about the candidate."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp indicating when the candidate applied.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "email",
+        "phone",
+        "skills",
+        "resumeUrl",
+        "jobAppliedFor",
+        "status",
+        "notes",
+        "createdAt"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/users/{userId}",
+        "definition": {
+          "entityName": "User",
+          "schema": {
+            "$ref": "#/backend/entities/User"
+          },
+          "description": "Stores user profiles. Uses path-based ownership for private data. Includes standard profile information.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier for the user."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/jobs/{jobId}",
+        "definition": {
+          "entityName": "Job",
+          "schema": {
+            "$ref": "#/backend/entities/Job"
+          },
+          "description": "Stores job postings. The `postedBy` field indicates the user who created the job, enabling authorization checks.",
+          "params": [
+            {
+              "name": "jobId",
+              "description": "The unique identifier for the job posting."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/candidates/{candidateId}",
+        "definition": {
+          "entityName": "Candidate",
+          "schema": {
+            "$ref": "#/backend/entities/Candidate"
+          },
+          "description": "Stores candidate profiles. Includes a denormalized `jobAppliedFor` field to facilitate secure listing of candidates by job.",
+          "params": [
+            {
+              "name": "candidateId",
+              "description": "The unique identifier for the candidate."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/roles_admin/{userId}",
+        "definition": {
+          "entityName": "User",
+          "schema": {
+            "$ref": "#/backend/entities/User"
+          },
+          "description": "Indicates admin role. Existence of document grants admin privileges.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier for the admin user."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The Firestore data structure is designed to support a secure and scalable internal hiring platform (RecruitTrack). It prioritizes authorization independence by denormalizing authorization data, ensuring that security rules do not rely on expensive `get()` operations. The structure leverages path-based ownership for user-specific data and the membership map pattern for collaborative data access. Segregation of data with differing security requirements ensures that rules remain simple and efficient, which also allows the list operation to be secured by applying QAPs.\n\nSpecifically, user profiles are stored under `/users/{userId}` enabling straightforward ownership-based rules. Jobs, which can be viewed by all users but created/edited only by HR/Admin, are stored under `/jobs`. Candidates are stored under `/candidates` with a denormalized `jobId` field for efficient querying. The `roles_admin` collection implements global role management.\n\nAuthorization Independence is achieved through denormalization. For example, the candidate documents, stored in the `candidates` collection, include the `jobAppliedFor` field, which facilitates listing candidates associated with specific jobs without needing to perform expensive `get()` operations to verify job ownership.\n\nThis structure ensures that each collection maintains a homogeneous security posture and simplifies the application of security rules, making the system more robust and easier to maintain."
+  }
+}
