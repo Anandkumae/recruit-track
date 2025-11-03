@@ -72,7 +72,8 @@ export function LoginForm() {
     const provider = new GoogleAuthProvider();
     try {
       await signInWithPopup(auth, provider);
-    } catch (err: any)      setError(err.message || 'Failed to sign in with Google.');
+    } catch (err: any) {
+      setError(err.message || 'Failed to sign in with Google.');
     } finally {
         setIsSubmitting(false);
     }
