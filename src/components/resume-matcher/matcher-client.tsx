@@ -1,6 +1,6 @@
 'use client';
 
-import { useFormState, useFormStatus } from 'react-dom';
+import { useActionState, useFormStatus } from 'react';
 import { getMatch, type MatcherState } from '@/lib/actions';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -31,7 +31,7 @@ function SubmitButton() {
 
 export function MatcherClient() {
   const initialState: MatcherState = {};
-  const [state, dispatch] = useFormState(getMatch, initialState);
+  const [state, dispatch] = useActionState(getMatch, initialState);
   const { toast } = useToast();
   
   useEffect(() => {

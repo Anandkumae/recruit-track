@@ -1,6 +1,6 @@
 'use client';
 
-import { useFormState, useFormStatus } from 'react-dom';
+import { useActionState, useFormStatus } from 'react';
 import {
   Card,
   CardContent,
@@ -34,7 +34,7 @@ function SubmitButton() {
 export function ApplyForm({ job }: { job: Job }) {
   const initialState: ApplyState = {};
   const applyForJobWithId = applyForJob.bind(null);
-  const [state, dispatch] = useFormState(applyForJobWithId, initialState);
+  const [state, dispatch] = useActionState(applyForJobWithId, initialState);
 
   if (state.message && state.result) {
     return (
