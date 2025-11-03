@@ -91,4 +91,7 @@
   .PhoneInputInput {
       @apply bg-transparent outline-none;
   }
+  input, textarea {
+    caret-color: transparent;
+  }
 }
