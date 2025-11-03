@@ -89,6 +89,6 @@
     -moz-osx-font-smoothing: grayscale;
   }
   input, textarea {
-    caret-color: transparent;
+    caret-color: transparent !important;
   }
 }
