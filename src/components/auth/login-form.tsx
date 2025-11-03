@@ -17,6 +17,7 @@ import {
 } from 'firebase/auth';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import PhoneInput from 'react-phone-number-input/react-hook-form-input';
+import { isPossiblePhoneNumber } from 'react-phone-number-input';
 import 'react-phone-number-input/style.css';
 import { useForm } from 'react-hook-form';
 
@@ -34,7 +35,7 @@ export function LoginForm() {
   const auth = useAuth();
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
-  const { control, handleSubmit, watch } = useForm<{ phone: string }>();
+  const { control, handleSubmit, formState, watch } = useForm<{ phone: string }>();
   const phoneValue = watch('phone');
   
   // Phone auth state
@@ -87,6 +88,10 @@ export function LoginForm() {
   };
 
   const handlePhoneCodeSend = async (data: {phone: string}) => {
+    if (!data.phone || !isPossiblePhoneNumber(data.phone)) {
+        setError("Please enter a valid phone number.");
+        return;
+    }
     setError(null);
     setIsSubmitting(true);
     try {
@@ -96,7 +101,13 @@ export function LoginForm() {
     } catch (err: any) {
       setError(err.message || 'Failed to send verification code.');
       // In case of error, you might need to reset reCAPTCHA
-      recaptchaVerifierRef.current?.clear();
+      if (recaptchaVerifierRef.current) {
+        recaptchaVerifierRef.current.render().then((widgetId) => {
+          if (typeof grecaptcha !== 'undefined' && grecaptcha.reset) {
+            grecaptcha.reset(widgetId);
+          }
+        });
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -159,11 +170,11 @@ export function LoginForm() {
                      <div className="grid gap-4">
                         <div className="grid gap-2">
                             <Label htmlFor="phone">Phone Number</Label>
-                            <PhoneInput
+                             <PhoneInput
                                 name="phone"
                                 control={control}
-                                rules={{ required: true }}
                                 international
+                                placeholder="Enter phone number"
                                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
                             />
                         </div>
