@@ -16,6 +16,9 @@ import {
   type ConfirmationResult,
 } from 'firebase/auth';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import PhoneInput from 'react-phone-number-input/react-hook-form-input';
+import 'react-phone-number-input/style.css';
+import { useForm } from 'react-hook-form';
 
 const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="24px" height="24px" {...props}>
@@ -31,9 +34,10 @@ export function LoginForm() {
   const auth = useAuth();
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  const { control, handleSubmit, watch } = useForm<{ phone: string }>();
+  const phoneValue = watch('phone');
   
   // Phone auth state
-  const [phone, setPhone] = React.useState('');
   const [verificationCode, setVerificationCode] = React.useState('');
   const [confirmationResult, setConfirmationResult] = React.useState<ConfirmationResult | null>(null);
   const recaptchaVerifierRef = React.useRef<RecaptchaVerifier | null>(null);
@@ -82,12 +86,12 @@ export function LoginForm() {
     }
   };
 
-  const handlePhoneCodeSend = async () => {
+  const handlePhoneCodeSend = async (data: {phone: string}) => {
     setError(null);
     setIsSubmitting(true);
     try {
       if (!recaptchaVerifierRef.current) throw new Error("reCAPTCHA not initialized.");
-      const result = await signInWithPhoneNumber(auth, phone, recaptchaVerifierRef.current);
+      const result = await signInWithPhoneNumber(auth, data.phone, recaptchaVerifierRef.current);
       setConfirmationResult(result);
     } catch (err: any) {
       setError(err.message || 'Failed to send verification code.');
@@ -150,23 +154,21 @@ export function LoginForm() {
             </form>
         </TabsContent>
         <TabsContent value="phone">
-            <div className="grid gap-4 pt-4">
+            <form onSubmit={handleSubmit(handlePhoneCodeSend)} className="grid gap-4 pt-4">
                 {!confirmationResult ? (
                      <div className="grid gap-4">
                         <div className="grid gap-2">
                             <Label htmlFor="phone">Phone Number</Label>
-                            <Input
-                                id="phone"
+                            <PhoneInput
                                 name="phone"
-                                type="tel"
-                                placeholder="+1 555-555-5555"
-                                required
-                                value={phone}
-                                onChange={(e) => setPhone(e.target.value)}
-                                disabled={isSubmitting}
+                                control={control}
+                                rules={{ required: true }}
+                                international
+                                withCountryCallingCode
+                                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
                             />
                         </div>
-                        <Button onClick={handlePhoneCodeSend} className="w-full" disabled={isSubmitting || !phone}>
+                        <Button type="submit" className="w-full" disabled={isSubmitting || !phoneValue}>
                             {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                             Send Verification Code
                         </Button>
@@ -195,7 +197,7 @@ export function LoginForm() {
                         </Button>
                     </div>
                 )}
-            </div>
+            </form>
         </TabsContent>
       </Tabs>
 

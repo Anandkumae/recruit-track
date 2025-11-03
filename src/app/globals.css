@@ -88,4 +88,7 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
+  .PhoneInputInput {
+      @apply bg-transparent outline-none;
+  }
 }
