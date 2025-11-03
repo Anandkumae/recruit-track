@@ -29,7 +29,9 @@ const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
 
 export function LoginForm() {
   const auth = useAuth();
-  const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const [isEmailSubmitting, setIsEmailSubmitting] = React.useState(false);
+  const [isGoogleSubmitting, setIsGoogleSubmitting] = React.useState(false);
+  const [isPhoneSubmitting, setIsPhoneSubmitting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   
   // Phone auth state
@@ -50,7 +52,7 @@ export function LoginForm() {
 
   const handleEmailLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setIsSubmitting(true);
+    setIsEmailSubmitting(true);
     setError(null);
 
     const formData = new FormData(e.currentTarget);
@@ -62,20 +64,20 @@ export function LoginForm() {
     } catch (err: any) {
       setError(err.message || 'Failed to sign in. Please check your credentials.');
     } finally {
-        setIsSubmitting(false);
+        setIsEmailSubmitting(false);
     }
   };
 
   const handleGoogleLogin = async () => {
-    setIsSubmitting(true);
+    setIsGoogleSubmitting(true);
     setError(null);
     const provider = new GoogleAuthProvider();
     try {
       await signInWithPopup(auth, provider);
     } catch (err: any) {
-      setError(err.message || 'Failed to sign in with Google.');
+        setError(err.message || 'Failed to sign in with Google.');
     } finally {
-        setIsSubmitting(false);
+        setIsGoogleSubmitting(false);
     }
   };
 
@@ -87,7 +89,7 @@ export function LoginForm() {
         return;
     }
     setError(null);
-    setIsSubmitting(true);
+    setIsPhoneSubmitting(true);
     try {
       if (!recaptchaVerifierRef.current) throw new Error("reCAPTCHA not initialized.");
       const result = await signInWithPhoneNumber(auth, phoneNumber, recaptchaVerifierRef.current);
@@ -102,22 +104,24 @@ export function LoginForm() {
         });
       }
     } finally {
-      setIsSubmitting(false);
+      setIsPhoneSubmitting(false);
     }
   };
 
   const handlePhoneCodeVerify = async () => {
     if (!confirmationResult) return;
     setError(null);
-    setIsSubmitting(true);
+    setIsPhoneSubmitting(true);
     try {
       await confirmationResult.confirm(verificationCode);
     } catch (err: any) {
       setError(err.message || 'Failed to verify code.');
     } finally {
-      setIsSubmitting(false);
+      setIsPhoneSubmitting(false);
     }
   };
+
+  const isSubmitting = isEmailSubmitting || isGoogleSubmitting || isPhoneSubmitting;
 
   return (
     <div className="grid gap-6">
@@ -151,8 +155,8 @@ export function LoginForm() {
                 <Label htmlFor="password">Password</Label>
                 <Input id="password" name="password" type="password" required disabled={isSubmitting} />
                 </div>
-                <Button type="submit" className="w-full" disabled={isSubmitting}>
-                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                <Button type="submit" className="w-full" disabled={isEmailSubmitting}>
+                {isEmailSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Sign In with Email
                 </Button>
             </form>
@@ -176,11 +180,12 @@ export function LoginForm() {
                                     value={phone}
                                     onChange={(e) => setPhone(e.target.value.replace(/\D/g, ''))}
                                     maxLength={10}
+                                    disabled={isSubmitting}
                                 />
                              </div>
                         </div>
-                        <Button type="submit" className="w-full" disabled={isSubmitting || phone.length !== 10}>
-                            {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        <Button type="submit" className="w-full" disabled={isPhoneSubmitting || phone.length !== 10}>
+                            {isPhoneSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                             Send Verification Code
                         </Button>
                     </form>
@@ -199,8 +204,8 @@ export function LoginForm() {
                                 disabled={isSubmitting}
                             />
                         </div>
-                        <Button onClick={handlePhoneCodeVerify} className="w-full" disabled={isSubmitting || !verificationCode}>
-                            {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        <Button onClick={handlePhoneCodeVerify} className="w-full" disabled={isPhoneSubmitting || !verificationCode}>
+                            {isPhoneSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                             Verify & Sign In
                         </Button>
                          <Button variant="link" size="sm" onClick={() => { setConfirmationResult(null); setError(null); }} disabled={isSubmitting}>
@@ -223,8 +228,8 @@ export function LoginForm() {
           </span>
         </div>
       </div>
-      <Button variant="outline" className="w-full" onClick={handleGoogleLogin} disabled={isSubmitting}>
-        {isSubmitting ? (
+      <Button variant="outline" className="w-full" onClick={handleGoogleLogin} disabled={isGoogleSubmitting}>
+        {isGoogleSubmitting ? (
           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
         ) : (
           <GoogleIcon className="mr-2 h-5 w-5" />
