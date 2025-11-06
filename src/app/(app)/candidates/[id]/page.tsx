@@ -60,7 +60,7 @@ export default function CandidateDetailsPage({ params }: { params: { id: string 
                         <CardHeader>
                             <CardTitle>AI Match Analysis</CardTitle>
                              <CardDescription>
-                                AI analysis requires resume text. PDF analysis is not yet implemented.
+                                AI analysis of the candidate's resume against the job description.
                             </CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-4">
@@ -82,6 +82,19 @@ export default function CandidateDetailsPage({ params }: { params: { id: string 
                               </div>
                         </CardContent>
                     </Card>
+
+                    {candidate.resumeText && (
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Resume Text</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <pre className="text-sm text-foreground/80 whitespace-pre-wrap font-sans bg-muted/50 p-4 rounded-md">
+                                    {candidate.resumeText}
+                                </pre>
+                            </CardContent>
+                        </Card>
+                    )}
 
                     <Card>
                         <CardHeader>

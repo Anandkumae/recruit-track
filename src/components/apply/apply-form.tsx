@@ -11,14 +11,14 @@ import {
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Loader2, PartyPopper, Send, Upload } from 'lucide-react';
+import { Loader2, PartyPopper, Send } from 'lucide-react';
 import type { Job } from '@/lib/types';
 import { useUser, useFirestore, errorEmitter, FirestorePermissionError, useFirebase } from '@/firebase';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { z } from 'zod';
 import { matchResumeToJob } from '@/ai/flows/ai-match-resume-to-job';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
-import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
+import { Textarea } from '@/components/ui/textarea';
 
 type FormState = {
   message?: string | null;
@@ -26,27 +26,26 @@ type FormState = {
   errors?: {
     name?: string[];
     email?: string[];
-    resumeFile?: string[];
+    resumeText?: string[];
     _form?: string[];
   };
 };
 
-// We won't use a full resume text validator, but we'll check for the file
 const ApplySchema = z.object({
   name: z.string().min(1, 'Name is required.'),
   email: z.string().email('Invalid email address.'),
+  resumeText: z.string().min(100, 'Resume text must be at least 100 characters.'),
 });
 
 export function ApplyForm({ job }: { job: Job }) {
   const { user } = useUser();
   const firestore = useFirestore();
-  const { storage } = useFirebase();
   const [state, setState] = useState<FormState>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [resumeFile, setResumeFile] = useState<File | null>(null);
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [resumeText, setResumeText] = useState('');
   const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
@@ -56,38 +55,16 @@ export function ApplyForm({ job }: { job: Job }) {
       setEmail(user.email || '');
     }
   }, [user]);
-
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      if (file.type !== 'application/pdf') {
-        setState({ errors: { resumeFile: ['Only PDF files are accepted.'] } });
-        setResumeFile(null);
-      } else if (file.size > 5 * 1024 * 1024) { // 5MB
-        setState({ errors: { resumeFile: ['File size must be less than 5MB.'] } });
-        setResumeFile(null);
-      } else {
-        setState({}); // Clear previous errors
-        setResumeFile(file);
-      }
-    }
-  };
-
+  
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-
-    if (!resumeFile) {
-        setState({ errors: { resumeFile: ['A resume PDF is required.'] } });
-        return;
-    }
-
     setIsSubmitting(true);
     setState({});
 
-    const formData = new FormData(event.currentTarget);
     const validatedFields = ApplySchema.safeParse({
-      name: formData.get('name'),
-      email: formData.get('email'),
+      name,
+      email,
+      resumeText,
     });
 
     if (!validatedFields.success) {
@@ -95,47 +72,41 @@ export function ApplyForm({ job }: { job: Job }) {
       setIsSubmitting(false);
       return;
     }
-
-    if (!firestore || !user || !storage) {
+    
+    if (!firestore || !user) {
         setState({ errors: { _form: ["You must be logged in to apply."] }});
         setIsSubmitting(false);
         return;
     }
 
-    const { name, email } = validatedFields.data;
+    const { name: validatedName, email: validatedEmail, resumeText: validatedResumeText } = validatedFields.data;
 
     try {
-      // 1. Upload Resume to Firebase Storage
-      const storageRef = ref(storage, `resumes/${user.uid}/${Date.now()}_${resumeFile.name}`);
-      await uploadBytes(storageRef, resumeFile);
-      const resumeUrl = await getDownloadURL(storageRef);
+      // 1. Get AI Match Score
+      const matchResult = await matchResumeToJob({
+        resumeText: validatedResumeText,
+        jobDescription: `${job.title}\n\n${job.description}\n\nRequirements:\n${job.requirements.join('\n')}`,
+      });
 
-      // We no longer have resume text for AI matching. 
-      // We'll set a placeholder score and reasoning.
-      const matchResult = {
-        matchScore: 0,
-        reasoning: "Resume uploaded as PDF. AI analysis of PDF content is not yet implemented.",
-      };
-
-      // 2. Prepare Candidate Data
+      // 2. Prepare Candidate Data for Firestore
       const candidateData = {
-        name,
-        email,
-        phone: '',
-        resumeText: '', // No longer storing text
+        name: validatedName,
+        email: validatedEmail,
+        phone: '', // This can be added to the form if needed
+        resumeText: validatedResumeText,
         jobAppliedFor: job.id,
         status: 'Applied',
         appliedAt: serverTimestamp(),
         userId: user.uid,
         matchScore: matchResult.matchScore,
         matchReasoning: matchResult.reasoning,
-        skills: [],
+        skills: [], // Could be extracted by another AI flow in the future
         avatarUrl: `https://picsum.photos/seed/${user.uid}/100/100`,
-        resumeUrl: resumeUrl, // Store the download URL
+        resumeUrl: '', // No longer using file uploads
       };
 
       const candidatesCollection = collection(firestore, 'candidates');
-      
+
       // 3. Save to Firestore
       addDoc(candidatesCollection, candidateData)
         .then((docRef) => {
@@ -148,12 +119,16 @@ export function ApplyForm({ job }: { job: Job }) {
           });
         })
         .catch((serverError) => {
+          // This is the new error handling part.
+          // Create the rich, contextual error.
           const permissionError = new FirestorePermissionError({
             path: candidatesCollection.path,
             operation: 'create',
             requestResourceData: candidateData,
           });
+          // Emit the error for the global listener.
           errorEmitter.emit('permission-error', permissionError);
+          // Also, set a local error for the UI.
            setState({ errors: { _form: ['An unexpected error occurred while submitting. Please try again.'] }});
         })
         .finally(() => {
@@ -161,10 +136,10 @@ export function ApplyForm({ job }: { job: Job }) {
         });
 
     } catch (error) {
-        console.error('Application Submission Error:', error);
-        const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
-        setState({ errors: { _form: ['An unexpected error occurred. Details: ' + errorMessage] }});
-        setIsSubmitting(false);
+      console.error('AI Matching or Submission Error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
+      setState({ errors: { _form: ['An AI analysis error occurred. Details: ' + errorMessage] }});
+      setIsSubmitting(false);
     }
   };
 
@@ -200,7 +175,7 @@ export function ApplyForm({ job }: { job: Job }) {
       <CardHeader>
         <CardTitle className="text-2xl">Apply for {job.title}</CardTitle>
         <CardDescription>
-          Fill out the form below and upload your resume to submit your application.
+          Fill out the form below and paste your resume to submit your application.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -237,23 +212,20 @@ export function ApplyForm({ job }: { job: Job }) {
             </div>
           </div>
           <div className="space-y-2">
-             <Label htmlFor="resumeFile">Upload Your Resume (PDF)</Label>
-              <Input
-                id="resumeFile"
-                name="resumeFile"
-                type="file"
-                accept=".pdf"
-                onChange={handleFileChange}
-                required
-                disabled={isSubmitting}
-                className="file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
-              />
-            <p className="text-sm text-muted-foreground">
-              Please upload your resume in PDF format (max 5MB).
-            </p>
-            {formErrors.resumeFile && (
+            <Label htmlFor="resumeText">Paste Your Resume</Label>
+            <Textarea
+              id="resumeText"
+              name="resumeText"
+              placeholder="Paste the full text of your resume here..."
+              rows={12}
+              value={resumeText}
+              onChange={(e) => setResumeText(e.target.value)}
+              required
+              disabled={isSubmitting}
+            />
+             {formErrors.resumeText && (
               <p className="text-sm text-destructive">
-                {formErrors.resumeFile[0]}
+                {formErrors.resumeText[0]}
               </p>
             )}
           </div>
@@ -265,7 +237,7 @@ export function ApplyForm({ job }: { job: Job }) {
             </Alert>
           )}
           
-          <Button type="submit" disabled={isSubmitting || !resumeFile} className="w-full">
+          <Button type="submit" disabled={isSubmitting} className="w-full">
             {isSubmitting ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             ) : (
