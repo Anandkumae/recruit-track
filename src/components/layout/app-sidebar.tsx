@@ -33,11 +33,12 @@ export function AppSidebar() {
     return null;
   }
   
-  // This is a temporary solution. In a real app, you'd get the user's role
-  // from custom claims or a Firestore document.
-  let userRole: Role = userProfile?.role || 'Candidate';
+  let userRole: Role = 'Candidate'; // Default to the most restrictive role
+
   if (user.email === 'anandkumar.shinnovationco@gmail.com') {
     userRole = 'Admin';
+  } else if (userProfile?.role) {
+    userRole = userProfile.role;
   }
 
 

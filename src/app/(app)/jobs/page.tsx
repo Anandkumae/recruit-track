@@ -33,9 +33,12 @@ export default function JobsPage() {
 
   const { data: userProfile } = useDoc(userProfileRef);
 
-  let userRole: Role = userProfile?.role || 'Candidate';
+  let userRole: Role = 'Candidate'; // Default to the most restrictive role
+
   if (user?.email === 'anandkumar.shinnovationco@gmail.com') {
     userRole = 'Admin';
+  } else if (userProfile?.role) {
+    userRole = userProfile.role;
   }
 
   const filteredJobs = allJobs.filter((job) =>

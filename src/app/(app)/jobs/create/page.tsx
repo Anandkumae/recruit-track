@@ -27,12 +27,17 @@ export default function CreateJobPage() {
       return;
     }
     
-    let userRole: Role = userProfile?.role || 'Candidate';
+    let userRole: Role = 'Candidate'; // Default to the most restrictive role
+
     if (user?.email === 'anandkumar.shinnovationco@gmail.com') {
       userRole = 'Admin';
+    } else if (userProfile?.role) {
+      userRole = userProfile.role;
     }
 
-    if (userRole === 'Candidate') {
+    const canCreateJob = userRole === 'Admin' || userRole === 'HR' || userRole === 'Manager';
+
+    if (!canCreateJob) {
       router.replace('/dashboard');
     }
 
