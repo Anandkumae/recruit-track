@@ -11,7 +11,7 @@ export const users: User[] = [
   {
     id: '1',
     name: 'Admin User',
-    email: 'admin@recruittrack.com',
+    email: 'admin@leorecruit.com',
     avatarUrl: 'https://picsum.photos/seed/user1/100/100',
     role: 'Admin',
     department: 'Executive',
@@ -19,7 +19,7 @@ export const users: User[] = [
   {
     id: '2',
     name: 'HR Manager',
-    email: 'hr@recruittrack.com',
+    email: 'hr@leorecruit.com',
     avatarUrl: 'https://picsum.photos/seed/user2/100/100',
     role: 'HR',
     department: 'Human Resources',
@@ -27,7 +27,7 @@ export const users: User[] = [
   {
     id: '3',
     name: 'Engineering Manager',
-    email: 'manager@recruittrack.com',
+    email: 'manager@leorecruit.com',
     avatarUrl: 'https://picsum.photos/seed/user3/100/100',
     role: 'Manager',
     department: 'Engineering',
@@ -129,12 +129,12 @@ export const navItems: NavItem[] = [
         href: '/resume-matcher',
         label: 'AI Resume Matcher',
         icon: FileText,
-        roles: ['Admin', 'HR', 'Manager'],
+        roles: ['HR', 'Manager'],
     },
     {
         href: '/profile',
         label: 'My Profile',
         icon: UserIcon,
-        roles: ['Admin','HR', 'Manager', 'Candidate'],
+        roles: ['HR', 'Manager', 'Candidate'],
     },
 ];

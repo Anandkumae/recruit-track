@@ -11,7 +11,7 @@ export default function LoginPage() {
   return (
     <Card className="w-full max-w-md">
       <CardHeader>
-        <CardTitle className="text-2xl">Welcome to RecruitTrack</CardTitle>
+        <CardTitle className="text-2xl">Welcome to LeoRecruit</CardTitle>
         <CardDescription>
           Sign in to your account to continue.
         </CardDescription>

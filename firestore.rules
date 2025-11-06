@@ -1,6 +1,6 @@
 /**
- * @file RecruitTrack Firestore Security Rules
- * @description This ruleset enforces a role-based access control model for the RecruitTrack internal hiring platform.
+ * @file LeoRecruit Firestore Security Rules
+ * @description This ruleset enforces a role-based access control model for the LeoRecruit internal hiring platform.
  *
  * Data Structure:
  * - `/users/{userId}`: Stores user profiles. Access is restricted to the owning user.

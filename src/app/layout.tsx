@@ -4,7 +4,7 @@ import { Toaster } from '@/components/ui/toaster';
 import { FirebaseClientProvider } from '@/firebase';
 
 export const metadata: Metadata = {
-  title: 'RecruitTrack | Internal Hiring Platform',
+  title: 'LeoRecruit | Internal Hiring Platform',
   description: 'A modern, internal platform for managing job postings, resumes, and candidates.',
 };
 

@@ -12,7 +12,7 @@ export default function PrivacyPolicyPage() {
             className="flex items-center gap-2 text-2xl font-bold text-primary"
           >
             <Briefcase className="h-7 w-7" />
-            RecruitTrack
+            LeoRecruit
           </Link>
         </div>
         <div className="prose prose-gray mx-auto dark:prose-invert">
@@ -21,7 +21,7 @@ export default function PrivacyPolicyPage() {
 
             <h2>1. Introduction</h2>
             <p>
-                RecruitTrack ("we," "our," or "us") is committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our internal hiring platform (the "Service"). Please read this policy carefully.
+                LeoRecruit ("we," "our," or "us") is committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our internal hiring platform (the "Service"). Please read this policy carefully.
             </p>
 
             <h2>2. Information We Collect</h2>

@@ -53,6 +53,7 @@ function SidebarItem({ item }: { item: (typeof navItems)[0] }) {
 export function AppSidebar() {
   const { user } = useUser();
   const firestore = useFirestore();
+  const { isMobile, setOpen } = useSidebar();
 
   const userProfileRef = useMemoFirebase(() => {
     if (!firestore || !user) return null;
@@ -81,6 +82,12 @@ export function AppSidebar() {
     return item.roles.includes(userRole);
   });
 
+   const handleLinkClick = () => {
+    if (!isMobile) {
+      setOpen(false);
+    }
+   };
+
   return (
     <Sidebar className="border-r" side="left" collapsible="icon">
       <SidebarHeader className='p-2 flex items-center justify-between'>
@@ -88,13 +95,13 @@ export function AppSidebar() {
            <Link href="/dashboard" className="flex items-center gap-2">
             <Briefcase className="h-7 w-7 text-primary" />
             <span className="text-lg font-semibold text-foreground">
-              RecruitTrack
+              LeoRecruit
             </span>
           </Link>
         </SidebarMenuButton>
         <SidebarTrigger className="hidden md:flex" />
       </SidebarHeader>
-      <SidebarContent className="p-2">
+      <SidebarContent className="p-2" onClick={handleLinkClick}>
         <SidebarMenu>
           {allowedNavItems.map((item) => (
            <SidebarItem key={item.href} item={item} />

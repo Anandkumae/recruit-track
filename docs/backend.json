@@ -4,7 +4,7 @@
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "User",
       "type": "object",
-      "description": "Represents a user within the RecruitTrack platform.",
+      "description": "Represents a user within the LeoRecruit platform.",
       "properties": {
         "id": {
           "type": "string",
@@ -56,7 +56,7 @@
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Job",
       "type": "object",
-      "description": "Represents a job posting within the RecruitTrack platform.",
+      "description": "Represents a job posting within the LeoRecruit platform.",
       "properties": {
         "id": {
           "type": "string",
@@ -246,6 +246,6 @@
         }
       }
     ],
-    "reasoning": "The Firestore data structure is designed to support a secure and scalable internal hiring platform (RecruitTrack). It prioritizes authorization independence by denormalizing authorization data, ensuring that security rules do not rely on expensive `get()` operations. The structure leverages path-based ownership for user-specific data and the membership map pattern for collaborative data access. Segregation of data with differing security requirements ensures that rules remain simple and efficient, which also allows the list operation to be secured by applying QAPs.\n\nSpecifically, user profiles are stored under `/users/{userId}` enabling straightforward ownership-based rules. Jobs, which can be viewed by all users but created/edited only by HR/Admin, are stored under `/jobs`. Candidates are stored under `/candidates` with a denormalized `jobId` field for efficient querying. The `roles_admin` collection implements global role management.\n\nAuthorization Independence is achieved through denormalization. For example, the candidate documents, stored in the `candidates` collection, include the `jobAppliedFor` field, which facilitates listing candidates associated with specific jobs without needing to perform expensive `get()` operations to verify job ownership.\n\nThis structure ensures that each collection maintains a homogeneous security posture and simplifies the application of security rules, making the system more robust and easier to maintain."
+    "reasoning": "The Firestore data structure is designed to support a secure and scalable internal hiring platform (LeoRecruit). It prioritizes authorization independence by denormalizing authorization data, ensuring that security rules do not rely on expensive `get()` operations. The structure leverages path-based ownership for user-specific data and the membership map pattern for collaborative data access. Segregation of data with differing security requirements ensures that rules remain simple and efficient, which also allows the list operation to be secured by applying QAPs.\n\nSpecifically, user profiles are stored under `/users/{userId}` enabling straightforward ownership-based rules. Jobs, which can be viewed by all users but created/edited only by HR/Admin, are stored under `/jobs`. Candidates are stored under `/candidates` with a denormalized `jobId` field for efficient querying. The `roles_admin` collection implements global role management.\n\nAuthorization Independence is achieved through denormalization. For example, the candidate documents, stored in the `candidates` collection, include the `jobAppliedFor` field, which facilitates listing candidates associated with specific jobs without needing to perform expensive `get()` operations to verify job ownership.\n\nThis structure ensures that each collection maintains a homogeneous security posture and simplifies the application of security rules, making the system more robust and easier to maintain."
   }
 }

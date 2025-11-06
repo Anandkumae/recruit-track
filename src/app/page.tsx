@@ -33,16 +33,16 @@ const features = [
 
 const faqs = [
     {
-        question: "What is RecruitTrack?",
-        answer: "RecruitTrack is a modern, AI-powered internal hiring platform designed to streamline your recruitment process. It helps you manage job postings, track candidates, and use AI to find the best-fit applicants from within your talent pool."
+        question: "What is LeoRecruit?",
+        answer: "LeoRecruit is a modern, AI-powered internal hiring platform designed to streamline your recruitment process. It helps you manage job postings, track candidates, and use AI to find the best-fit applicants from within your talent pool."
     },
     {
         question: "How does the AI-powered matching work?",
         answer: "Our advanced AI analyzes the text from a candidate's resume and compares it against the job description you provide. It calculates a match score based on skills, experience, and other key factors, giving you a quick way to identify top contenders."
     },
     {
-        question: "Is RecruitTrack suitable for small businesses?",
-        answer: "Absolutely! RecruitTrack is scalable and designed to be intuitive for teams of all sizes. Whether you're a small startup or a large enterprise, our platform can help you organize and simplify your hiring workflow."
+        question: "Is LeoRecruit suitable for small businesses?",
+        answer: "Absolutely! LeoRecruit is scalable and designed to be intuitive for teams of all sizes. Whether you're a small startup or a large enterprise, our platform can help you organize and simplify your hiring workflow."
     },
     {
         question: "Is my data secure?",
@@ -62,7 +62,7 @@ export default function LandingPage() {
       <header className="px-4 lg:px-6 h-16 flex items-center bg-background/95 backdrop-blur-sm sticky top-0 z-50">
         <Link href="/" className="flex items-center justify-center gap-2">
           <Briefcase className="h-6 w-6 text-primary" />
-          <span className="font-bold text-lg">RecruitTrack</span>
+          <span className="font-bold text-lg">LeoRecruit</span>
         </Link>
         <nav className="ml-auto flex gap-4 sm:gap-6">
           {user ? (
@@ -95,7 +95,7 @@ export default function LandingPage() {
                   Hire smarter, not harder.
                 </h1>
                 <p className="max-w-[600px] text-muted-foreground md:text-xl">
-                  RecruitTrack is the AI-powered internal hiring platform that helps you find the perfect candidate, faster.
+                  LeoRecruit is the AI-powered internal hiring platform that helps you find the perfect candidate, faster.
                 </p>
                 <div className="flex flex-col gap-2 min-[400px]:flex-row">
                    <Button size="lg" asChild>
@@ -126,7 +126,7 @@ export default function LandingPage() {
                 <div className="inline-block rounded-lg bg-secondary px-3 py-1 text-sm">Key Features</div>
                 <h2 className="text-3xl font-bold tracking-tighter sm:text-5xl">Everything you need to streamline hiring.</h2>
                 <p className="max-w-[900px] text-muted-foreground md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed">
-                  From AI-powered resume screening to a centralized candidate database, RecruitTrack provides the tools to build your dream team.
+                  From AI-powered resume screening to a centralized candidate database, LeoRecruit provides the tools to build your dream team.
                 </p>
               </div>
             </div>
@@ -175,7 +175,7 @@ export default function LandingPage() {
 
       </main>
       <footer className="flex flex-col gap-2 sm:flex-row py-6 w-full shrink-0 items-center px-4 md:px-6 border-t">
-        <p className="text-xs text-muted-foreground">&copy; 2024 RecruitTrack. All rights reserved.</p>
+        <p className="text-xs text-muted-foreground">&copy; 2024 LeoRecruit. All rights reserved.</p>
         <nav className="sm:ml-auto flex gap-4 sm:gap-6">
           <Link href="mailto:support@leorecruit.com" className="text-xs hover:underline underline-offset-4">
             support@leorecruit.com

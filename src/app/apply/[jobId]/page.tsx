@@ -51,7 +51,7 @@ export default function ApplyPage() {
             className="flex items-center gap-2 text-2xl font-bold text-primary"
           >
             <Briefcase className="h-7 w-7" />
-            RecruitTrack
+            LeoRecruit
           </Link>
         </div>
         <ApplyForm job={job} userProfile={userProfile} />
