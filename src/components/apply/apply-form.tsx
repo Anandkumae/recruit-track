@@ -13,13 +13,12 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Loader2, PartyPopper, Send } from 'lucide-react';
 import type { Job } from '@/lib/types';
-import { useUser, useFirestore } from '@/firebase';
+import { useUser, useFirestore, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Textarea } from '@/components/ui/textarea';
 import { z } from 'zod';
 import { matchResumeToJob } from '@/ai/flows/ai-match-resume-to-job';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
-import { randomUUID } from 'crypto';
 
 type FormState = {
   message?: string | null;
@@ -89,7 +88,7 @@ export function ApplyForm({ job }: { job: Job }) {
         jobDescription: job.description,
       });
 
-      // 2. Save Candidate to Firestore (Client-side)
+      // 2. Prepare Candidate Data
       const candidateData = {
         name,
         email,
@@ -107,26 +106,51 @@ export function ApplyForm({ job }: { job: Job }) {
       };
 
       const candidatesCollection = collection(firestore, 'candidates');
-      const docRef = await addDoc(candidatesCollection, candidateData);
+      
+      // 3. Save to Firestore and handle potential permission errors
+      addDoc(candidatesCollection, candidateData)
+        .then((docRef) => {
+          // Set success state on successful write
+          setState({
+            message: 'Application submitted successfully!',
+            result: {
+              candidateId: docRef.id,
+              matchScore: matchResult.matchScore,
+            },
+          });
+          setIsSubmitting(false);
+        })
+        .catch((serverError) => {
+          // This is the new error handling part.
+          // Create the rich, contextual error.
+          const permissionError = new FirestorePermissionError({
+            path: candidatesCollection.path,
+            operation: 'create',
+            requestResourceData: candidateData,
+          });
 
-      // 3. Set success state
-      setState({
-        message: 'Application submitted successfully!',
-        result: {
-          candidateId: docRef.id,
-          matchScore: matchResult.matchScore,
-        },
-      });
+          // Emit the error for the global listener to catch and display.
+          errorEmitter.emit('permission-error', permissionError);
+
+          // Also update local state to show a generic error to the user
+           setState({
+                errors: {
+                _form: ['An unexpected error occurred while submitting. Please try again.'],
+                },
+            });
+          setIsSubmitting(false);
+        });
+
     } catch (error) {
-      console.error('Application Submission Error:', error);
-      const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
-      setState({
-        errors: {
-          _form: ['An unexpected error occurred while submitting. Please try again. Details: ' + errorMessage],
-        },
-      });
-    } finally {
-      setIsSubmitting(false);
+        // This will catch errors from the AI call or other unexpected issues
+        console.error('Application Submission Error:', error);
+        const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
+        setState({
+            errors: {
+            _form: ['An unexpected error occurred. Details: ' + errorMessage],
+            },
+        });
+        setIsSubmitting(false);
     }
   };
 
