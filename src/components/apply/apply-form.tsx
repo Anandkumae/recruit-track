@@ -1,8 +1,8 @@
 
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { useFormStatus, useFormState } from 'react-dom';
+import React, { useState, useEffect, useActionState } from 'react';
+import { useFormStatus } from 'react-dom';
 import {
   Card,
   CardContent,
@@ -15,7 +15,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Loader2, PartyPopper, Send } from 'lucide-react';
 import type { Job } from '@/lib/types';
-import { useUser, useFirebase } from '@/firebase';
+import { useUser } from '@/firebase';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { applyForJob, type ApplicationState } from '@/lib/actions';
 
@@ -36,7 +36,7 @@ function SubmitButton() {
 export function ApplyForm({ job }: { job: Job }) {
   const { user } = useUser();
   const initialState: ApplicationState = {};
-  const [state, formAction] = useFormState(applyForJob, initialState);
+  const [state, formAction] = useActionState(applyForJob, initialState);
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
