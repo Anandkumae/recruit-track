@@ -6,7 +6,7 @@ import { matchResumeToJob, type MatchResumeToJobOutput } from '@/ai/flows/ai-mat
 import { revalidatePath } from 'next/cache';
 
 const MatcherSchema = z.object({
-  resume: z.string().min(100, 'Resume text must be at least 100 characters long.'),
+  resume: z.string().min(50, 'Resume text must be at least 50 characters long.'),
   jobDescription: z.string().min(100, 'Job description must be at least 100 characters long.'),
 });
 
@@ -58,7 +58,7 @@ export async function getMatch(
 const ApplySchema = z.object({
   name: z.string().min(2, 'Name is required.'),
   email: z.string().email('Invalid email address.'),
-  resume: z.string().min(100, 'Resume must be at least 100 characters.'),
+  resume: z.string().min(50, 'Resume must be at least 50 characters.'),
   jobId: z.string(),
   jobDescription: z.string(),
 });
