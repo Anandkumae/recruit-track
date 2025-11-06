@@ -41,6 +41,9 @@ export function ApplyForm({ job }: { job: Job }) {
   const initialState: ApplyState = {};
   const applyForJobWithId = applyForJob.bind(null);
   const [state, dispatch] = useActionState(applyForJobWithId, initialState);
+  
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
   const [resumeText, setResumeText] = useState('');
 
    const userProfileRef = useMemoFirebase(() => {
@@ -51,10 +54,14 @@ export function ApplyForm({ job }: { job: Job }) {
   const { data: userProfile, isLoading: isProfileLoading } = useDoc(userProfileRef);
 
   useEffect(() => {
-    // In a real app, you would fetch the resume content from the URL.
-    // For this demo, we'll just use a placeholder text if a resume exists.
-    if (userProfile?.resumeUrl) {
-      setResumeText(`Resume content from ${userProfile.resumeUrl}`);
+    if (userProfile) {
+        setName(userProfile.name || '');
+        setEmail(userProfile.email || '');
+        // In a real app, you would fetch the resume content from the URL.
+        // For this demo, we'll just use a placeholder text if a resume exists.
+        if (userProfile.resumeUrl) {
+            setResumeText(`Resume content from ${userProfile.resumeUrl}`);
+        }
     }
   }, [userProfile]);
 
@@ -108,7 +115,7 @@ export function ApplyForm({ job }: { job: Job }) {
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="name">Full Name</Label>
-              <Input id="name" name="name" defaultValue={userProfile?.name || ''} required />
+              <Input id="name" name="name" value={name} onChange={e => setName(e.target.value)} required />
               {state.errors?.name && (
                 <p className="text-sm font-medium text-destructive">
                   {state.errors.name[0]}
@@ -121,7 +128,8 @@ export function ApplyForm({ job }: { job: Job }) {
                 id="email"
                 name="email"
                 type="email"
-                defaultValue={userProfile?.email || ''}
+                value={email}
+                onChange={e => setEmail(e.target.value)}
                 required
               />
                {state.errors?.email && (
