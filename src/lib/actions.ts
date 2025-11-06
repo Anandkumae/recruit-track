@@ -4,8 +4,7 @@
 import { z } from 'zod';
 import { matchResumeToJob, type MatchResumeToJobOutput } from '@/ai/flows/ai-match-resume-to-job';
 import { revalidatePath } from 'next/cache';
-import { initializeFirebase } from '@/firebase';
-import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
+import { getFirebaseAdmin } from '@/firebase/server-config';
 
 const MatcherSchema = z.object({
   resume: z.string().min(50, 'Resume text must be at least 50 characters long.'),
@@ -98,7 +97,7 @@ export async function applyForJob(
     }
     
     try {
-        const { firestore } = initializeFirebase();
+        const { firestore } = getFirebaseAdmin();
 
         const result = await matchResumeToJob({
             resumeText: validatedFields.data.resume,
@@ -106,8 +105,8 @@ export async function applyForJob(
         });
 
         // Save the candidate data to the database
-        const candidatesCollection = collection(firestore, 'candidates');
-        await addDoc(candidatesCollection, {
+        const candidatesCollection = firestore.collection('candidates');
+        await candidatesCollection.add({
             name: validatedFields.data.name,
             email: validatedFields.data.email,
             phone: validatedFields.data.phone || '',
@@ -117,7 +116,7 @@ export async function applyForJob(
             matchReasoning: result.reasoning,
             status: 'Applied',
             skills: [], // You might want to parse skills from resume in a more advanced flow
-            createdAt: serverTimestamp(),
+            createdAt: new Date(), // Use server-side date
         });
 
         revalidatePath('/candidates');
