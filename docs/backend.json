@@ -19,6 +19,14 @@
           "description": "The user's email address.",
           "format": "email"
         },
+        "phone": {
+            "type": "string",
+            "description": "The user's phone number."
+        },
+        "qualification": {
+            "type": "string",
+            "description": "The user's highest qualification."
+        },
         "role": {
           "type": "string",
           "description": "The user's role within the system (e.g., Admin, HR, Manager, Candidate)."
@@ -37,9 +45,7 @@
         "id",
         "name",
         "email",
-        "role",
-        "department",
-        "createdAt"
+        "role"
       ]
     },
     "Job": {
