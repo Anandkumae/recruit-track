@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { matchResumeToJob, type MatchResumeToJobOutput } from '@/ai/flows/ai-match-resume-to-job';
 import { revalidatePath } from 'next/cache';
 import { getFirebaseAdmin } from '@/firebase/server-config';
+import { FieldValue } from 'firebase-admin/firestore';
 
 const MatcherSchema = z.object({
   resume: z.string().min(50, 'Resume text must be at least 50 characters long.'),
@@ -106,7 +107,7 @@ export async function applyForJob(
 
         // Save the candidate data to the database
         const candidatesCollection = firestore.collection('candidates');
-        await candidatesCollection.add({
+        const newCandidateRef = await candidatesCollection.add({
             name: validatedFields.data.name,
             email: validatedFields.data.email,
             phone: validatedFields.data.phone || '',
@@ -116,8 +117,13 @@ export async function applyForJob(
             matchReasoning: result.reasoning,
             status: 'Applied',
             skills: [], // You might want to parse skills from resume in a more advanced flow
-            createdAt: new Date(), // Use server-side date
+            createdAt: FieldValue.serverTimestamp(), // Use server-side timestamp
         });
+        
+        // Add a a random avatar for the new candidate
+        const avatarUrl = `https://picsum.photos/seed/${newCandidateRef.id}/100/100`;
+        await newCandidateRef.update({ avatarUrl });
+
 
         revalidatePath('/candidates');
 
