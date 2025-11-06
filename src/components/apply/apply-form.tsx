@@ -1,6 +1,8 @@
+
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useActionState, useFormStatus } from 'react-dom';
 import {
   Card,
   CardContent,
@@ -13,36 +15,51 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Loader2, PartyPopper, Send } from 'lucide-react';
 import type { Job } from '@/lib/types';
-import { useUser, useFirestore, useAuth } from '@/firebase';
-import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
-import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { useUser } from '@/firebase';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { applyForJob, type ApplicationState } from '@/lib/actions';
+import { Textarea } from '../ui/textarea';
 
-function SubmitButton({ isSubmitting }: { isSubmitting: boolean }) {
+function SubmitButton() {
+  const { pending } = useFormStatus();
   return (
-    <Button type="submit" disabled={isSubmitting} className="w-full">
-      {isSubmitting ? (
+    <Button type="submit" disabled={pending} className="w-full">
+      {pending ? (
         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
       ) : (
         <Send className="mr-2 h-4 w-4" />
       )}
-      {isSubmitting ? 'Submitting...' : 'Submit Application'}
+      {pending ? 'Submitting...' : 'Submit Application'}
     </Button>
   );
 }
 
+// Helper to read file as Base64
+const toBase64 = (file: File): Promise<string> =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => resolve((reader.result as string).split(',')[1]);
+    reader.onerror = (error) => reject(error);
+  });
+
+// Helper to read file as text
+const toText = (file: File): Promise<string> =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsText(file);
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = (error) => reject(error);
+  });
+
 export function ApplyForm({ job }: { job: Job }) {
   const { user } = useUser();
-  const firestore = useFirestore();
-  const auth = useAuth();
-  
+  const initialState: ApplicationState = {};
+  const [state, formAction] = useActionState(applyForJob, initialState);
+
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [resumeFile, setResumeFile] = useState<File | null>(null);
-  
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<boolean>(false);
 
   useEffect(() => {
     if (user) {
@@ -51,52 +68,31 @@ export function ApplyForm({ job }: { job: Job }) {
     }
   }, [user]);
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setIsSubmitting(true);
-    setError(null);
-
+  const handleFormAction = async (formData: FormData) => {
     if (!resumeFile) {
-        setError("Please upload a resume file.");
-        setIsSubmitting(false);
+        // This should be caught by the required attribute, but as a fallback
+        alert("Please select a resume file.");
         return;
     }
-
-    if (!firestore || !auth?.app) {
-        setError("Firebase is not initialized correctly.");
-        setIsSubmitting(false);
-        return;
-    }
-
     try {
-        const storage = getStorage(auth.app);
+        const base64File = await toBase64(resumeFile);
+        const textFile = await toText(resumeFile);
         
-        const resumeRef = ref(storage, `resumes/${user?.uid || 'anonymous'}/${Date.now()}_${resumeFile.name}`);
-        await uploadBytes(resumeRef, resumeFile);
-        const resumeURL = await getDownloadURL(resumeRef);
+        formData.set('resumeFile', base64File);
+        formData.set('resumeFileText', textFile);
+        formData.set('resumeFileName', resumeFile.name);
+        formData.set('resumeFileType', resumeFile.type);
+        
+        formAction(formData);
 
-        await addDoc(collection(firestore, "candidates"), {
-            name,
-            email,
-            resumeUrl: resumeURL,
-            jobAppliedFor: job.id,
-            status: 'Applied',
-            appliedAt: serverTimestamp(),
-            userId: user?.uid || null,
-            avatarUrl: `https://picsum.photos/seed/${Math.random()}/100/100`, // Add random avatar
-        });
-
-        setSuccess(true);
-    } catch (err: any) {
-        console.error("Error submitting application:", err);
-        setError(err.message || "Failed to submit application. Please check the console for details.");
-    } finally {
-        setIsSubmitting(false);
+    } catch (error) {
+        console.error("Error processing file:", error);
+        alert("There was an error processing your resume. Please try again.");
     }
   };
 
 
-  if (success) {
+  if (state.message) {
     return (
       <Card>
         <CardHeader className="items-center text-center">
@@ -104,6 +100,7 @@ export function ApplyForm({ job }: { job: Job }) {
           <CardTitle className="text-2xl">Application Submitted!</CardTitle>
           <CardDescription>
             Thank you for applying. The hiring team will review your application.
+            Your initial AI match score is {state.result?.matchScore || 'N/A'}.
           </CardDescription>
         </CardHeader>
       </Card>
@@ -119,7 +116,13 @@ export function ApplyForm({ job }: { job: Job }) {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form action={handleFormAction} className="space-y-4">
+          {/* Hidden fields for job and user info */}
+          <input type="hidden" name="jobId" value={job.id} />
+          <input type="hidden" name="jobTitle" value={job.title} />
+          <input type="hidden" name="jobDescription" value={job.description} />
+           {user && <input type="hidden" name="userId" value={user.uid} />}
+
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="name">Full Name</Label>
@@ -147,21 +150,35 @@ export function ApplyForm({ job }: { job: Job }) {
             <Label htmlFor="resume">Upload Resume</Label>
             <Input
                 id="resume"
-                name="resume"
+                name="resume" // Name is handled manually, not submitted directly
                 type="file"
-                accept=".pdf,.doc,.docx"
+                accept=".pdf,.doc,.docx,.txt"
                 onChange={(e) => setResumeFile(e.target.files?.[0] || null)}
                 required
             />
-            <p className="text-sm text-muted-foreground">PDF, DOC, or DOCX files only.</p>
+            <p className="text-sm text-muted-foreground">PDF, DOC, DOCX, or TXT files only.</p>
+            {state.errors?.resume && <p className="text-sm text-destructive">{state.errors.resume[0]}</p>}
           </div>
-          {error && (
+
+           <div className="space-y-2">
+              <Label htmlFor="resumeFileText">Resume Text (for AI Match)</Label>
+              <Textarea
+                id="resumeFileText"
+                name="resumeFileText"
+                placeholder="Please paste the text content of your resume here. This is required for the AI matching."
+                rows={8}
+                required
+              />
+               {state.errors?.resumeFileText && <p className="text-sm font-medium text-destructive">{state.errors.resumeFileText[0]}</p>}
+            </div>
+
+          {state.errors?._form && (
               <Alert variant="destructive">
                 <AlertTitle>Submission Error</AlertTitle>
-                <AlertDescription>{error}</AlertDescription>
+                <AlertDescription>{state.errors._form[0]}</AlertDescription>
               </Alert>
           )}
-          <SubmitButton isSubmitting={isSubmitting} />
+          <SubmitButton />
         </form>
       </CardContent>
     </Card>
