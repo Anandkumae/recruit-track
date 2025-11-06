@@ -28,7 +28,7 @@ export default function JobDetailsPage() {
     const posterRef = useMemoFirebase(() => {
         if (!firestore || !job?.postedBy) return null;
         return doc(firestore, 'users', job.postedBy);
-    }, [firestore, job]);
+    }, [firestore, job?.postedBy]);
 
     const { data: poster, isLoading: posterLoading } = useDoc<User>(posterRef);
     
@@ -111,10 +111,10 @@ export default function JobDetailsPage() {
                                 <Calendar className="h-4 w-4 text-muted-foreground" />
                                 <span className="text-sm">Posted on {formatDate(job.postedAt)}</span>
                             </div>
-                            {posterLoading ? <Loader2 className="h-4 w-4 animate-spin"/> : poster && (
+                            {posterLoading ? <Loader2 className="h-4 w-4 animate-spin"/> : (
                                 <div className="flex items-center gap-2">
                                     <UserIcon className="h-4 w-4 text-muted-foreground" />
-                                    <span className="text-sm">Posted by {poster.name}</span>
+                                    <span className="text-sm">Posted by {poster?.name || 'Unknown'}</span>
                                 </div>
                             )}
                              <div className="flex items-center gap-2">
