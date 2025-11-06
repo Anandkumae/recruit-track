@@ -68,8 +68,7 @@ service cloud.firestore {
     match /candidates/{candidateId} {
       allow get: if isSignedIn();
       allow list: if isSignedIn();
-      // Allow create only via server-side action (no direct client creation)
-      allow create: if false;
+      allow create: if isSignedIn() && request.auth.uid == request.resource.data.userId;
       allow update: if isSignedIn() && request.resource.data.size() > 0;
       allow delete: if isSignedIn();
     }
