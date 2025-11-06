@@ -1,8 +1,8 @@
+
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { useFormStatus, useFormState } from 'react-dom';
-
+import React, { useState, useEffect, useActionState } from 'react';
+import { useFormStatus } from 'react-dom';
 import {
   Card,
   CardContent,
@@ -96,7 +96,7 @@ export function ApplyForm({ job }: { job: Job }) {
   const { user } = useUser();
   const { storage } = useFirebase();
   const initialState: ApplicationState = {};
-  const [state, formAction] = useFormState(applyForJob, initialState);
+  const [state, formAction] = useActionState(applyForJob, initialState);
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
