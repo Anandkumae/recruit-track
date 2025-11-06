@@ -36,7 +36,7 @@ export default function ProfilePage() {
         return doc(firestore, 'users', user.uid);
     }, [firestore, user]);
 
-    const { data: userProfile, isLoading, refetch } = useDoc(userProfileRef);
+    const { data: userProfile, isLoading } = useDoc(userProfileRef);
 
     const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
@@ -48,7 +48,7 @@ export default function ProfilePage() {
                     title: 'Resume Uploaded',
                     description: `${file.name} has been saved to your profile.`,
                 });
-                refetch(); // Refetch user profile to show the new resume URL
+                // No refetch needed, useDoc provides real-time updates.
             } catch (error) {
                 toast({
                     title: 'Upload Failed',
