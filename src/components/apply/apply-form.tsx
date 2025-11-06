@@ -2,7 +2,9 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useActionState, useFormStatus } from 'react';
+import { useActionState } from 'react';
+import { useFormStatus } from 'react-dom';
+
 import {
   Card,
   CardContent,
@@ -13,11 +15,12 @@ import {
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Loader2, PartyPopper, Send, Upload } from 'lucide-react';
+import { Loader2, PartyPopper, Send } from 'lucide-react';
 import type { Job } from '@/lib/types';
 import { useUser, useFirebase } from '@/firebase';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { applyForJob, type ApplicationState } from '@/lib/actions';
+import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 function SubmitButton() {
   const { pending } = useFormStatus();
