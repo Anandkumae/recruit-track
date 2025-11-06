@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useDoc, useFirestore, useMemoFirebase, useUser } from "@/firebase";
@@ -15,7 +16,6 @@ import type { Job, User } from "@/lib/types";
 export default function JobDetailsPage() {
     const params = useParams();
     const id = params.id as string;
-    const { user } = useUser();
     const firestore = useFirestore();
 
     const jobRef = useMemoFirebase(() => {
