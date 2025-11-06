@@ -34,6 +34,17 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       return;
     }
 
+    // Check if the user is the special admin
+    const isAdmin = user.email === 'anandkumar.shinnovationco@gmail.com';
+
+    // If the user is the admin, don't force profile creation
+    if (isAdmin) {
+      if (pathname === '/create-profile') {
+        router.replace('/dashboard');
+      }
+      return; // Skip profile check for admin
+    }
+
     if (!userProfile && pathname !== '/create-profile') {
       // User is logged in but has no profile, redirect to create one
       router.replace('/create-profile');
@@ -46,7 +57,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     }
   }, [user, isUserLoading, userProfile, isProfileLoading, router, pathname]);
 
-  const isLoading = isUserLoading || (user && isProfileLoading);
+  const isLoading = isUserLoading || (user && isProfileLoading && user.email !== 'anandkumar.shinnovationco@gmail.com');
   
   if (isLoading || !user) {
      return (
@@ -56,7 +67,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (!userProfile && pathname !== '/create-profile') {
+  if (!userProfile && pathname !== '/create-profile' && user.email !== 'anandkumar.shinnovationco@gmail.com') {
      // Still loading or redirecting
     return (
       <div className="flex h-screen w-full items-center justify-center">
@@ -66,6 +77,14 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   }
 
   if (pathname === '/create-profile') {
+    // Admins shouldn't be on the create-profile page
+    if (user.email === 'anandkumar.shinnovationco@gmail.com') {
+        return (
+          <div className="flex h-screen w-full items-center justify-center">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          </div>
+        )
+    }
     return <>{children}</>;
   }
 
