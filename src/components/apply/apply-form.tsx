@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Card,
   CardContent,
@@ -36,13 +36,20 @@ export function ApplyForm({ job }: { job: Job }) {
   const firestore = useFirestore();
   const auth = useAuth();
   
-  const [name, setName] = useState(user?.displayName || '');
-  const [email, setEmail] = useState(user?.email || '');
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
   const [resumeFile, setResumeFile] = useState<File | null>(null);
   
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (user) {
+      setName(user.displayName || '');
+      setEmail(user.email || '');
+    }
+  }, [user]);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -64,12 +71,10 @@ export function ApplyForm({ job }: { job: Job }) {
     try {
         const storage = getStorage(auth.app);
         
-        // 1. Upload resume to Firebase Storage
         const resumeRef = ref(storage, `resumes/${user?.uid || 'anonymous'}/${Date.now()}_${resumeFile.name}`);
         await uploadBytes(resumeRef, resumeFile);
         const resumeURL = await getDownloadURL(resumeRef);
 
-        // 2. Save candidate data to Firestore
         await addDoc(collection(firestore, "candidates"), {
             name,
             email,
@@ -77,7 +82,8 @@ export function ApplyForm({ job }: { job: Job }) {
             jobAppliedFor: job.id,
             status: 'Applied',
             appliedAt: serverTimestamp(),
-            userId: user?.uid || null
+            userId: user?.uid || null,
+            avatarUrl: `https://picsum.photos/seed/${Math.random()}/100/100`, // Add random avatar
         });
 
         setSuccess(true);
