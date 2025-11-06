@@ -8,14 +8,18 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { candidates } from '@/lib/data';
-import type { HiringStage } from '@/lib/types';
+import type { HiringStage, Candidate } from '@/lib/types';
 
 const stageOrder: HiringStage[] = ['Applied', 'Shortlisted', 'Interviewed', 'Hired', 'Rejected'];
 
-const getHiringStageData = () => {
+interface OverviewChartProps {
+    candidates: Candidate[];
+}
+
+const getHiringStageData = (candidates: Candidate[]) => {
     const stageCounts = candidates.reduce((acc, candidate) => {
-        acc[candidate.status] = (acc[candidate.status] || 0) + 1;
+        const status = candidate.status || 'Applied';
+        acc[status] = (acc[status] || 0) + 1;
         return acc;
     }, {} as Record<HiringStage, number>);
 
@@ -26,8 +30,8 @@ const getHiringStageData = () => {
 };
 
 
-export function OverviewChart() {
-    const data = getHiringStageData();
+export function OverviewChart({ candidates }: OverviewChartProps) {
+    const data = getHiringStageData(candidates);
 
   return (
     <Card>
@@ -53,6 +57,7 @@ export function OverviewChart() {
               tickLine={false}
               axisLine={false}
               tickFormatter={(value) => `${value}`}
+              allowDecimals={false}
             />
             <Tooltip
                 contentStyle={{
