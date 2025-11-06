@@ -67,22 +67,23 @@ export function ApplyForm({ job }: { job: Job }) {
   const [email, setEmail] = useState('');
   const [resumeFile, setResumeFile] = useState<File | null>(null);
   const [resumeText, setResumeText] = useState('');
-  const [isMounted, setIsMounted] = useState(false);
+  const [isClient, setIsClient] = useState(false);
 
   // After the component mounts on the client, we can safely set the user data.
   useEffect(() => {
-    setIsMounted(true);
+    setIsClient(true);
     if (user) {
       setName(user.displayName || '');
       setEmail(user.email || '');
     }
   }, [user]);
-  
-  if (!isMounted) {
-    // On the server and during the initial client render, render nothing or a loading skeleton
-    // to prevent the hydration mismatch. Returning the form with empty values is key.
-  }
 
+  if (!isClient) {
+    // On the server and during the initial client render, render nothing or a loading skeleton
+    // to prevent the hydration mismatch.
+    return null;
+  }
+  
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0] || null;
       setResumeFile(file);
