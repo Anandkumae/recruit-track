@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useDoc, useFirestore, useMemoFirebase, useUser } from "@/firebase";
+import { useDoc, useFirestore, useMemoFirebase } from "@/firebase";
 import { notFound, useParams } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -32,18 +32,6 @@ export default function JobDetailsPage() {
 
     const { data: poster, isLoading: posterLoading } = useDoc<User>(posterRef);
     
-    if (jobLoading) {
-         return (
-            <div className="flex h-full w-full items-center justify-center">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            </div>
-        );
-    }
-
-    if (!job) {
-        notFound();
-    }
-    
     const formatDate = (timestamp: any) => {
         if (!timestamp) return 'N/A';
         // Firestore Timestamps have a toDate() method.
@@ -56,6 +44,18 @@ export default function JobDetailsPage() {
         } catch {
             return 'Invalid Date';
         }
+    }
+
+    if (jobLoading) {
+         return (
+            <div className="flex h-full w-full items-center justify-center">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+        );
+    }
+
+    if (!job) {
+        notFound();
     }
 
 
