@@ -32,7 +32,7 @@ export default function JobDetailsPage() {
 
     const { data: poster, isLoading: posterLoading } = useDoc<User>(posterRef);
     
-    if (jobLoading || posterLoading) {
+    if (jobLoading) {
          return (
             <div className="flex h-full w-full items-center justify-center">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -46,9 +46,11 @@ export default function JobDetailsPage() {
     
     const formatDate = (timestamp: any) => {
         if (!timestamp) return 'N/A';
+        // Firestore Timestamps have a toDate() method.
         if (timestamp.toDate) {
             return format(timestamp.toDate(), 'MMM d, yyyy');
         }
+        // Fallback for string or number dates
         try {
             return format(new Date(timestamp), 'MMM d, yyyy');
         } catch {
@@ -109,7 +111,7 @@ export default function JobDetailsPage() {
                                 <Calendar className="h-4 w-4 text-muted-foreground" />
                                 <span className="text-sm">Posted on {formatDate(job.postedAt)}</span>
                             </div>
-                            {poster && (
+                            {posterLoading ? <Loader2 className="h-4 w-4 animate-spin"/> : poster && (
                                 <div className="flex items-center gap-2">
                                     <UserIcon className="h-4 w-4 text-muted-foreground" />
                                     <span className="text-sm">Posted by {poster.name}</span>
