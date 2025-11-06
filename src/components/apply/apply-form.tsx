@@ -16,7 +16,6 @@ import type { Job } from '@/lib/types';
 import { useUser } from '@/firebase';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { applyForJob, type ApplicationState } from '@/lib/actions';
-import { Textarea } from '../ui/textarea';
 import { useFormStatus } from 'react-dom';
 
 function SubmitButton() {
@@ -33,28 +32,16 @@ function SubmitButton() {
   );
 }
 
-// Helper to read file as text
-const toText = (file: File): Promise<string> =>
-  new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.readAsText(file);
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = (error) => reject(error);
-  });
-
 export function ApplyForm({ job }: { job: Job }) {
   const { user } = useUser();
   const initialState: ApplicationState = {};
   const [state, formAction] = useActionState(applyForJob, initialState);
-
-  // State for client-side rendering control and form inputs
-  const [isClient, setIsClient] = useState(false);
+  
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
-  const [resumeFile, setResumeFile] = useState<File | null>(null);
-  const [resumeText, setResumeText] = useState('');
+  
+  const [isClient, setIsClient] = useState(false);
 
-  // Ensure component only renders on client to avoid hydration mismatch
   useEffect(() => {
     setIsClient(true);
     if (user) {
@@ -64,26 +51,8 @@ export function ApplyForm({ job }: { job: Job }) {
   }, [user]);
 
   if (!isClient) {
-    // Render nothing on the server to prevent hydration errors
-    return null;
+    return null; // Avoid SSR mismatch
   }
-  
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0] || null;
-      setResumeFile(file);
-      if (file) {
-          try {
-              const text = await toText(file);
-              setResumeText(text);
-          } catch (error) {
-              console.error("Error reading file text:", error);
-              setResumeText('');
-          }
-      } else {
-          setResumeText('');
-      }
-  }
-
 
   if (state.message) {
     return (
@@ -146,26 +115,11 @@ export function ApplyForm({ job }: { job: Job }) {
                 name="resume" // Name is used by FormData
                 type="file"
                 accept=".pdf,.doc,.docx,.txt"
-                onChange={handleFileChange}
                 required
             />
             <p className="text-sm text-muted-foreground">PDF, DOC, DOCX, or TXT files only.</p>
-            {state.errors?.resumeFile && <p className="text-sm text-destructive">{state.errors.resumeFile[0]}</p>}
+            {state.errors?.resume && <p className="text-sm text-destructive">{state.errors.resume[0]}</p>}
           </div>
-
-           <div className="space-y-2">
-              <Label htmlFor="resumeFileText">Resume Text (for AI Match)</Label>
-              <Textarea
-                id="resumeFileText"
-                name="resumeFileText"
-                placeholder="The text from your resume will appear here automatically after you upload it."
-                value={resumeText}
-                readOnly // This should be derived from the file, not user-editable
-                rows={8}
-                required
-              />
-               {state.errors?.resumeFileText && <p className="text-sm font-medium text-destructive">{state.errors.resumeFileText[0]}</p>}
-            </div>
 
           {state.errors?._form && (
               <Alert variant="destructive">

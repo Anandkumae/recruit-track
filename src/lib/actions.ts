@@ -9,18 +9,17 @@ import { randomUUID } from 'crypto';
 
 // Server action to upload a file.
 async function uploadFile(
-  fileContent: string,
+  fileBuffer: Buffer,
   fileName: string,
   fileType: string,
   userId?: string
 ): Promise<{ fileUrl?: string; error?: string }> {
   try {
-    const buffer = Buffer.from(fileContent, 'base64');
     const bucket = getStorage().bucket();
     const filePath = `resumes/${userId || 'public'}/${Date.now()}_${fileName}`;
     const bucketFile = bucket.file(filePath);
 
-    await bucketFile.save(buffer, {
+    await bucketFile.save(fileBuffer, {
       metadata: {
         contentType: fileType,
       },
@@ -43,7 +42,9 @@ const ApplySchema = z.object({
   jobTitle: z.string(),
   jobDescription: z.string(),
   userId: z.string().optional(),
-  resume: z.instanceof(File),
+  resume: z
+    .instanceof(File, { message: 'Resume is required.' })
+    .refine((file) => file.size > 0, 'Resume file cannot be empty.'),
 });
 
 export type ApplicationState = {
@@ -61,7 +62,6 @@ export async function applyForJob(
   prevState: ApplicationState,
   formData: FormData
 ): Promise<ApplicationState> {
-  
   // 1. Validate form data
   const validatedFields = ApplySchema.safeParse({
     name: formData.get('name'),
@@ -79,41 +79,36 @@ export async function applyForJob(
     };
   }
 
-  const {
-    name,
-    email,
-    jobId,
-    jobDescription,
-    userId,
-    resume,
-  } = validatedFields.data;
+  const { name, email, jobId, jobDescription, userId, resume } =
+    validatedFields.data;
 
   try {
-     // Convert file to buffer to get text and base64 content
+    // 2. Read file content on the server
     const resumeBuffer = Buffer.from(await resume.arrayBuffer());
     const resumeText = resumeBuffer.toString('utf-8');
-    const resumeBase64 = resumeBuffer.toString('base64');
 
-    // 2. Upload the resume via the dedicated server action
+    // 3. Upload the resume via the dedicated server action
     const uploadResult = await uploadFile(
-        resumeBase64,
-        resume.name,
-        resume.type,
-        userId
+      resumeBuffer,
+      resume.name,
+      resume.type,
+      userId
     );
-    
+
     if (uploadResult.error || !uploadResult.fileUrl) {
-      throw new Error(uploadResult.error || 'File URL was not returned from upload.');
+      throw new Error(
+        uploadResult.error || 'File URL was not returned from upload.'
+      );
     }
     const resumeUrl = uploadResult.fileUrl;
 
-    // 3. Perform AI Match Analysis
+    // 4. Perform AI Match Analysis
     const matchResult = await matchResumeToJob({
       resumeText,
       jobDescription,
     });
 
-    // 4. Save Candidate to Firestore
+    // 5. Save Candidate to Firestore
     const { firestore } = getFirebaseAdmin();
     const candidateData = {
       name,
@@ -130,9 +125,11 @@ export async function applyForJob(
       avatarUrl: `https://picsum.photos/seed/${randomUUID()}/100/100`,
     };
 
-    const candidateRef = await firestore.collection('candidates').add(candidateData);
+    const candidateRef = await firestore
+      .collection('candidates')
+      .add(candidateData);
 
-    // 5. Return Success State
+    // 6. Return Success State
     return {
       message: 'Application submitted successfully!',
       result: {
@@ -140,15 +137,15 @@ export async function applyForJob(
         matchScore: matchResult.matchScore,
       },
     };
-
   } catch (error) {
     console.error('Application Submission Error:', error);
     return {
-      errors: { _form: ['An unexpected error occurred while submitting your application.'] },
+      errors: {
+        _form: ['An unexpected error occurred while submitting your application.'],
+      },
     };
   }
 }
-
 
 export type MatcherState = {
   message?: string | null;
@@ -162,9 +159,10 @@ export type MatcherState = {
 
 const MatcherSchema = z.object({
   resume: z.string().min(50, 'Resume must be at least 50 characters long.'),
-  jobDescription: z.string().min(50, 'Job description must be at least 50 characters long.'),
+  jobDescription: z
+    .string()
+    .min(50, 'Job description must be at least 50 characters long.'),
 });
-
 
 export async function getMatch(prevState: MatcherState, formData: FormData) {
   const validatedFields = MatcherSchema.safeParse({
