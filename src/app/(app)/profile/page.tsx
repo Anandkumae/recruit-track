@@ -2,14 +2,14 @@
 
 import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
 import { doc, updateDoc } from 'firebase/firestore';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Loader2, Upload, User as UserIcon, Mail, Phone, Book, Briefcase } from "lucide-react";
+import { Loader2, Upload, User as UserIcon, Mail, Phone, Book, Briefcase, Pencil, Save } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 
 // In a real app, this would involve Firebase Storage
 // For this demo, we'll just simulate the upload and store a placeholder URL.
@@ -29,7 +29,9 @@ export default function ProfilePage() {
     const { user } = useUser();
     const firestore = useFirestore();
     const { toast } = useToast();
-    const [isUploading, setIsUploading] = React.useState(false);
+    const [isUploading, setIsUploading] = useState(false);
+    const [isEditing, setIsEditing] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
 
     const userProfileRef = useMemoFirebase(() => {
         if (!firestore || !user) return null;
@@ -37,6 +39,55 @@ export default function ProfilePage() {
     }, [firestore, user]);
 
     const { data: userProfile, isLoading } = useDoc(userProfileRef);
+
+    const [formData, setFormData] = useState({
+        name: '',
+        phone: '',
+        qualification: '',
+    });
+
+    useEffect(() => {
+        if (userProfile) {
+            setFormData({
+                name: userProfile.name || '',
+                phone: userProfile.phone || '',
+                qualification: userProfile.qualification || '',
+            });
+        }
+    }, [userProfile]);
+
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const { name, value } = e.target;
+        setFormData(prev => ({ ...prev, [name]: value }));
+    };
+
+    const handleSave = async () => {
+        if (!user || !firestore) return;
+        setIsSaving(true);
+        try {
+            const userDocRef = doc(firestore, 'users', user.uid);
+            await updateDoc(userDocRef, {
+                name: formData.name,
+                phone: formData.phone,
+                qualification: formData.qualification,
+            });
+            toast({
+                title: 'Profile Updated',
+                description: 'Your changes have been saved successfully.',
+            });
+            setIsEditing(false);
+        } catch (error) {
+            console.error("Save error:", error);
+            toast({
+                title: 'Update Failed',
+                description: 'There was an error saving your changes.',
+                variant: 'destructive',
+            });
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
 
     const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
@@ -63,7 +114,7 @@ export default function ProfilePage() {
     };
 
     const getInitials = (name: string) => {
-        return name.split(' ').map(n => n[0]).join('');
+        return name ? name.split(' ').map(n => n[0]).join('') : '';
     }
 
     if (isLoading) {
@@ -103,28 +154,68 @@ export default function ProfilePage() {
 
         <div className="md:col-span-2 space-y-6">
             <Card>
-                <CardHeader>
-                    <CardTitle>Personal Information</CardTitle>
-                    <CardDescription>Your contact and qualification details.</CardDescription>
+                <CardHeader className="flex flex-row items-center justify-between">
+                    <div>
+                        <CardTitle>Personal Information</CardTitle>
+                        <CardDescription>Your contact and qualification details.</CardDescription>
+                    </div>
+                    {!isEditing && (
+                         <Button variant="outline" size="icon" onClick={() => setIsEditing(true)}>
+                            <Pencil className="h-4 w-4" />
+                            <span className="sr-only">Edit Profile</span>
+                        </Button>
+                    )}
                 </CardHeader>
                 <CardContent className="space-y-4">
-                    <div className="flex items-center gap-3">
-                        <UserIcon className="h-5 w-5 text-muted-foreground" />
-                        <span>{userProfile.name}</span>
-                    </div>
-                     <div className="flex items-center gap-3">
-                        <Mail className="h-5 w-5 text-muted-foreground" />
-                        <span>{userProfile.email}</span>
-                    </div>
-                     <div className="flex items-center gap-3">
-                        <Phone className="h-5 w-5 text-muted-foreground" />
-                        <span>{userProfile.phone || 'Not provided'}</span>
-                    </div>
-                     <div className="flex items-center gap-3">
-                        <Book className="h-5 w-5 text-muted-foreground" />
-                        <span>{userProfile.qualification || 'Not provided'}</span>
-                    </div>
+                    {isEditing ? (
+                        <>
+                            <div className="space-y-2">
+                                <Label htmlFor="name">Full Name</Label>
+                                <Input id="name" name="name" value={formData.name} onChange={handleInputChange} disabled={isSaving} />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="email">Email</Label>
+                                <Input id="email" value={userProfile.email} disabled />
+                            </div>
+                             <div className="space-y-2">
+                                <Label htmlFor="phone">Phone Number</Label>
+                                <Input id="phone" name="phone" value={formData.phone} onChange={handleInputChange} disabled={isSaving}/>
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="qualification">Highest Qualification</Label>
+                                <Input id="qualification" name="qualification" value={formData.qualification} onChange={handleInputChange} disabled={isSaving} />
+                            </div>
+                        </>
+                    ) : (
+                        <>
+                            <div className="flex items-center gap-3">
+                                <UserIcon className="h-5 w-5 text-muted-foreground" />
+                                <span>{userProfile.name}</span>
+                            </div>
+                            <div className="flex items-center gap-3">
+                                <Mail className="h-5 w-5 text-muted-foreground" />
+                                <span>{userProfile.email}</span>
+                            </div>
+                            <div className="flex items-center gap-3">
+                                <Phone className="h-5 w-5 text-muted-foreground" />
+                                <span>{userProfile.phone || 'Not provided'}</span>
+                            </div>
+                            <div className="flex items-center gap-3">
+                                <Book className="h-5 w-5 text-muted-foreground" />
+                                <span>{userProfile.qualification || 'Not provided'}</span>
+                            </div>
+                        </>
+                    )}
                 </CardContent>
+                {isEditing && (
+                    <CardFooter className="justify-end gap-2">
+                        <Button variant="ghost" onClick={() => setIsEditing(false)} disabled={isSaving}>Cancel</Button>
+                        <Button onClick={handleSave} disabled={isSaving}>
+                            {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                            Save Changes
+                        </Button>
+                    </CardFooter>
+                )}
             </Card>
 
             <Card>
