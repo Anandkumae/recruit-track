@@ -4,7 +4,6 @@ import {
   Briefcase,
   Users,
   FileText,
-  Settings,
   User as UserIcon,
 } from 'lucide-react';
 
@@ -130,18 +129,12 @@ export const navItems: NavItem[] = [
         href: '/resume-matcher',
         label: 'AI Resume Matcher',
         icon: FileText,
-        roles: ['HR', 'Manager', 'Candidate'],
+        roles: ['HR', 'Manager'],
     },
     {
         href: '/profile',
         label: 'My Profile',
         icon: UserIcon,
         roles: ['HR', 'Manager', 'Candidate'],
-    },
-    {
-        href: '/settings',
-        label: 'Settings',
-        icon: Settings,
-        roles: ['Admin', 'HR', 'Manager', 'Candidate'],
     },
 ];
