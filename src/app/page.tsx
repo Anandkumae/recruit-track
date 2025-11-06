@@ -180,10 +180,10 @@ export default function LandingPage() {
           <Link href="mailto:support@leorecruit.com" className="text-xs hover:underline underline-offset-4">
             support@leorecruit.com
           </Link>
-          <Link href="#" className="text-xs hover:underline underline-offset-4">
+          <Link href="/terms" className="text-xs hover:underline underline-offset-4">
             Terms of Service
           </Link>
-          <Link href="#" className="text-xs hover:underline underline-offset-4">
+          <Link href="/privacy" className="text-xs hover:underline underline-offset-4">
             Privacy
           </Link>
         </nav>
