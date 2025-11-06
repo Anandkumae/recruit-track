@@ -1,8 +1,8 @@
 
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { useFormState, useFormStatus } from 'react-dom';
+import React, { useState, useEffect, useActionState } from 'react';
+import { useFormStatus } from 'react-dom';
 import {
   Card,
   CardContent,
@@ -55,7 +55,7 @@ const toText = (file: File): Promise<string> =>
 export function ApplyForm({ job }: { job: Job }) {
   const { user } = useUser();
   const initialState: ApplicationState = {};
-  const [state, formAction] = useFormState(applyForJob, initialState);
+  const [state, formAction] = useActionState(applyForJob, initialState);
 
   // Initialize state directly from the user object if it exists.
   const [name, setName] = useState(user?.displayName || '');
