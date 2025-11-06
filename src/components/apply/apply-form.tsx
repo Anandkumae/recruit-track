@@ -1,7 +1,6 @@
 'use client';
 
-import { useActionState, useEffect, useState } from 'react';
-import { useFormStatus } from 'react-dom';
+import React, { useState } from 'react';
 import {
   Card,
   CardContent,
@@ -11,26 +10,23 @@ import {
 } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
-import { Loader2, PartyPopper, Send, FileCheck2 } from 'lucide-react';
+import { Loader2, PartyPopper, Send } from 'lucide-react';
 import type { Job } from '@/lib/types';
-import { applyForJob, type ApplyState } from '@/lib/actions';
-import { Progress } from '../ui/progress';
-import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
-import { doc } from 'firebase/firestore';
+import { useUser, useFirestore, useAuth } from '@/firebase';
+import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
+import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
-
-function SubmitButton() {
-  const { pending } = useFormStatus();
+function SubmitButton({ isSubmitting }: { isSubmitting: boolean }) {
   return (
-    <Button type="submit" disabled={pending} className="w-full">
-      {pending ? (
+    <Button type="submit" disabled={isSubmitting} className="w-full">
+      {isSubmitting ? (
         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
       ) : (
         <Send className="mr-2 h-4 w-4" />
       )}
-      Submit Application
+      {isSubmitting ? 'Submitting...' : 'Submit Application'}
     </Button>
   );
 }
@@ -38,55 +34,72 @@ function SubmitButton() {
 export function ApplyForm({ job }: { job: Job }) {
   const { user } = useUser();
   const firestore = useFirestore();
-  const initialState: ApplyState = {};
-  const applyForJobWithId = applyForJob.bind(null);
-  const [state, dispatch] = useActionState(applyForJobWithId, initialState);
+  const auth = useAuth();
   
-  const [resumeText, setResumeText] = useState('');
+  const [name, setName] = useState(user?.displayName || '');
+  const [email, setEmail] = useState(user?.email || '');
+  const [resumeFile, setResumeFile] = useState<File | null>(null);
+  
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<boolean>(false);
 
-   const userProfileRef = useMemoFirebase(() => {
-    if (!firestore || !user) return null;
-    return doc(firestore, 'users', user.uid);
-  }, [firestore, user]);
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    setError(null);
 
-  const { data: userProfile, isLoading: isProfileLoading } = useDoc(userProfileRef);
-
-  useEffect(() => {
-    if (userProfile?.resumeUrl) {
-        setResumeText(`Resume content from ${userProfile.resumeUrl}`);
-    } else {
-        setResumeText('');
+    if (!resumeFile) {
+        setError("Please upload a resume file.");
+        setIsSubmitting(false);
+        return;
     }
-  }, [userProfile]);
 
-  if (state.message && state.result) {
+    if (!firestore || !auth?.app) {
+        setError("Firebase is not initialized correctly.");
+        setIsSubmitting(false);
+        return;
+    }
+
+    try {
+        const storage = getStorage(auth.app);
+        
+        // 1. Upload resume to Firebase Storage
+        const resumeRef = ref(storage, `resumes/${user?.uid || 'anonymous'}/${Date.now()}_${resumeFile.name}`);
+        await uploadBytes(resumeRef, resumeFile);
+        const resumeURL = await getDownloadURL(resumeRef);
+
+        // 2. Save candidate data to Firestore
+        await addDoc(collection(firestore, "candidates"), {
+            name,
+            email,
+            resumeUrl: resumeURL,
+            jobAppliedFor: job.id,
+            status: 'Applied',
+            appliedAt: serverTimestamp(),
+            userId: user?.uid || null
+        });
+
+        setSuccess(true);
+    } catch (err: any) {
+        console.error("Error submitting application:", err);
+        setError(err.message || "Failed to submit application. Please check the console for details.");
+    } finally {
+        setIsSubmitting(false);
+    }
+  };
+
+
+  if (success) {
     return (
       <Card>
         <CardHeader className="items-center text-center">
           <PartyPopper className="h-12 w-12 text-green-500" />
           <CardTitle className="text-2xl">Application Submitted!</CardTitle>
           <CardDescription>
-            {state.message} Here is your initial AI match analysis.
+            Thank you for applying. The hiring team will review your application.
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-            <div>
-                <div className="flex items-baseline justify-between">
-                  <Label>Match Score</Label>
-                  <span className="text-2xl font-bold text-primary">
-                    {state.result.matchScore}
-                    <span className="text-sm text-muted-foreground">/100</span>
-                  </span>
-                </div>
-                <Progress value={state.result.matchScore} className="mt-2" />
-              </div>
-              <div>
-                <Label>AI Reasoning</Label>
-                <p className="mt-1 text-sm text-foreground/80 rounded-md border bg-muted/50 p-3">
-                  {state.result.reasoning}
-                </p>
-              </div>
-        </CardContent>
       </Card>
     );
   }
@@ -100,21 +113,17 @@ export function ApplyForm({ job }: { job: Job }) {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <form action={dispatch} className="space-y-4">
-          <input type="hidden" name="jobId" value={job.id} />
-          <input type="hidden" name="jobDescription" value={job.description} />
-          {/* Hidden input to pass resume text to server action */}
-          <input type="hidden" name="resume" value={resumeText} />
-          
+        <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="name">Full Name</Label>
-              <Input id="name" name="name" defaultValue={userProfile?.name || ''} required />
-              {state.errors?.name && (
-                <p className="text-sm font-medium text-destructive">
-                  {state.errors.name[0]}
-                </p>
-              )}
+              <Input 
+                id="name" 
+                name="name" 
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required 
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="email">Email Address</Label>
@@ -122,59 +131,31 @@ export function ApplyForm({ job }: { job: Job }) {
                 id="email"
                 name="email"
                 type="email"
-                defaultValue={userProfile?.email || ''}
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 required
               />
-               {state.errors?.email && (
-                <p className="text-sm font-medium text-destructive">
-                  {state.errors.email[0]}
-                </p>
-              )}
             </div>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="resume-display">Your Resume</Label>
-            {isProfileLoading ? (
-                 <div className="flex items-center justify-center rounded-md border h-40">
-                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                 </div>
-            ) : userProfile?.resumeUrl ? (
-              <div className="p-4 rounded-md border bg-muted/50 text-sm">
-                <div className="flex items-center gap-3">
-                    <FileCheck2 className="h-6 w-6 text-green-600" />
-                    <div>
-                        <p className="font-medium">Using resume from your profile.</p>
-                        <p className="text-muted-foreground text-xs">You can update it in the "My Profile" section.</p>
-                    </div>
-                </div>
-              </div>
-            ) : (
-                <>
-                    <Textarea
-                    id="resume-display"
-                    placeholder="You haven't uploaded a resume yet. Paste the full text of your resume here..."
-                    rows={10}
-                    value={resumeText}
-                    onChange={(e) => setResumeText(e.target.value)}
-                    required
-                    />
-                    <p className="text-sm text-muted-foreground">
-                        For easier applications next time, upload your resume in the "My Profile" section.
-                    </p>
-                </>
-            )}
-             {state.errors?.resume && (
-                <p className="text-sm font-medium text-destructive">
-                  {state.errors.resume[0]}
-                </p>
-              )}
+            <Label htmlFor="resume">Upload Resume</Label>
+            <Input
+                id="resume"
+                name="resume"
+                type="file"
+                accept=".pdf,.doc,.docx"
+                onChange={(e) => setResumeFile(e.target.files?.[0] || null)}
+                required
+            />
+            <p className="text-sm text-muted-foreground">PDF, DOC, or DOCX files only.</p>
           </div>
-          {state.errors?._form && (
-                <p className="text-sm font-medium text-destructive">
-                  {state.errors._form[0]}
-                </p>
-              )}
-          <SubmitButton />
+          {error && (
+              <Alert variant="destructive">
+                <AlertTitle>Submission Error</AlertTitle>
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+          )}
+          <SubmitButton isSubmitting={isSubmitting} />
         </form>
       </CardContent>
     </Card>
