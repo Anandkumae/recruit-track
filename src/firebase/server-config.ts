@@ -33,7 +33,8 @@ function initializeAdminApp() {
     // default credentials.
     adminApp = admin.initializeApp({
       credential: admin.credential.applicationDefault(),
-      projectId: firebaseConfig.projectId
+      projectId: firebaseConfig.projectId,
+      storageBucket: firebaseConfig.storageBucket,
     });
   } catch (e) {
     console.error('Firebase Admin initialization failed:', e);

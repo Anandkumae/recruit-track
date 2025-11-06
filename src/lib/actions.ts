@@ -3,18 +3,14 @@
 import { z } from 'zod';
 import { matchResumeToJob } from '@/ai/flows/ai-match-resume-to-job';
 import { randomUUID } from 'crypto';
-import { getFirestore, collection, addDoc, serverTimestamp } from 'firebase/firestore';
-import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
-import { firebaseConfig } from '@/firebase/config';
+import { getFirebaseAdmin } from '@/firebase/server-config';
+import { getAuth as getAdminAuth } from 'firebase-admin/auth';
+import { getStorage as getAdminStorage } from 'firebase-admin/storage';
+import { serverTimestamp } from 'firebase/firestore';
 
-// Use a separate app instance for server-side actions to avoid conflicts.
-// The `name` makes it a singleton.
-const serverActionApp = !getApps().find(app => app.name === 'serverActionApp')
-  ? initializeApp(firebaseConfig, 'serverActionApp')
-  : getApp('serverActionApp');
 
-const firestore = getFirestore(serverActionApp);
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+const ACCEPTED_FILE_TYPES = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/plain'];
 
 const ApplySchema = z.object({
   name: z.string().min(1, 'Name is required.'),
@@ -23,8 +19,14 @@ const ApplySchema = z.object({
   jobTitle: z.string(),
   jobDescription: z.string(),
   userId: z.string().optional(),
-  resumeUrl: z.string().min(1, 'Resume is required.'), // We now expect a URL
-  resumeFileText: z.string().min(1, 'Resume content is missing.'), // Text content for AI
+  resume: z
+    .any()
+    .refine((file) => file && file.size > 0, 'Resume is required.')
+    .refine((file) => file && file.size <= MAX_FILE_SIZE, `Max file size is 5MB.`)
+    .refine(
+      (file) => file && ACCEPTED_FILE_TYPES.includes(file.type),
+      '.pdf, .doc, .docx and .txt files are accepted.'
+    ),
 });
 
 export type ApplicationState = {
@@ -33,8 +35,7 @@ export type ApplicationState = {
   errors?: {
     name?: string[];
     email?: string[];
-    resumeUrl?: string[];
-    resumeFileText?: string[];
+    resume?: string[];
     _form?: string[];
   };
 };
@@ -50,8 +51,7 @@ export async function applyForJob(
     jobTitle: formData.get('jobTitle'),
     jobDescription: formData.get('jobDescription'),
     userId: formData.get('userId'),
-    resumeUrl: formData.get('resumeUrl'),
-    resumeFileText: formData.get('resumeFileText'),
+    resume: formData.get('resume'),
   });
 
   if (!validatedFields.success) {
@@ -60,24 +60,42 @@ export async function applyForJob(
     };
   }
 
-  const { name, email, jobId, jobDescription, userId, resumeUrl, resumeFileText } =
+  const { name, email, jobId, jobDescription, userId, resume } =
     validatedFields.data;
 
   try {
-    // File is already uploaded by the client. Now we just process the data.
+    const { firestore } = getFirebaseAdmin();
+    const adminStorage = getAdminStorage();
 
-    // 1. Perform AI Match Analysis
+    // 1. Upload file to Firebase Storage from the server
+    const fileBuffer = Buffer.from(await resume.arrayBuffer());
+    const filePath = `resumes/${userId || 'public'}/${Date.now()}_${resume.name}`;
+    const file = adminStorage.bucket().file(filePath);
+
+    await file.save(fileBuffer, {
+        metadata: {
+            contentType: resume.type,
+        }
+    });
+
+    const [downloadURL] = await file.getSignedUrl({
+        action: 'read',
+        expires: '03-09-2491' // Far-future expiration date
+    });
+    
+    // 2. Perform AI Match Analysis
+    const resumeFileText = fileBuffer.toString('utf-8');
     const matchResult = await matchResumeToJob({
       resumeText: resumeFileText,
       jobDescription,
     });
 
-    // 2. Save Candidate to Firestore
+    // 3. Save Candidate to Firestore
     const candidateData = {
       name,
       email,
-      phone: '', // Not collected in form currently
-      resumeUrl: resumeUrl, // The URL from the client-side upload
+      phone: '', 
+      resumeUrl: downloadURL,
       jobAppliedFor: jobId,
       status: 'Applied',
       appliedAt: serverTimestamp(),
@@ -88,9 +106,9 @@ export async function applyForJob(
       avatarUrl: `https://picsum.photos/seed/${randomUUID()}/100/100`,
     };
 
-    const docRef = await addDoc(collection(firestore, "candidates"), candidateData);
+    const docRef = await firestore.collection("candidates").add(candidateData);
 
-    // 3. Return Success State
+    // 4. Return Success State
     return {
       message: 'Application submitted successfully!',
       result: {

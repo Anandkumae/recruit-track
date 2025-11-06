@@ -1,8 +1,7 @@
-
 'use client';
 
-import React, { useState, useEffect, useActionState } from 'react';
-import { useFormStatus } from 'react-dom';
+import React, { useState, useEffect } from 'react';
+import { useActionState, useFormStatus } from 'react-dom';
 import {
   Card,
   CardContent,
@@ -15,46 +14,33 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Loader2, PartyPopper, Send } from 'lucide-react';
 import type { Job } from '@/lib/types';
-import { useUser, useFirebase } from '@/firebase';
+import { useUser } from '@/firebase';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { applyForJob, type ApplicationState } from '@/lib/actions';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
-function SubmitButton({ isUploading }: { isUploading: boolean }) {
+function SubmitButton() {
   const { pending } = useFormStatus();
-  const isDisabled = isUploading || pending;
 
   return (
-    <Button type="submit" disabled={isDisabled} className="w-full">
-      {isUploading ? (
-        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-      ) : pending ? (
+    <Button type="submit" disabled={pending} className="w-full">
+      {pending ? (
         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
       ) : (
         <Send className="mr-2 h-4 w-4" />
       )}
-      {isUploading
-        ? 'Uploading...'
-        : pending
-        ? 'Submitting...'
-        : 'Submit Application'}
+      {pending ? 'Submitting...' : 'Submit Application'}
     </Button>
   );
 }
 
 export function ApplyForm({ job }: { job: Job }) {
   const { user } = useUser();
-  const { storage } = useFirebase(); // Get storage instance
   const initialState: ApplicationState = {};
   const [state, formAction] = useActionState(applyForJob, initialState);
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
-  const [resumeFile, setResumeFile] = useState<File | null>(null);
-
-  const [isUploading, setIsUploading] = useState(false);
   const [isClient, setIsClient] = useState(false);
-  const [localError, setLocalError] = useState<string | null>(null);
 
   useEffect(() => {
     setIsClient(true);
@@ -63,51 +49,6 @@ export function ApplyForm({ job }: { job: Job }) {
       setEmail(user.email || '');
     }
   }, [user]);
-
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setResumeFile(file);
-    }
-  };
-
-  const handleFormSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setLocalError(null);
-
-    if (!resumeFile) {
-      setLocalError('A resume file is required.');
-      return;
-    }
-    if (!user || !storage) {
-      setLocalError('You must be logged in to apply.');
-      return;
-    }
-
-    setIsUploading(true);
-
-    try {
-      // 1. Upload file to Firebase Storage
-      const storageRef = ref(storage, `resumes/${user.uid}/${resumeFile.name}`);
-      await uploadBytes(storageRef, resumeFile);
-      const downloadURL = await getDownloadURL(storageRef);
-      
-      const text = await resumeFile.text();
-
-      // 2. Prepare form data for server action
-      const formData = new FormData(event.currentTarget);
-      formData.set('resumeUrl', downloadURL);
-      formData.set('resumeText', text); // Pass file content as text
-
-      // 3. Trigger the server action
-      formAction(formData);
-    } catch (error) {
-      console.error('Upload Error:', error);
-      setLocalError('File upload failed. Please try again.');
-    } finally {
-      setIsUploading(false);
-    }
-  };
 
   if (!isClient) {
     return (
@@ -134,7 +75,7 @@ export function ApplyForm({ job }: { job: Job }) {
   }
 
   const formErrors = state.errors || {};
-  const submissionError = localError || formErrors._form?.[0];
+  const submissionError = formErrors._form?.[0];
 
   return (
     <Card>
@@ -145,7 +86,7 @@ export function ApplyForm({ job }: { job: Job }) {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleFormSubmit} className="space-y-4">
+        <form action={formAction} className="space-y-4">
           <input type="hidden" name="jobId" value={job.id} />
           <input type="hidden" name="jobTitle" value={job.title} />
           <input type="hidden" name="jobDescription" value={job.description} />
@@ -160,7 +101,6 @@ export function ApplyForm({ job }: { job: Job }) {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 required
-                disabled={isUploading}
               />
               {formErrors.name && (
                 <p className="text-sm text-destructive">{formErrors.name[0]}</p>
@@ -175,7 +115,6 @@ export function ApplyForm({ job }: { job: Job }) {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                disabled={isUploading}
               />
               {formErrors.email && (
                 <p className="text-sm text-destructive">{formErrors.email[0]}</p>
@@ -190,15 +129,13 @@ export function ApplyForm({ job }: { job: Job }) {
               type="file"
               accept=".pdf,.doc,.docx,.txt"
               required
-              onChange={handleFileChange}
-              disabled={isUploading}
             />
             <p className="text-sm text-muted-foreground">
               PDF, DOC, DOCX, or TXT files only.
             </p>
-            {formErrors.resumeUrl && (
+            {formErrors.resume && (
               <p className="text-sm text-destructive">
-                {formErrors.resumeUrl[0]}
+                {formErrors.resume[0]}
               </p>
             )}
           </div>
@@ -209,7 +146,7 @@ export function ApplyForm({ job }: { job: Job }) {
               <AlertDescription>{submissionError}</AlertDescription>
             </Alert>
           )}
-          <SubmitButton isUploading={isUploading} />
+          <SubmitButton />
         </form>
       </CardContent>
     </Card>
