@@ -1,11 +1,32 @@
-import Link from "next/link";
-import { notFound } from "next/navigation";
-import { Briefcase } from "lucide-react";
-import { ApplyForm } from "@/components/apply/apply-form";
-import { jobs } from "@/lib/data";
+'use client';
 
-export default function ApplyPage({ params }: { params: { jobId: string } }) {
-  const job = jobs.find((j) => j.id === params.jobId);
+import Link from "next/link";
+import { notFound, useParams } from "next/navigation";
+import { Briefcase, Loader2 } from "lucide-react";
+import { ApplyForm } from "@/components/apply/apply-form";
+import { useDoc, useFirestore, useMemoFirebase } from "@/firebase";
+import { doc } from "firebase/firestore";
+import type { Job } from "@/lib/types";
+
+export default function ApplyPage() {
+  const params = useParams();
+  const jobId = params.jobId as string;
+  const firestore = useFirestore();
+
+  const jobRef = useMemoFirebase(() => {
+    if (!firestore || !jobId) return null;
+    return doc(firestore, 'jobs', jobId);
+  }, [firestore, jobId]);
+
+  const { data: job, isLoading } = useDoc<Job>(jobRef);
+
+  if (isLoading) {
+    return (
+      <div className="flex min-h-screen w-full items-center justify-center bg-muted/40">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   if (!job) {
     notFound();

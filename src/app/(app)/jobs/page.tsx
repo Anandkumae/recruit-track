@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { PlusCircle, Search } from 'lucide-react';
+import { PlusCircle, Search, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -15,11 +15,11 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { jobs as allJobs, users } from '@/lib/data';
-import type { Job, Role } from '@/lib/types';
-import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
-import { format, parseISO } from 'date-fns';
-import { doc } from 'firebase/firestore';
+import { users } from '@/lib/data';
+import type { Job, Role, WithId } from '@/lib/types';
+import { useUser, useFirestore, useDoc, useMemoFirebase, useCollection } from '@/firebase';
+import { format } from 'date-fns';
+import { doc, collection, query, orderBy } from 'firebase/firestore';
 
 export default function JobsPage() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -33,6 +33,13 @@ export default function JobsPage() {
 
   const { data: userProfile } = useDoc(userProfileRef);
 
+  const jobsQuery = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return query(collection(firestore, 'jobs'), orderBy('postedAt', 'desc'));
+  }, [firestore]);
+
+  const { data: jobs, isLoading: jobsLoading } = useCollection<Job>(jobsQuery);
+
   let userRole: Role = 'Candidate'; // Default to the most restrictive role
 
   if (user?.email === 'anandkumar.shinnovationco@gmail.com') {
@@ -41,7 +48,7 @@ export default function JobsPage() {
     userRole = userProfile.role;
   }
 
-  const filteredJobs = allJobs.filter((job) =>
+  const filteredJobs = jobs?.filter((job) =>
     job.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
     job.department.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -49,8 +56,28 @@ export default function JobsPage() {
   const canCreateJob = userRole === 'Admin' || userRole === 'HR' || userRole === 'Manager';
 
   const getPosterName = (userId: string) => {
+    // In a real app, you might fetch user profiles, but for now we use static data
+    // or the current admin's name if they are the poster.
+    if(user?.uid === userId) return user.displayName;
     return users.find(u => u.id === userId)?.name || 'Unknown';
   };
+  
+  const formatDate = (timestamp: any) => {
+    if (!timestamp) return 'N/A';
+    // Firestore server timestamps can be null before being set,
+    // or they can be Firestore Timestamp objects.
+    if (timestamp.toDate) {
+      return format(timestamp.toDate(), 'MMM d, yyyy');
+    }
+    // Fallback for string dates if you have any
+    try {
+        const date = new Date(timestamp);
+        return format(date, 'MMM d, yyyy');
+    } catch {
+        return 'Invalid Date';
+    }
+  }
+
 
   return (
     <div className="flex flex-col gap-8">
@@ -100,7 +127,13 @@ export default function JobsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredJobs.length > 0 ? (
+              {jobsLoading ? (
+                 <TableRow>
+                    <TableCell colSpan={6} className="text-center h-24">
+                       <Loader2 className="h-6 w-6 animate-spin mx-auto text-primary" />
+                    </TableCell>
+                </TableRow>
+              ) : filteredJobs && filteredJobs.length > 0 ? (
                 filteredJobs.map((job) => (
                   <TableRow key={job.id}>
                     <TableCell className="font-medium">{job.title}</TableCell>
@@ -111,7 +144,7 @@ export default function JobsPage() {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      {format(parseISO(job.postedAt), 'MMM d, yyyy')}
+                      {formatDate(job.postedAt)}
                     </TableCell>
                     <TableCell>{getPosterName(job.postedBy)}</TableCell>
                     <TableCell className="text-right">

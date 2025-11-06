@@ -1,21 +1,61 @@
-import { jobs, users } from "@/lib/data";
-import { notFound } from "next/navigation";
+'use client';
+
+import { useDoc, useFirestore, useMemoFirebase, useUser } from "@/firebase";
+import { notFound, useParams } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Briefcase, Calendar, CheckCircle, User } from "lucide-react";
-import { format, parseISO } from "date-fns";
+import { ArrowLeft, Briefcase, Calendar, CheckCircle, User as UserIcon, Loader2 } from "lucide-react";
+import { format } from "date-fns";
+import { doc } from "firebase/firestore";
+import type { Job, User } from "@/lib/types";
 
 
-export default function JobDetailsPage({ params }: { params: { id: string } }) {
-    const job = jobs.find(j => j.id === params.id);
+export default function JobDetailsPage() {
+    const params = useParams();
+    const id = params.id as string;
+    const { user } = useUser();
+    const firestore = useFirestore();
+
+    const jobRef = useMemoFirebase(() => {
+        if (!firestore || !id) return null;
+        return doc(firestore, 'jobs', id);
+    }, [firestore, id]);
+
+    const { data: job, isLoading: jobLoading } = useDoc<Job>(jobRef);
+
+    const posterRef = useMemoFirebase(() => {
+        if (!firestore || !job?.postedBy) return null;
+        return doc(firestore, 'users', job.postedBy);
+    }, [firestore, job]);
+
+    const { data: poster, isLoading: posterLoading } = useDoc<User>(posterRef);
+    
+    if (jobLoading || posterLoading) {
+         return (
+            <div className="flex h-full w-full items-center justify-center">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+        );
+    }
 
     if (!job) {
         notFound();
     }
+    
+    const formatDate = (timestamp: any) => {
+        if (!timestamp) return 'N/A';
+        if (timestamp.toDate) {
+            return format(timestamp.toDate(), 'MMM d, yyyy');
+        }
+        try {
+            return format(new Date(timestamp), 'MMM d, yyyy');
+        } catch {
+            return 'Invalid Date';
+        }
+    }
 
-    const poster = users.find(u => u.id === job.postedBy);
 
     return (
         <div className="space-y-8">
@@ -38,7 +78,7 @@ export default function JobDetailsPage({ params }: { params: { id: string } }) {
                             <CardTitle>Job Description</CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <p className="text-foreground/80">{job.description}</p>
+                            <p className="text-foreground/80 whitespace-pre-wrap">{job.description}</p>
                         </CardContent>
                     </Card>
 
@@ -67,11 +107,11 @@ export default function JobDetailsPage({ params }: { params: { id: string } }) {
                             </div>
                             <div className="flex items-center gap-2">
                                 <Calendar className="h-4 w-4 text-muted-foreground" />
-                                <span className="text-sm">Posted on {format(parseISO(job.postedAt), 'MMM d, yyyy')}</span>
+                                <span className="text-sm">Posted on {formatDate(job.postedAt)}</span>
                             </div>
                             {poster && (
                                 <div className="flex items-center gap-2">
-                                    <User className="h-4 w-4 text-muted-foreground" />
+                                    <UserIcon className="h-4 w-4 text-muted-foreground" />
                                     <span className="text-sm">Posted by {poster.name}</span>
                                 </div>
                             )}

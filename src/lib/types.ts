@@ -1,4 +1,5 @@
 import type { LucideIcon } from 'lucide-react';
+import type { Timestamp } from 'firebase/firestore';
 
 export type Role = 'Admin' | 'HR' | 'Manager' | 'Candidate';
 
@@ -22,7 +23,7 @@ export type Job = {
   description: string;
   requirements: string[];
   status: 'Open' | 'Closed';
-  postedAt: string;
+  postedAt: Timestamp | string;
   postedBy: string; // User ID
 };
 
@@ -49,3 +50,5 @@ export type NavItem = {
   icon: LucideIcon;
   roles: Role[];
 };
+
+export type WithId<T> = T & { id: string };

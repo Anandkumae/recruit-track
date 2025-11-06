@@ -43,51 +43,9 @@ export const users: User[] = [
 ];
 
 export const jobs: Job[] = [
-  {
-    id: 'job-1',
-    title: 'Senior Frontend Engineer',
-    department: 'Engineering',
-    description: 'We are looking for a seasoned Frontend Engineer to build beautiful and performant user interfaces. You will be working with a modern tech stack including React, Next.js, and TypeScript. The ideal candidate has a strong understanding of web fundamentals and a passion for creating exceptional user experiences.',
-    requirements: [
-      '5+ years of experience with JavaScript/TypeScript and React.',
-      'Deep understanding of HTML, CSS, and web performance.',
-      'Experience with Next.js or similar frameworks.',
-      'Strong problem-solving skills and attention to detail.',
-    ],
-    status: 'Open',
-    postedAt: '2024-05-20T10:00:00Z',
-    postedBy: '2',
-  },
-  {
-    id: 'job-2',
-    title: 'Product Manager',
-    department: 'Product',
-    description: 'Join our product team to lead the development of our core platform. You will be responsible for the product lifecycle from conception to launch. You will work closely with engineering, design, and marketing to deliver products that our users love.',
-    requirements: [
-      '3+ years of product management experience in a SaaS company.',
-      'Excellent communication and leadership skills.',
-      'Ability to translate user needs into technical requirements.',
-      'Experience with agile development methodologies.',
-    ],
-    status: 'Open',
-    postedAt: '2024-05-18T14:30:00Z',
-    postedBy: '2',
-  },
-  {
-    id: 'job-3',
-    title: 'UX/UI Designer',
-    department: 'Design',
-    description: 'We are seeking a talented UX/UI Designer to create intuitive and visually appealing interfaces. You will be responsible for user research, wireframing, prototyping, and creating high-fidelity designs for our web and mobile applications.',
-    requirements: [
-      'A strong portfolio showcasing your design work.',
-      'Proficiency in Figma, Sketch, or Adobe XD.',
-      'Experience conducting user research and usability testing.',
-      'Solid understanding of design principles and user-centered design.',
-    ],
-    status: 'Closed',
-    postedAt: '2024-04-25T09:00:00Z',
-    postedBy: '2',
-  },
+  // This static data is no longer used for the main jobs list,
+  // but can be kept for reference or fallback.
+  // The app now fetches jobs directly from Firestore.
 ];
 
 export const candidates: Candidate[] = [
@@ -150,40 +108,40 @@ export const candidates: Candidate[] = [
 ];
 
 export const navItems: NavItem[] = [
-  {
-    href: '/dashboard',
-    label: 'Dashboard',
-    icon: LayoutDashboard,
-    roles: ['Admin', 'HR', 'Manager'],
-  },
-  {
-    href: '/jobs',
-    label: 'Jobs',
-    icon: Briefcase,
-    roles: ['Admin', 'HR', 'Manager', 'Candidate'],
-  },
-  {
-    href: '/candidates',
-    label: 'Candidates',
-    icon: Users,
-    roles: ['Admin', 'HR', 'Manager'],
-  },
-  {
-    href: '/resume-matcher',
-    label: 'AI Resume Matcher',
-    icon: FileText,
-    roles: ['HR', 'Manager', 'Candidate'],
-  },
-   {
-    href: '/profile',
-    label: 'My Profile',
-    icon: UserIcon,
-    roles: ['HR', 'Manager', 'Candidate'],
-  },
-  {
-    href: '/settings',
-    label: 'Settings',
-    icon: Settings,
-    roles: ['Admin', 'HR', 'Manager', 'Candidate'],
-  },
+    {
+        href: '/dashboard',
+        label: 'Dashboard',
+        icon: LayoutDashboard,
+        roles: ['Admin', 'HR', 'Manager'],
+    },
+    {
+        href: '/jobs',
+        label: 'Jobs',
+        icon: Briefcase,
+        roles: ['Admin', 'HR', 'Manager', 'Candidate'],
+    },
+    {
+        href: '/candidates',
+        label: 'Candidates',
+        icon: Users,
+        roles: ['Admin', 'HR', 'Manager'],
+    },
+    {
+        href: '/resume-matcher',
+        label: 'AI Resume Matcher',
+        icon: FileText,
+        roles: ['HR', 'Manager', 'Candidate'],
+    },
+    {
+        href: '/profile',
+        label: 'My Profile',
+        icon: UserIcon,
+        roles: ['HR', 'Manager', 'Candidate'],
+    },
+    {
+        href: '/settings',
+        label: 'Settings',
+        icon: Settings,
+        roles: ['Admin', 'HR', 'Manager', 'Candidate'],
+    },
 ];
