@@ -111,7 +111,7 @@ export const navItems: NavItem[] = [
         href: '/dashboard',
         label: 'Dashboard',
         icon: LayoutDashboard,
-        roles: ['Admin', 'HR', 'Manager'],
+        roles: ['Admin', 'HR', 'Manager', 'Candidate'],
     },
     {
         href: '/jobs',
