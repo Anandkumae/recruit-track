@@ -4,6 +4,8 @@
 import { z } from 'zod';
 import { matchResumeToJob, type MatchResumeToJobOutput } from '@/ai/flows/ai-match-resume-to-job';
 import { revalidatePath } from 'next/cache';
+import { initializeFirebase } from '@/firebase';
+import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 
 const MatcherSchema = z.object({
   resume: z.string().min(50, 'Resume text must be at least 50 characters long.'),
@@ -61,6 +63,7 @@ const ApplySchema = z.object({
   resume: z.string().min(50, 'Resume must be at least 50 characters.'),
   jobId: z.string(),
   jobDescription: z.string(),
+  phone: z.string().optional(),
 });
 
 export type ApplyState = {
@@ -70,6 +73,7 @@ export type ApplyState = {
         name?: string[];
         email?: string[];
         resume?: string[];
+        phone?: string[];
         _form?: string[];
     }
 }
@@ -84,6 +88,7 @@ export async function applyForJob(
         resume: formData.get('resume'),
         jobId: formData.get('jobId'),
         jobDescription: formData.get('jobDescription'),
+        phone: formData.get('phone'),
     });
 
     if (!validatedFields.success) {
@@ -93,14 +98,29 @@ export async function applyForJob(
     }
     
     try {
+        const { firestore } = initializeFirebase();
+
         const result = await matchResumeToJob({
             resumeText: validatedFields.data.resume,
             jobDescription: validatedFields.data.jobDescription,
         });
 
-        // In a real app, you would now save the candidate data to your database,
-        // including the name, email, applied job (jobId), and the AI match results.
-        // e.g., db.candidates.create({ ...validatedFields.data, ...result });
+        // Save the candidate data to the database
+        const candidatesCollection = collection(firestore, 'candidates');
+        await addDoc(candidatesCollection, {
+            name: validatedFields.data.name,
+            email: validatedFields.data.email,
+            phone: validatedFields.data.phone || '',
+            jobAppliedFor: validatedFields.data.jobId,
+            resumeText: validatedFields.data.resume,
+            matchScore: result.matchScore,
+            matchReasoning: result.reasoning,
+            status: 'Applied',
+            skills: [], // You might want to parse skills from resume in a more advanced flow
+            createdAt: serverTimestamp(),
+        });
+
+        revalidatePath('/candidates');
 
         return {
             message: 'Application submitted successfully!',
