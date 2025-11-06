@@ -1,3 +1,4 @@
+
 import { Briefcase } from 'lucide-react';
 import Link from 'next/link';
 
@@ -16,7 +17,7 @@ export default function PrivacyPolicyPage() {
         </div>
         <div className="prose prose-gray mx-auto dark:prose-invert">
             <h1>Privacy Policy</h1>
-            <p><strong>Last Updated:</strong> {new Date().toLocaleDate/g, ''()}</p>
+            <p><strong>Last Updated:</strong> {new Date().toLocaleDateString()}</p>
 
             <h2>1. Introduction</h2>
             <p>
