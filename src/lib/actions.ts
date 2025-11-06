@@ -43,8 +43,8 @@ const ApplySchema = z.object({
   jobDescription: z.string(),
   userId: z.string().optional(),
   resume: z
-    .instanceof(File, { message: 'Resume is required.' })
-    .refine((file) => file.size > 0, 'Resume file cannot be empty.'),
+    .any()
+    .refine((file): file is File => file instanceof File && file.size > 0, 'Resume is required and cannot be empty.'),
 });
 
 export type ApplicationState = {
@@ -62,6 +62,9 @@ export async function applyForJob(
   prevState: ApplicationState,
   formData: FormData
 ): Promise<ApplicationState> {
+  // Ensure Firebase Admin is initialized before any operation.
+  getFirebaseAdmin();
+  
   // 1. Validate form data
   const validatedFields = ApplySchema.safeParse({
     name: formData.get('name'),
