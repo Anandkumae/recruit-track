@@ -154,8 +154,8 @@ export type CreateJobState = {
 };
 
 export async function createJob(prevState: CreateJobState, formData: FormData): Promise<CreateJobState> {
-    const { firestore } = getFirebaseAdmin();
-
+   // This server action is no longer used for database operations
+   // but we keep the validation logic as a reference or for future server-side checks.
     const validatedFields = CreateJobSchema.safeParse({
         title: formData.get('title'),
         department: formData.get('department'),
@@ -169,29 +169,9 @@ export async function createJob(prevState: CreateJobState, formData: FormData): 
             errors: validatedFields.error.flatten().fieldErrors,
         };
     }
-
-    const { title, department, description, requirements, postedBy } = validatedFields.data;
-
-    try {
-        const jobData = {
-            title,
-            department,
-            description,
-            requirements: requirements.split('\n').filter(req => req.trim() !== ''),
-            postedBy,
-            status: 'Open' as const,
-            postedAt: FieldValue.serverTimestamp(),
-        };
-
-        await firestore.collection('jobs').add(jobData);
-
-    } catch (error) {
-        console.error('Job Creation Error:', error);
-        return { errors: { _form: ['Failed to create job. Please try again.'] }};
-    }
     
-    // Revalidate the jobs page to show the new job
+    // In the new flow, the client handles the Firestore write.
+    // This action will now just revalidate and redirect.
     revalidatePath('/jobs');
-    // Redirect to the jobs page on success
     redirect('/jobs');
 }

@@ -1,7 +1,6 @@
 'use client';
 
-import { useActionState } from 'react';
-import { useFormStatus } from 'react-dom';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Loader2, Save } from "lucide-react";
@@ -12,32 +11,28 @@ import { Textarea } from '@/components/ui/textarea';
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
-import { doc } from "firebase/firestore";
+import { doc, addDoc, collection, serverTimestamp } from "firebase/firestore";
 import type { Role } from "@/lib/types";
-import React, { useEffect } from "react";
-import { createJob, type CreateJobState } from '@/lib/actions';
+import { z } from 'zod';
+import { useToast } from '@/hooks/use-toast';
 
-function SubmitButton() {
-  const { pending } = useFormStatus();
-  return (
-    <Button type="submit" disabled={pending}>
-      {pending ? (
-        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-      ) : (
-        <Save className="mr-2 h-4 w-4" />
-      )}
-      Post Job
-    </Button>
-  );
-}
+
+const CreateJobSchema = z.object({
+    title: z.string().min(3, "Title must be at least 3 characters."),
+    department: z.string().min(2, "Department is required."),
+    description: z.string().min(50, "Description must be at least 50 characters."),
+    requirements: z.string().min(1, "At least one requirement is needed."),
+});
+
 
 export default function CreateJobPage() {
   const { user, isUserLoading } = useUser();
   const firestore = useFirestore();
   const router = useRouter();
+  const { toast } = useToast();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errors, setErrors] = useState<any>({});
 
-  const initialState: CreateJobState = {};
-  const [state, formAction] = useActionState(createJob, initialState);
 
   const userProfileRef = useMemoFirebase(() => {
     if (!firestore || !user) return null;
@@ -65,6 +60,59 @@ export default function CreateJobPage() {
 
   const isLoading = isUserLoading || isProfileLoading;
 
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setErrors({});
+
+    if (!user || !firestore) {
+        setErrors({ _form: 'You must be logged in to create a job.' });
+        return;
+    }
+    
+    const formData = new FormData(e.currentTarget);
+    
+    const validatedFields = CreateJobSchema.safeParse({
+        title: formData.get('title'),
+        department: formData.get('department'),
+        description: formData.get('description'),
+        requirements: formData.get('requirements'),
+    });
+
+    if (!validatedFields.success) {
+        setErrors(validatedFields.error.flatten().fieldErrors);
+        return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+        const { title, department, description, requirements } = validatedFields.data;
+        const jobData = {
+            title,
+            department,
+            description,
+            requirements: requirements.split('\n').filter(req => req.trim() !== ''),
+            postedBy: user.uid,
+            status: 'Open' as const,
+            postedAt: serverTimestamp(),
+        };
+
+        await addDoc(collection(firestore, 'jobs'), jobData);
+
+        toast({
+            title: 'Job Posted!',
+            description: 'The new job has been successfully created.',
+        });
+        
+        router.push('/jobs');
+    } catch (error) {
+        console.error('Job Creation Error:', error);
+        setErrors({ _form: 'Failed to create job. Please try again.' });
+    } finally {
+        setIsSubmitting(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex h-full w-full items-center justify-center">
@@ -89,8 +137,7 @@ export default function CreateJobPage() {
         </div>
       </div>
 
-      <form action={formAction}>
-        <input type="hidden" name="postedBy" value={user?.uid || ''} />
+      <form onSubmit={handleSubmit}>
         <Card>
           <CardHeader>
             <CardTitle>Job Details</CardTitle>
@@ -101,37 +148,44 @@ export default function CreateJobPage() {
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="title">Job Title</Label>
-              <Input id="title" name="title" placeholder="e.g., Senior Frontend Engineer" />
-              {state.errors?.title && <p className="text-sm font-medium text-destructive">{state.errors.title[0]}</p>}
+              <Input id="title" name="title" placeholder="e.g., Senior Frontend Engineer" disabled={isSubmitting} />
+              {errors?.title && <p className="text-sm font-medium text-destructive">{errors.title[0]}</p>}
             </div>
             <div className="space-y-2">
               <Label htmlFor="department">Department</Label>
-              <Input id="department" name="department" placeholder="e.g., Engineering" />
-               {state.errors?.department && <p className="text-sm font-medium text-destructive">{state.errors.department[0]}</p>}
+              <Input id="department" name="department" placeholder="e.g., Engineering" disabled={isSubmitting}/>
+               {errors?.department && <p className="text-sm font-medium text-destructive">{errors.department[0]}</p>}
             </div>
             <div className="space-y-2">
               <Label htmlFor="description">Job Description</Label>
-              <Textarea id="description" name="description" rows={6} placeholder="Describe the role, responsibilities, and what you're looking for." />
-               {state.errors?.description && <p className="text-sm font-medium text-destructive">{state.errors.description[0]}</p>}
+              <Textarea id="description" name="description" rows={6} placeholder="Describe the role, responsibilities, and what you're looking for." disabled={isSubmitting}/>
+               {errors?.description && <p className="text-sm font-medium text-destructive">{errors.description[0]}</p>}
             </div>
              <div className="space-y-2">
               <Label htmlFor="requirements">Requirements</Label>
-              <Textarea id="requirements" name="requirements" rows={6} placeholder="List the job requirements. Please enter one requirement per line." />
+              <Textarea id="requirements" name="requirements" rows={6} placeholder="List the job requirements. Please enter one requirement per line." disabled={isSubmitting}/>
               <p className="text-xs text-muted-foreground">Enter each requirement on a new line.</p>
-               {state.errors?.requirements && <p className="text-sm font-medium text-destructive">{state.errors.requirements[0]}</p>}
+               {errors?.requirements && <p className="text-sm font-medium text-destructive">{errors.requirements[0]}</p>}
             </div>
             
-             {state.errors?._form && (
+             {errors?._form && (
                 <Alert variant="destructive">
                     <AlertTitle>Error</AlertTitle>
-                    <AlertDescription>{state.errors._form[0]}</AlertDescription>
+                    <AlertDescription>{errors._form}</AlertDescription>
                 </Alert>
             )}
 
           </CardContent>
         </Card>
         <div className="mt-6 flex justify-end">
-            <SubmitButton />
+             <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                    <Save className="mr-2 h-4 w-4" />
+                )}
+                Post Job
+            </Button>
         </div>
       </form>
     </div>
