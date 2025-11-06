@@ -10,19 +10,20 @@ import { randomUUID } from 'crypto';
 
 // Server action to upload a file.
 async function uploadFile(
-  file: File,
+  fileContent: string,
+  fileName: string,
+  fileType: string,
   userId?: string
 ): Promise<{ fileUrl?: string; error?: string }> {
   try {
-    const fileBuffer = await file.arrayBuffer();
-    const buffer = Buffer.from(fileBuffer);
+    const buffer = Buffer.from(fileContent, 'base64');
     const bucket = getStorage().bucket();
-    const filePath = `resumes/${userId || 'public'}/${Date.now()}_${file.name}`;
+    const filePath = `resumes/${userId || 'public'}/${Date.now()}_${fileName}`;
     const bucketFile = bucket.file(filePath);
 
     await bucketFile.save(buffer, {
       metadata: {
-        contentType: file.type,
+        contentType: fileType,
       },
     });
 
@@ -43,8 +44,9 @@ const ApplySchema = z.object({
   jobTitle: z.string(),
   jobDescription: z.string(),
   userId: z.string().optional(),
-  resumeFile: z.instanceof(File, { message: 'Resume file is required.' }),
-  resumeFileText: z.string().min(50, 'Resume text must be at least 50 characters long.'),
+  resumeText: z.string().min(1, 'Resume content is missing.'),
+  resumeFileName: z.string().min(1, 'Resume file name is missing.'),
+  resumeFileType: z.string().min(1, 'Resume file type is missing.'),
 });
 
 export type ApplicationState = {
@@ -53,8 +55,8 @@ export type ApplicationState = {
   errors?: {
     name?: string[];
     email?: string[];
-    resumeFile?: string[];
-    resumeFileText?: string[];
+    resume?: string[];
+    resumeText?: string[];
     _form?: string[];
   };
 };
@@ -71,8 +73,9 @@ export async function applyForJob(
     jobTitle: formData.get('jobTitle'),
     jobDescription: formData.get('jobDescription'),
     userId: formData.get('userId'),
-    resumeFile: formData.get('resume'),
-    resumeFileText: formData.get('resumeFileText'),
+    resumeText: formData.get('resumeText'),
+    resumeFileName: formData.get('resumeFileName'),
+    resumeFileType: formData.get('resumeFileType'),
   });
 
   if (!validatedFields.success) {
@@ -87,14 +90,20 @@ export async function applyForJob(
     jobId,
     jobDescription,
     userId,
-    resumeFile,
-    resumeFileText,
+    resumeText,
+    resumeFileName,
+    resumeFileType,
   } = validatedFields.data;
 
   try {
     // 2. Upload the resume via the dedicated server action
-    const uploadResult = await uploadFile(resumeFile, userId);
-
+    const uploadResult = await uploadFile(
+        resumeText,
+        resumeFileName,
+        resumeFileType,
+        userId
+    );
+    
     if (uploadResult.error || !uploadResult.fileUrl) {
       throw new Error(uploadResult.error || 'File URL was not returned from upload.');
     }
@@ -102,7 +111,7 @@ export async function applyForJob(
 
     // 3. Perform AI Match Analysis
     const matchResult = await matchResumeToJob({
-      resumeText: resumeFileText,
+      resumeText: Buffer.from(resumeText, 'base64').toString('utf-8'),
       jobDescription: jobDescription,
     });
 
@@ -139,5 +148,47 @@ export async function applyForJob(
     return {
       errors: { _form: ['An unexpected error occurred while submitting your application.'] },
     };
+  }
+}
+
+
+export type MatcherState = {
+  message?: string | null;
+  result?: { matchScore: number; reasoning: string };
+  errors?: {
+    resume?: string[];
+    jobDescription?: string[];
+    _form?: string[];
+  };
+};
+
+const MatcherSchema = z.object({
+  resume: z.string().min(50, 'Resume must be at least 50 characters long.'),
+  jobDescription: z.string().min(50, 'Job description must be at least 50 characters long.'),
+});
+
+
+export async function getMatch(prevState: MatcherState, formData: FormData) {
+  const validatedFields = MatcherSchema.safeParse({
+    resume: formData.get('resume'),
+    jobDescription: formData.get('jobDescription'),
+  });
+
+  if (!validatedFields.success) {
+    return {
+      errors: validatedFields.error.flatten().fieldErrors,
+    };
+  }
+
+  try {
+    const result = await matchResumeToJob({
+      resumeText: validatedFields.data.resume,
+      jobDescription: validatedFields.data.jobDescription,
+    });
+
+    return { message: 'Analysis complete', result };
+  } catch (error) {
+    console.error('AI Matcher Error:', error);
+    return { errors: { _form: ['The AI analysis failed. Please try again.'] } };
   }
 }
