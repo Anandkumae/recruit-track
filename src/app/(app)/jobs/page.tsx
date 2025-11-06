@@ -16,21 +16,34 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { jobs as allJobs, users } from '@/lib/data';
-import type { Job } from '@/lib/types';
-import { useUser } from '@/firebase';
+import type { Job, Role } from '@/lib/types';
+import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
 import { format, parseISO } from 'date-fns';
+import { doc } from 'firebase/firestore';
 
 export default function JobsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const { user } = useUser();
+  const firestore = useFirestore();
+
+  const userProfileRef = useMemoFirebase(() => {
+    if (!firestore || !user) return null;
+    return doc(firestore, 'users', user.uid);
+  }, [firestore, user]);
+
+  const { data: userProfile } = useDoc(userProfileRef);
+
+  let userRole: Role = userProfile?.role || 'Candidate';
+  if (user?.email === 'anandkumar.shinnovationco@gmail.com') {
+    userRole = 'Admin';
+  }
 
   const filteredJobs = allJobs.filter((job) =>
     job.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
     job.department.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // In a real app, role would come from custom claims or a Firestore document
-  const canCreateJob = true; // For demo, let's assume the user can create jobs
+  const canCreateJob = userRole === 'Admin' || userRole === 'HR' || userRole === 'Manager';
 
   const getPosterName = (userId: string) => {
     return users.find(u => u.id === userId)?.name || 'Unknown';
