@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { useFormState, useFormStatus } from 'react-dom';
+import React, { useState, useEffect, useActionState } from 'react';
+import { useFormStatus } from 'react-dom';
 
 import {
   Card,
@@ -38,7 +38,7 @@ export function ApplyForm({ job }: { job: Job }) {
   const { user } = useUser();
   const { storage } = useFirebase();
   const initialState: ApplicationState = {};
-  const [state, formAction] = useFormState(applyForJob, initialState);
+  const [state, formAction] = useActionState(applyForJob, initialState);
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -71,6 +71,8 @@ export function ApplyForm({ job }: { job: Job }) {
     }
 
     setIsUploading(true);
+    const submissionPending = isUploading || useFormStatus().pending;
+
 
     try {
       // 1. Upload file from the client
