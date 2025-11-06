@@ -5,17 +5,13 @@ import { matchResumeToJob } from '@/ai/flows/ai-match-resume-to-job';
 import { getFirebaseAdmin } from '@/firebase/server-config';
 import { serverTimestamp } from 'firebase/firestore';
 
-// This server action is now a pass-through.
-// The primary logic is handled client-side in ApplyForm to work with browser APIs for file uploads
-// and client-side Firebase SDK for auth-aware operations.
-// It can be extended in the future for server-only logic if needed.
-
 const ApplySchema = z.object({
   name: z.string().min(1, 'Name is required.'),
   email: z.string().email('Invalid email address.'),
   jobId: z.string(),
-  resumeUrl: z.string().url('A valid resume URL is required.'),
   userId: z.string(),
+  resumeText: z.string().min(50, 'Resume text is required.'),
+  jobDescription: z.string(), // Added for AI call
 });
 
 
@@ -25,7 +21,7 @@ export type ApplicationState = {
   errors?: {
     name?: string[];
     email?: string[];
-    resumeFile?: string[];
+    resumeText?: string[];
     _form?: string[];
   };
 };
@@ -34,14 +30,60 @@ export async function applyForJob(
   prevState: ApplicationState,
   formData: FormData
 ): Promise<ApplicationState> {
+  const { firestore } = getFirebaseAdmin();
   
-  // The core logic (upload, AI match, Firestore write) is now on the client.
-  // This server action can be used for validation or other server-side tasks in the future.
-  // For now, we'll just return a success message as a placeholder.
-  
-  return {
-    message: 'Form data received by server. Client is processing the application.',
-  };
+  const validatedFields = ApplySchema.safeParse({
+    name: formData.get('name'),
+    email: formData.get('email'),
+    jobId: formData.get('jobId'),
+    userId: formData.get('userId'),
+    resumeText: formData.get('resumeText'),
+    // We need to fetch the job description on the server to pass to the AI
+    jobDescription: (await firestore.collection('jobs').doc(formData.get('jobId') as string).get()).data()?.description || '',
+  });
+
+  if (!validatedFields.success) {
+    return {
+      errors: validatedFields.error.flatten().fieldErrors,
+    };
+  }
+
+  const { name, email, jobId, userId, resumeText, jobDescription } = validatedFields.data;
+
+  try {
+    const matchResult = await matchResumeToJob({
+      resumeText,
+      jobDescription,
+    });
+
+    const candidateData = {
+      name,
+      email,
+      phone: '', // Not collected in this form
+      resumeText,
+      jobAppliedFor: jobId,
+      status: 'Applied' as const,
+      appliedAt: serverTimestamp(),
+      userId,
+      matchScore: matchResult.matchScore,
+      matchReasoning: matchResult.reasoning,
+      skills: [], // Could be extracted by AI in the future
+      avatarUrl: `https://picsum.photos/seed/${userId}/100/100`,
+      resumeUrl: '', // No file upload
+    };
+
+    const docRef = await firestore.collection('candidates').add(candidateData);
+
+    return {
+      message: 'Application submitted successfully!',
+      result: { candidateId: docRef.id },
+    };
+
+  } catch (error) {
+    console.error('Submission Error:', error);
+    const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
+    return { errors: { _form: ['An unexpected error occurred while submitting your application. Please try again. Details: ' + errorMessage] }};
+  }
 }
 
 

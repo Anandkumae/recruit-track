@@ -110,13 +110,5 @@ service firebase.storage {
     match /{allPaths=**} {
       allow read;
     }
-    
-    // Secure resume uploads: only authenticated users can upload to their own folder.
-    // Files must be less than 5MB and must be a PDF.
-    match /resumes/{userId}/{fileName} {
-      allow write: if request.auth != null && request.auth.uid == userId
-                    && request.resource.size < 5 * 1024 * 1024
-                    && request.resource.contentType == 'application/pdf';
-    }
   }
 }

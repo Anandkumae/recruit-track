@@ -93,6 +93,20 @@ export default function CandidateDetailsPage({ params }: { params: { id: string 
                             ))}
                         </CardContent>
                     </Card>
+
+                    {candidate.resumeText && (
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Resume</CardTitle>
+                                <CardDescription>The full text of the candidate's submitted resume.</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <p className="text-sm text-foreground/80 whitespace-pre-wrap font-mono bg-muted/50 p-4 rounded-md">
+                                    {candidate.resumeText}
+                                </p>
+                            </CardContent>
+                        </Card>
+                    )}
                 </div>
                 <div className="space-y-6">
                     <Card>
@@ -126,22 +140,6 @@ export default function CandidateDetailsPage({ params }: { params: { id: string 
                              )}
                         </CardContent>
                     </Card>
-                    
-                    {candidate.resumeUrl && (
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>Resume File</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <Button asChild className="w-full">
-                                    <Link href={candidate.resumeUrl} target="_blank">
-                                        <Download className="mr-2 h-4 w-4" />
-                                        Download Resume
-                                    </Link>
-                                </Button>
-                            </CardContent>
-                        </Card>
-                    )}
                 </div>
             </div>
         </div>
