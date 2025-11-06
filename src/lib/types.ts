@@ -9,6 +9,7 @@ export type User = {
   avatarUrl: string;
   role: Role;
   department?: string;
+  resumeUrl?: string; // Added field for resume URL
 };
 
 export type HiringStage = 'Applied' | 'Shortlisted' | 'Interviewed' | 'Hired' | 'Rejected';
@@ -25,7 +26,7 @@ export type Job = {
 };
 
 export type Candidate = {
-  id: string;
+  id:string;
   name: string;
   email: string;
   phone: string;

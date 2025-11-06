@@ -27,6 +27,10 @@
             "type": "string",
             "description": "The user's highest qualification."
         },
+        "resumeUrl": {
+          "type": "string",
+          "description": "URL to the user's resume in cloud storage."
+        },
         "role": {
           "type": "string",
           "description": "The user's role within the system (e.g., Admin, HR, Manager, Candidate)."

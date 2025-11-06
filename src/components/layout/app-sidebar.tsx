@@ -51,13 +51,9 @@ export function AppSidebar() {
               <SidebarMenuButton
                 asChild
                 variant="default"
-                isActive={pathname === item.href}
+                isActive={pathname.startsWith(item.href)}
                 className={cn(
-                  'w-full justify-start',
-                  pathname.startsWith(item.href) && item.href !== '/dashboard'
-                    ? 'bg-primary/10 text-primary hover:bg-primary/20 hover:text-primary'
-                    : '',
-                    pathname === item.href && item.href === '/dashboard' ? 'bg-primary/10 text-primary hover:bg-primary/20 hover:text-primary' : ''
+                  'w-full justify-start'
                 )}
                 tooltip={item.label}
               >

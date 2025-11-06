@@ -5,6 +5,7 @@ import {
   Users,
   FileText,
   Settings,
+  User as UserIcon,
 } from 'lucide-react';
 
 export const users: User[] = [
@@ -168,6 +169,12 @@ export const navItems: NavItem[] = [
     label: 'AI Resume Matcher',
     icon: FileText,
     roles: ['Admin', 'HR'],
+  },
+   {
+    href: '/profile',
+    label: 'My Profile',
+    icon: UserIcon,
+    roles: ['Admin', 'HR', 'Manager', 'Candidate'],
   },
   {
     href: '/settings',

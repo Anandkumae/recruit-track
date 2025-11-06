@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState } from 'react';
+import { useActionState, useEffect, useState } from 'react';
 import { useFormStatus } from 'react-dom';
 import {
   Card,
@@ -13,10 +13,13 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
-import { Loader2, PartyPopper, Send } from 'lucide-react';
+import { Loader2, PartyPopper, Send, FileCheck2 } from 'lucide-react';
 import type { Job } from '@/lib/types';
 import { applyForJob, type ApplyState } from '@/lib/actions';
 import { Progress } from '../ui/progress';
+import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
+import { doc } from 'firebase/firestore';
+
 
 function SubmitButton() {
   const { pending } = useFormStatus();
@@ -33,9 +36,27 @@ function SubmitButton() {
 }
 
 export function ApplyForm({ job }: { job: Job }) {
+  const { user } = useUser();
+  const firestore = useFirestore();
   const initialState: ApplyState = {};
   const applyForJobWithId = applyForJob.bind(null);
   const [state, dispatch] = useActionState(applyForJobWithId, initialState);
+  const [resumeText, setResumeText] = useState('');
+
+   const userProfileRef = useMemoFirebase(() => {
+    if (!firestore || !user) return null;
+    return doc(firestore, 'users', user.uid);
+  }, [firestore, user]);
+
+  const { data: userProfile, isLoading: isProfileLoading } = useDoc(userProfileRef);
+
+  useEffect(() => {
+    // In a real app, you would fetch the resume content from the URL.
+    // For this demo, we'll just use a placeholder text if a resume exists.
+    if (userProfile?.resumeUrl) {
+      setResumeText(`Resume content from ${userProfile.resumeUrl}`);
+    }
+  }, [userProfile]);
 
   if (state.message && state.result) {
     return (
@@ -81,10 +102,13 @@ export function ApplyForm({ job }: { job: Job }) {
         <form action={dispatch} className="space-y-4">
           <input type="hidden" name="jobId" value={job.id} />
           <input type="hidden" name="jobDescription" value={job.description} />
+          {/* Hidden input to pass resume text to server action */}
+          <input type="hidden" name="resume" value={resumeText} />
+          
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="name">Full Name</Label>
-              <Input id="name" name="name" placeholder="John Doe" required />
+              <Input id="name" name="name" defaultValue={userProfile?.name || ''} required />
               {state.errors?.name && (
                 <p className="text-sm font-medium text-destructive">
                   {state.errors.name[0]}
@@ -97,7 +121,7 @@ export function ApplyForm({ job }: { job: Job }) {
                 id="email"
                 name="email"
                 type="email"
-                placeholder="john.doe@example.com"
+                defaultValue={userProfile?.email || ''}
                 required
               />
                {state.errors?.email && (
@@ -108,17 +132,36 @@ export function ApplyForm({ job }: { job: Job }) {
             </div>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="resume">Paste Your Resume</Label>
-            <Textarea
-              id="resume"
-              name="resume"
-              placeholder="Paste the full text of your resume here..."
-              rows={15}
-              required
-            />
-            <p className="text-sm text-muted-foreground">
-                Our AI will analyze this to provide an initial match score.
-            </p>
+            <Label htmlFor="resume-display">Your Resume</Label>
+            {isProfileLoading ? (
+                 <div className="flex items-center justify-center rounded-md border h-40">
+                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                 </div>
+            ) : userProfile?.resumeUrl ? (
+              <div className="p-4 rounded-md border bg-muted/50 text-sm">
+                <div className="flex items-center gap-3">
+                    <FileCheck2 className="h-6 w-6 text-green-600" />
+                    <div>
+                        <p className="font-medium">Using resume from your profile.</p>
+                        <p className="text-muted-foreground text-xs">You can update it in the "My Profile" section.</p>
+                    </div>
+                </div>
+              </div>
+            ) : (
+                <>
+                    <Textarea
+                    id="resume-display"
+                    placeholder="You haven't uploaded a resume yet. Paste the full text of your resume here..."
+                    rows={10}
+                    value={resumeText}
+                    onChange={(e) => setResumeText(e.target.value)}
+                    required
+                    />
+                    <p className="text-sm text-muted-foreground">
+                        For easier applications next time, upload your resume in the "My Profile" section.
+                    </p>
+                </>
+            )}
              {state.errors?.resume && (
                 <p className="text-sm font-medium text-destructive">
                   {state.errors.resume[0]}
