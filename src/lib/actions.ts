@@ -3,17 +3,16 @@
 
 import { z } from 'zod';
 import { matchResumeToJob } from '@/ai/flows/ai-match-resume-to-job';
-import { FieldValue } from 'firebase-admin/firestore';
 import { randomUUID } from 'crypto';
-import { initializeApp } from 'firebase/app';
-import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { getFirestore, collection, addDoc } from 'firebase/firestore';
+import { getFirestore, collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { initializeApp, getApps, getApp } from 'firebase/app';
 import { firebaseConfig } from '@/firebase/config';
 
-// Initialize a dedicated Firebase app instance for this server action
-// This prevents conflicts with any client-side initialization.
-const serverApp = initializeApp(firebaseConfig, 'server-action-app');
-const storage = getStorage(serverApp);
+// Initialize a dedicated Firebase app instance for server actions if it doesn't exist
+const serverApp = !getApps().find(app => app.name === 'server-action-app')
+  ? initializeApp(firebaseConfig, 'server-action-app')
+  : getApp('server-action-app');
+
 const firestore = getFirestore(serverApp);
 
 
@@ -24,7 +23,8 @@ const ApplySchema = z.object({
   jobTitle: z.string(),
   jobDescription: z.string(),
   userId: z.string().optional(),
-  resume: z.instanceof(File).refine(file => file.size > 0, { message: 'Resume is required.' }),
+  resumeUrl: z.string().url('A valid resume URL is required.'),
+  resumeText: z.string().min(1, 'Resume content is required.'),
 });
 
 export type ApplicationState = {
@@ -33,7 +33,8 @@ export type ApplicationState = {
   errors?: {
     name?: string[];
     email?: string[];
-    resume?: string[];
+    resumeUrl?: string[];
+    resumeText?: string[];
     _form?: string[];
   };
 };
@@ -43,7 +44,6 @@ export async function applyForJob(
   formData: FormData
 ): Promise<ApplicationState> {
 
-  // 1. Validate form data
   const validatedFields = ApplySchema.safeParse({
     name: formData.get('name'),
     email: formData.get('email'),
@@ -51,7 +51,8 @@ export async function applyForJob(
     jobTitle: formData.get('jobTitle'),
     jobDescription: formData.get('jobDescription'),
     userId: formData.get('userId'),
-    resume: formData.get('resume'),
+    resumeUrl: formData.get('resumeUrl'),
+    resumeText: formData.get('resumeText'),
   });
 
   if (!validatedFields.success) {
@@ -60,44 +61,35 @@ export async function applyForJob(
     };
   }
 
-  const { name, email, jobId, jobDescription, userId, resume } =
+  const { name, email, jobId, jobDescription, userId, resumeUrl, resumeText } =
     validatedFields.data;
 
   try {
-     // 2. Upload the file to Firebase Storage from the server
-    const fileBuffer = Buffer.from(await resume.arrayBuffer());
-    const storageRef = ref(storage, `resumes/${userId || 'public'}/${Date.now()}_${resume.name}`);
-    await uploadBytes(storageRef, fileBuffer, { contentType: resume.type });
-    const downloadURL = await getDownloadURL(storageRef);
-
-    // 3. Read resume text for AI analysis
-    const resumeText = fileBuffer.toString('utf-8');
-
-    // 4. Perform AI Match Analysis
+    // Perform AI Match Analysis
     const matchResult = await matchResumeToJob({
       resumeText,
       jobDescription,
     });
 
-    // 5. Save Candidate to Firestore
+    // Save Candidate to Firestore
     const candidateData = {
       name,
       email,
       phone: '', // Not collected in form currently
-      resumeUrl: downloadURL,
+      resumeUrl: resumeUrl,
       jobAppliedFor: jobId,
       status: 'Applied',
-      appliedAt: new Date(), // Use JS Date on server, Firestore will convert it
+      appliedAt: serverTimestamp(),
       userId: userId || null,
       matchScore: matchResult.matchScore,
       matchReasoning: matchResult.reasoning,
-      skills: [], // Skills can be extracted by another process if needed
+      skills: [], 
       avatarUrl: `https://picsum.photos/seed/${randomUUID()}/100/100`,
     };
 
     const docRef = await addDoc(collection(firestore, "candidates"), candidateData);
 
-    // 6. Return Success State
+    // Return Success State
     return {
       message: 'Application submitted successfully!',
       result: {
