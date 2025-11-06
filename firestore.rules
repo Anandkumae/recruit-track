@@ -58,7 +58,7 @@ service cloud.firestore {
     /**
      * @description Manages candidate profile access.
      * @path /candidates/{candidateId}
-     * @allow (create) Any authenticated user can create a candidate profile.
+     * @allow (create) Any authenticated user can create a candidate profile for themselves.
      * @allow (get) Any authenticated user can read a candidate profile.
      * @allow (update) Any authenticated user can update a candidate profile.
      * @allow (delete) Any authenticated user can delete a candidate profile.
@@ -112,11 +112,11 @@ service firebase.storage {
     }
     
     // Secure resume uploads: only authenticated users can upload to their own folder.
-    // Files must be less than 5MB and of an allowed type.
+    // Files must be less than 5MB and must be a PDF.
     match /resumes/{userId}/{fileName} {
       allow write: if request.auth != null && request.auth.uid == userId
                     && request.resource.size < 5 * 1024 * 1024
-                    && request.resource.contentType.matches('application/pdf|application/msword|application/vnd.openxmlformats-officedocument.wordprocessingml.document|text/plain');
+                    && request.resource.contentType == 'application/pdf';
     }
   }
 }

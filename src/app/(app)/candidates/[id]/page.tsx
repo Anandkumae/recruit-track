@@ -59,6 +59,9 @@ export default function CandidateDetailsPage({ params }: { params: { id: string 
                      <Card>
                         <CardHeader>
                             <CardTitle>AI Match Analysis</CardTitle>
+                             <CardDescription>
+                                AI analysis requires resume text. PDF analysis is not yet implemented.
+                            </CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-4">
                              <div>
@@ -90,20 +93,6 @@ export default function CandidateDetailsPage({ params }: { params: { id: string 
                             ))}
                         </CardContent>
                     </Card>
-
-                    {candidate.resumeText && (
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>Resume Text</CardTitle>
-                                <CardDescription>The full text of the candidate's submitted resume.</CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                                <pre className="text-sm text-foreground/80 rounded-md border bg-muted/50 p-3 whitespace-pre-wrap font-sans">
-                                    {candidate.resumeText}
-                                </pre>
-                            </CardContent>
-                        </Card>
-                    )}
                 </div>
                 <div className="space-y-6">
                     <Card>
@@ -145,8 +134,7 @@ export default function CandidateDetailsPage({ params }: { params: { id: string 
                             </CardHeader>
                             <CardContent>
                                 <Button asChild className="w-full">
-                                    {/* In a real app, this would be a secure download link from cloud storage */}
-                                    <Link href={candidate.resumeUrl} target="_blank" download>
+                                    <Link href={candidate.resumeUrl} target="_blank">
                                         <Download className="mr-2 h-4 w-4" />
                                         Download Resume
                                     </Link>
