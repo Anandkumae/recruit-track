@@ -6,15 +6,25 @@ import { matchResumeToJob } from '@/ai/flows/ai-match-resume-to-job';
 import { randomUUID } from 'crypto';
 import { getFirestore, collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { initializeApp, getApps, getApp } from 'firebase/app';
+import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { getAuth, signInAnonymously } from 'firebase/auth';
 import { firebaseConfig } from '@/firebase/config';
 
 // Initialize a dedicated Firebase app instance for server actions if it doesn't exist
-const serverApp = !getApps().find(app => app.name === 'server-action-app')
-  ? initializeApp(firebaseConfig, 'server-action-app')
-  : getApp('server-action-app');
+const serverActionApp = !getApps().find(app => app.name === 'serverActionApp')
+  ? initializeApp(firebaseConfig, 'serverActionApp')
+  : getApp('serverActionApp');
 
-const firestore = getFirestore(serverApp);
+const firestore = getFirestore(serverActionApp);
+const storage = getStorage(serverActionApp);
+const auth = getAuth(serverActionApp);
 
+// Ensure the server is authenticated to perform actions
+const ensureServerAuth = async () => {
+    if (auth.currentUser === null) {
+        await signInAnonymously(auth);
+    }
+};
 
 const ApplySchema = z.object({
   name: z.string().min(1, 'Name is required.'),
@@ -23,8 +33,7 @@ const ApplySchema = z.object({
   jobTitle: z.string(),
   jobDescription: z.string(),
   userId: z.string().optional(),
-  resumeUrl: z.string().url('A valid resume URL is required.'),
-  resumeText: z.string().min(1, 'Resume content is required.'),
+  resume: z.instanceof(File).refine(file => file.size > 0, 'A resume file is required.'),
 });
 
 export type ApplicationState = {
@@ -33,8 +42,7 @@ export type ApplicationState = {
   errors?: {
     name?: string[];
     email?: string[];
-    resumeUrl?: string[];
-    resumeText?: string[];
+    resume?: string[];
     _form?: string[];
   };
 };
@@ -43,7 +51,6 @@ export async function applyForJob(
   prevState: ApplicationState,
   formData: FormData
 ): Promise<ApplicationState> {
-
   const validatedFields = ApplySchema.safeParse({
     name: formData.get('name'),
     email: formData.get('email'),
@@ -51,8 +58,7 @@ export async function applyForJob(
     jobTitle: formData.get('jobTitle'),
     jobDescription: formData.get('jobDescription'),
     userId: formData.get('userId'),
-    resumeUrl: formData.get('resumeUrl'),
-    resumeText: formData.get('resumeText'),
+    resume: formData.get('resume'),
   });
 
   if (!validatedFields.success) {
@@ -61,29 +67,41 @@ export async function applyForJob(
     };
   }
 
-  const { name, email, jobId, jobDescription, userId, resumeUrl, resumeText } =
+  const { name, email, jobId, jobDescription, userId, resume } =
     validatedFields.data;
 
   try {
-    // Perform AI Match Analysis
+    // 1. Ensure server is authenticated
+    await ensureServerAuth();
+    
+    // 2. Read file content for upload and AI analysis
+    const resumeBuffer = await resume.arrayBuffer();
+    const resumeText = Buffer.from(resumeBuffer).toString('utf-8');
+
+    // 3. Upload file to Firebase Storage
+    const storageRef = ref(storage, `resumes/${userId || 'guest'}/${Date.now()}_${resume.name}`);
+    const uploadResult = await uploadBytes(storageRef, resumeBuffer);
+    const downloadURL = await getDownloadURL(uploadResult.ref);
+
+    // 4. Perform AI Match Analysis
     const matchResult = await matchResumeToJob({
       resumeText,
       jobDescription,
     });
 
-    // Save Candidate to Firestore
+    // 5. Save Candidate to Firestore
     const candidateData = {
       name,
       email,
       phone: '', // Not collected in form currently
-      resumeUrl: resumeUrl,
+      resumeUrl: downloadURL,
       jobAppliedFor: jobId,
       status: 'Applied',
       appliedAt: serverTimestamp(),
       userId: userId || null,
       matchScore: matchResult.matchScore,
       matchReasoning: matchResult.reasoning,
-      skills: [], 
+      skills: [],
       avatarUrl: `https://picsum.photos/seed/${randomUUID()}/100/100`,
     };
 
