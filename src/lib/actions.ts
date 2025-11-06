@@ -1,39 +1,11 @@
+
 'use server';
 
 import { z } from 'zod';
 import { matchResumeToJob } from '@/ai/flows/ai-match-resume-to-job';
 import { getFirebaseAdmin } from '@/firebase/server-config';
 import { FieldValue } from 'firebase-admin/firestore';
-import { getStorage } from 'firebase-admin/storage';
 import { randomUUID } from 'crypto';
-
-// Server action to upload a file.
-async function uploadFile(
-  fileBuffer: Buffer,
-  fileName: string,
-  fileType: string,
-  userId?: string
-): Promise<{ fileUrl?: string; error?: string }> {
-  try {
-    const bucket = getStorage().bucket();
-    const filePath = `resumes/${userId || 'public'}/${Date.now()}_${fileName}`;
-    const bucketFile = bucket.file(filePath);
-
-    await bucketFile.save(fileBuffer, {
-      metadata: {
-        contentType: fileType,
-      },
-    });
-
-    // Make the file public for simplicity
-    await bucketFile.makePublic();
-
-    return { fileUrl: bucketFile.publicUrl() };
-  } catch (error) {
-    console.error('File upload failed:', error);
-    return { error: 'Failed to upload file.' };
-  }
-}
 
 const ApplySchema = z.object({
   name: z.string().min(1, 'Name is required.'),
@@ -42,9 +14,8 @@ const ApplySchema = z.object({
   jobTitle: z.string(),
   jobDescription: z.string(),
   userId: z.string().optional(),
-  resume: z
-    .any()
-    .refine((file): file is File => file instanceof File && file.size > 0, 'Resume is required and cannot be empty.'),
+  resumeUrl: z.string().url('Invalid resume URL.'),
+  resumeText: z.string().min(1, 'Resume content is required.'),
 });
 
 export type ApplicationState = {
@@ -63,7 +34,14 @@ export async function applyForJob(
   formData: FormData
 ): Promise<ApplicationState> {
   // Ensure Firebase Admin is initialized before any operation.
-  getFirebaseAdmin();
+  try {
+    getFirebaseAdmin();
+  } catch (error) {
+     console.error('Failed to initialize Firebase Admin:', error);
+     return {
+        errors: { _form: ['Server configuration error. Please contact support.'] }
+     }
+  }
   
   // 1. Validate form data
   const validatedFields = ApplySchema.safeParse({
@@ -73,7 +51,8 @@ export async function applyForJob(
     jobTitle: formData.get('jobTitle'),
     jobDescription: formData.get('jobDescription'),
     userId: formData.get('userId'),
-    resume: formData.get('resume'),
+    resumeUrl: formData.get('resumeUrl'),
+    resumeText: formData.get('resumeText'),
   });
 
   if (!validatedFields.success) {
@@ -82,35 +61,17 @@ export async function applyForJob(
     };
   }
 
-  const { name, email, jobId, jobDescription, userId, resume } =
+  const { name, email, jobId, jobDescription, userId, resumeUrl, resumeText } =
     validatedFields.data;
 
   try {
-    // 2. Read file content on the server
-    const resumeBuffer = Buffer.from(await resume.arrayBuffer());
-    const resumeText = resumeBuffer.toString('utf-8');
-
-    // 3. Upload the resume
-    const uploadResult = await uploadFile(
-      resumeBuffer,
-      resume.name,
-      resume.type,
-      userId
-    );
-    if (uploadResult.error || !uploadResult.fileUrl) {
-      throw new Error(
-        uploadResult.error || 'File URL was not returned from upload.'
-      );
-    }
-    const resumeUrl = uploadResult.fileUrl;
-
-    // 4. Perform AI Match Analysis
+    // 2. Perform AI Match Analysis
     const matchResult = await matchResumeToJob({
       resumeText,
       jobDescription,
     });
 
-    // 5. Save Candidate to Firestore
+    // 3. Save Candidate to Firestore
     const { firestore } = getFirebaseAdmin();
     const candidateData = {
       name,
@@ -131,7 +92,7 @@ export async function applyForJob(
       .collection('candidates')
       .add(candidateData);
 
-    // 6. Return Success State
+    // 4. Return Success State
     return {
       message: 'Application submitted successfully!',
       result: {
