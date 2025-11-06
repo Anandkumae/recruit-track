@@ -103,6 +103,7 @@ export const candidates: Candidate[] = [
     matchScore: 92,
     matchReasoning: 'Excellent match. Alice has over 6 years of experience with React and TypeScript, and her recent project involved a large-scale Next.js application, which aligns perfectly with the job requirements.',
     avatarUrl: 'https://picsum.photos/seed/cand1/100/100',
+    resumeUrl: '/resumes/alice-johnson-resume.pdf',
   },
   {
     id: 'cand-2',
@@ -116,6 +117,7 @@ export const candidates: Candidate[] = [
     matchScore: 85,
     matchReasoning: 'Strong candidate. Bob demonstrates solid experience in product management within the SaaS industry and is well-versed in agile methodologies as required.',
     avatarUrl: 'https://picsum.photos/seed/cand2/100/100',
+    resumeUrl: '/resumes/bob-williams-resume.pdf',
   },
   {
     id: 'cand-3',
@@ -129,6 +131,7 @@ export const candidates: Candidate[] = [
     matchScore: 65,
     matchReasoning: 'Moderate match. While Charlie has strong frontend skills, his experience is primarily with Angular and Vue.js, not React, which is a key requirement for the role.',
     avatarUrl: 'https://picsum.photos/seed/cand3/100/100',
+    resumeUrl: '/resumes/charlie-brown-resume.pdf',
   },
   {
     id: 'cand-4',
@@ -142,6 +145,7 @@ export const candidates: Candidate[] = [
     matchScore: 98,
     matchReasoning: 'Exceptional match. Diana\'s portfolio is outstanding and showcases a deep understanding of user-centered design. Her proficiency in Figma and experience building design systems exceed the job requirements.',
     avatarUrl: 'https://picsum.photos/seed/cand4/100/100',
+    resumeUrl: '/resumes/diana-prince-resume.pdf',
   },
 ];
 

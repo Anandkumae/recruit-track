@@ -2,12 +2,12 @@
 
 import React, { useState } from 'react';
 import { Search } from 'lucide-react';
+import Link from 'next/link';
 import { Input } from '@/components/ui/input';
 import {
   Table,
   TableBody,
   TableCell,
-  TableHead,
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
@@ -19,6 +19,8 @@ import { Progress } from '@/components/ui/progress';
 import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import type { HiringStage } from '@/lib/types';
+import { Button } from '@/components/ui/button';
+import { TableHead } from '@/components/ui/table';
 
 
 const getJobTitle = (jobId: string) => {
@@ -80,20 +82,21 @@ export default function CandidatesPage() {
                 <TableHead>AI Match</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Applied On</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredCandidates.length > 0 ? (
                 filteredCandidates.map((candidate) => (
-                  <TableRow key={candidate.id}>
+                  <TableRow key={candidate.id} className="cursor-pointer hover:bg-muted/50">
                     <TableCell>
-                        <div className="flex items-center gap-3">
+                        <Link href={`/candidates/${candidate.id}`} className="flex items-center gap-3 group">
                             <Avatar>
                                 <AvatarImage src={candidate.avatarUrl} alt={candidate.name} />
                                 <AvatarFallback>{getInitials(candidate.name)}</AvatarFallback>
                             </Avatar>
-                            <div className="font-medium">{candidate.name}</div>
-                        </div>
+                            <div className="font-medium group-hover:underline">{candidate.name}</div>
+                        </Link>
                     </TableCell>
                     <TableCell>{getJobTitle(candidate.jobAppliedFor)}</TableCell>
                     <TableCell>
@@ -110,11 +113,16 @@ export default function CandidatesPage() {
                     <TableCell>
                         {format(parseISO(candidate.appliedAt), 'MMM d, yyyy')}
                     </TableCell>
+                    <TableCell className="text-right">
+                       <Button variant="outline" size="sm" asChild>
+                         <Link href={`/candidates/${candidate.id}`}>View</Link>
+                       </Button>
+                    </TableCell>
                   </TableRow>
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center h-24">
+                  <TableCell colSpan={6} className="text-center h-24">
                     No candidates found.
                   </TableCell>
                 </TableRow>
