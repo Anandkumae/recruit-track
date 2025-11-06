@@ -1,7 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { useActionState } from 'react';
+import React, { useState, useEffect, useActionState } from 'react';
 import {
   Card,
   CardContent,
@@ -18,9 +17,10 @@ import { useUser } from '@/firebase';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { applyForJob, type ApplicationState } from '@/lib/actions';
 import { Textarea } from '../ui/textarea';
+import { useFormStatus } from 'react-dom';
 
 function SubmitButton() {
-  const { pending } = useActionState(applyForJob, {});
+  const { pending } = useFormStatus();
   return (
     <Button type="submit" disabled={pending} className="w-full">
       {pending ? (
@@ -32,21 +32,6 @@ function SubmitButton() {
     </Button>
   );
 }
-
-// Helper to read file as Base64
-const toBase64 = (file: File): Promise<string> =>
-  new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = () => {
-      if (typeof reader.result === 'string') {
-        resolve(reader.result.split(',')[1]);
-      } else {
-        reject(new Error('Failed to read file as Base64.'));
-      }
-    };
-    reader.onerror = (error) => reject(error);
-  });
 
 // Helper to read file as text
 const toText = (file: File): Promise<string> =>
@@ -62,14 +47,14 @@ export function ApplyForm({ job }: { job: Job }) {
   const initialState: ApplicationState = {};
   const [state, formAction] = useActionState(applyForJob, initialState);
 
-  // Initialize state with empty strings to guarantee the server and client render match.
+  // State for client-side rendering control and form inputs
+  const [isClient, setIsClient] = useState(false);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [resumeFile, setResumeFile] = useState<File | null>(null);
   const [resumeText, setResumeText] = useState('');
-  const [isClient, setIsClient] = useState(false);
 
-  // After the component mounts on the client, we can safely set the user data.
+  // Ensure component only renders on client to avoid hydration mismatch
   useEffect(() => {
     setIsClient(true);
     if (user) {
@@ -79,8 +64,7 @@ export function ApplyForm({ job }: { job: Job }) {
   }, [user]);
 
   if (!isClient) {
-    // On the server and during the initial client render, render nothing or a loading skeleton
-    // to prevent the hydration mismatch.
+    // Render nothing on the server to prevent hydration errors
     return null;
   }
   
@@ -99,29 +83,6 @@ export function ApplyForm({ job }: { job: Job }) {
           setResumeText('');
       }
   }
-
-  const handleFormAction = async (formData: FormData) => {
-    if (!resumeFile) {
-        // This should be caught by the required attribute, but as a fallback
-        alert("Please select a resume file.");
-        return;
-    }
-    try {
-        const base64File = await toBase64(resumeFile);
-        
-        formData.set('resumeFile', base64File);
-        formData.set('resumeFileName', resumeFile.name);
-        formData.set('resumeFileType', resumeFile.type);
-        // The resume text is now in state, but we also need it in the action
-        formData.set('resumeFileText', resumeText);
-        
-        formAction(formData);
-
-    } catch (error) {
-        console.error("Error processing file:", error);
-        alert("There was an error processing your resume. Please try again.");
-    }
-  };
 
 
   if (state.message) {
@@ -148,7 +109,7 @@ export function ApplyForm({ job }: { job: Job }) {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <form action={handleFormAction} className="space-y-4">
+        <form action={formAction} className="space-y-4">
           {/* Hidden fields for job and user info */}
           <input type="hidden" name="jobId" value={job.id} />
           <input type="hidden" name="jobTitle" value={job.title} />
@@ -182,7 +143,7 @@ export function ApplyForm({ job }: { job: Job }) {
             <Label htmlFor="resume">Upload Resume</Label>
             <Input
                 id="resume"
-                name="resume" // Name is handled manually, not submitted directly
+                name="resume" // Name is used by FormData
                 type="file"
                 accept=".pdf,.doc,.docx,.txt"
                 onChange={handleFileChange}
@@ -199,7 +160,7 @@ export function ApplyForm({ job }: { job: Job }) {
                 name="resumeFileText"
                 placeholder="The text from your resume will appear here automatically after you upload it."
                 value={resumeText}
-                onChange={(e) => setResumeText(e.target.value)}
+                readOnly // This should be derived from the file, not user-editable
                 rows={8}
                 required
               />

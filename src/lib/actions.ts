@@ -2,50 +2,39 @@
 'use server';
 
 import { z } from 'zod';
-import { matchResumeToJob, type MatchResumeToJobOutput } from '@/ai/flows/ai-match-resume-to-job';
+import { matchResumeToJob } from '@/ai/flows/ai-match-resume-to-job';
 import { getFirebaseAdmin } from '@/firebase/server-config';
 import { FieldValue } from 'firebase-admin/firestore';
 import { getStorage } from 'firebase-admin/storage';
 import { randomUUID } from 'crypto';
 
-// Schema for a server action to upload a file to storage.
-const UploadFileSchema = z.object({
-  fileBuffer: z.string(), // Base64 encoded file
-  fileName: z.string(),
-  contentType: z.string(),
-  userId: z.string().optional(),
-});
-
 // Server action to upload a file.
-export async function uploadFile(input: z.infer<typeof UploadFileSchema>): Promise<{ fileUrl?: string; error?: string }> {
+async function uploadFile(
+  file: File,
+  userId?: string
+): Promise<{ fileUrl?: string; error?: string }> {
   try {
-    const validated = UploadFileSchema.parse(input);
-    const { fileBuffer, fileName, contentType, userId } = validated;
-
-    const buffer = Buffer.from(fileBuffer, 'base64');
+    const fileBuffer = await file.arrayBuffer();
+    const buffer = Buffer.from(fileBuffer);
     const bucket = getStorage().bucket();
-    const filePath = `resumes/${userId || 'public'}/${Date.now()}_${fileName}`;
-    const file = bucket.file(filePath);
+    const filePath = `resumes/${userId || 'public'}/${Date.now()}_${file.name}`;
+    const bucketFile = bucket.file(filePath);
 
-    await file.save(buffer, {
+    await bucketFile.save(buffer, {
       metadata: {
-        contentType,
+        contentType: file.type,
       },
     });
-    
-    // Make the file public for simplicity, or generate a signed URL for private files
-    await file.makePublic();
 
-    return { fileUrl: file.publicUrl() };
+    // Make the file public for simplicity
+    await bucketFile.makePublic();
+
+    return { fileUrl: bucketFile.publicUrl() };
   } catch (error) {
     console.error('File upload failed:', error);
-    if (error instanceof z.ZodError) {
-      return { error: 'Invalid file data.' };
-    }
     return { error: 'Failed to upload file.' };
   }
 }
-
 
 const ApplySchema = z.object({
   name: z.string().min(1, 'Name is required.'),
@@ -54,10 +43,7 @@ const ApplySchema = z.object({
   jobTitle: z.string(),
   jobDescription: z.string(),
   userId: z.string().optional(),
-  // File related fields
-  resumeFile: z.string(), // Base64 encoded file
-  resumeFileName: z.string(),
-  resumeFileType: z.string(),
+  resumeFile: z.instanceof(File, { message: 'Resume file is required.' }),
   resumeFileText: z.string().min(50, 'Resume text must be at least 50 characters long.'),
 });
 
@@ -67,7 +53,8 @@ export type ApplicationState = {
   errors?: {
     name?: string[];
     email?: string[];
-    resume?: string[];
+    resumeFile?: string[];
+    resumeFileText?: string[];
     _form?: string[];
   };
 };
@@ -84,14 +71,11 @@ export async function applyForJob(
     jobTitle: formData.get('jobTitle'),
     jobDescription: formData.get('jobDescription'),
     userId: formData.get('userId'),
-    resumeFile: formData.get('resumeFile'),
-    resumeFileName: formData.get('resumeFileName'),
-    resumeFileType: formData.get('resumeFileType'),
+    resumeFile: formData.get('resume'),
     resumeFileText: formData.get('resumeFileText'),
   });
 
   if (!validatedFields.success) {
-    console.error("Validation errors:", validatedFields.error.flatten().fieldErrors);
     return {
       errors: validatedFields.error.flatten().fieldErrors,
     };
@@ -101,29 +85,20 @@ export async function applyForJob(
     name,
     email,
     jobId,
-    jobTitle,
     jobDescription,
     userId,
     resumeFile,
-    resumeFileName,
-    resumeFileType,
-    resumeFileText
+    resumeFileText,
   } = validatedFields.data;
 
   try {
     // 2. Upload the resume via the dedicated server action
-    const uploadResult = await uploadFile({
-      fileBuffer: resumeFile,
-      fileName: resumeFileName,
-      contentType: resumeFileType,
-      userId: userId,
-    });
+    const uploadResult = await uploadFile(resumeFile, userId);
 
     if (uploadResult.error || !uploadResult.fileUrl) {
       throw new Error(uploadResult.error || 'File URL was not returned from upload.');
     }
     const resumeUrl = uploadResult.fileUrl;
-
 
     // 3. Perform AI Match Analysis
     const matchResult = await matchResumeToJob({
@@ -136,6 +111,7 @@ export async function applyForJob(
     const candidateData = {
       name,
       email,
+      phone: '', // Not collected in form currently
       resumeUrl,
       jobAppliedFor: jobId,
       status: 'Applied',
@@ -143,7 +119,7 @@ export async function applyForJob(
       userId: userId || null,
       matchScore: matchResult.matchScore,
       matchReasoning: matchResult.reasoning,
-      skills: [], // Could be extracted by AI in the future
+      skills: [],
       avatarUrl: `https://picsum.photos/seed/${randomUUID()}/100/100`,
     };
 
