@@ -1,8 +1,8 @@
 
 'use client';
 
-import React, { useState, useEffect, useActionState } from 'react';
-import { useFormStatus } from 'react-dom';
+import React, { useState, useEffect } from 'react';
+import { useFormState, useFormStatus } from 'react-dom';
 import {
   Card,
   CardContent,
@@ -55,19 +55,21 @@ const toText = (file: File): Promise<string> =>
 export function ApplyForm({ job }: { job: Job }) {
   const { user } = useUser();
   const initialState: ApplicationState = {};
-  const [state, formAction] = useActionState(applyForJob, initialState);
+  const [state, formAction] = useFormState(applyForJob, initialState);
 
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
+  // Initialize state directly from the user object if it exists.
+  const [name, setName] = useState(user?.displayName || '');
+  const [email, setEmail] = useState(user?.email || '');
   const [resumeFile, setResumeFile] = useState<File | null>(null);
   const [resumeText, setResumeText] = useState('');
 
+  // Use useEffect to sync state if the user object loads after the initial render.
   useEffect(() => {
     if (user) {
-      setName(user.displayName || '');
-      setEmail(user.email || '');
+      if (!name) setName(user.displayName || '');
+      if (!email) setEmail(user.email || '');
     }
-  }, [user]);
+  }, [user, name, email]);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0] || null;
