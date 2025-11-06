@@ -28,6 +28,8 @@ export type ApplicationState = {
   };
 };
 
+// This server action is no longer used for Firestore writes, but kept for other potential server logic.
+// The primary application logic is now client-side in ApplyForm.tsx to avoid Admin SDK issues.
 export async function applyForJob(
   prevState: ApplicationState,
   formData: FormData
@@ -48,54 +50,7 @@ export async function applyForJob(
     };
   }
 
-  const { name, email, jobId, jobDescription, userId, resumeText } =
-    validatedFields.data;
-
-  try {
-    const { firestore } = getFirebaseAdmin();
-    
-    // 1. Perform AI Match Analysis
-    const matchResult = await matchResumeToJob({
-      resumeText: resumeText,
-      jobDescription,
-    });
-
-    // 2. Save Candidate to Firestore
-    const candidateData = {
-      name,
-      email,
-      phone: '', 
-      resumeText: resumeText,
-      jobAppliedFor: jobId,
-      status: 'Applied',
-      appliedAt: serverTimestamp(),
-      userId: userId || null,
-      matchScore: matchResult.matchScore,
-      matchReasoning: matchResult.reasoning,
-      skills: [], // Skills could be extracted by another AI flow in the future
-      avatarUrl: `https://picsum.photos/seed/${randomUUID()}/100/100`,
-      resumeUrl: '', // No resume URL as we are using text
-    };
-
-    const docRef = await firestore.collection("candidates").add(candidateData);
-
-    // 3. Return Success State
-    return {
-      message: 'Application submitted successfully!',
-      result: {
-        candidateId: docRef.id,
-        matchScore: matchResult.matchScore,
-      },
-    };
-  } catch (error) {
-    console.error('Application Submission Error:', error);
-    const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
-    return {
-      errors: {
-        _form: ['An unexpected error occurred while submitting your application. Please try again. Details: ' + errorMessage],
-      },
-    };
-  }
+  return { message: "This action is handled on the client." };
 }
 
 
