@@ -1,8 +1,8 @@
 
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { useActionState, useFormStatus } from 'react-dom';
+import React, { useState, useEffect, useActionState } from 'react';
+import { useFormStatus } from 'react-dom';
 import {
   Card,
   CardContent,
@@ -60,6 +60,7 @@ export function ApplyForm({ job }: { job: Job }) {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [resumeFile, setResumeFile] = useState<File | null>(null);
+  const [resumeText, setResumeText] = useState('');
 
   useEffect(() => {
     if (user) {
@@ -67,6 +68,22 @@ export function ApplyForm({ job }: { job: Job }) {
       setEmail(user.email || '');
     }
   }, [user]);
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0] || null;
+      setResumeFile(file);
+      if (file) {
+          try {
+              const text = await toText(file);
+              setResumeText(text);
+          } catch (error) {
+              console.error("Error reading file text:", error);
+              setResumeText('');
+          }
+      } else {
+          setResumeText('');
+      }
+  }
 
   const handleFormAction = async (formData: FormData) => {
     if (!resumeFile) {
@@ -76,12 +93,12 @@ export function ApplyForm({ job }: { job: Job }) {
     }
     try {
         const base64File = await toBase64(resumeFile);
-        const textFile = await toText(resumeFile);
         
         formData.set('resumeFile', base64File);
-        formData.set('resumeFileText', textFile);
         formData.set('resumeFileName', resumeFile.name);
         formData.set('resumeFileType', resumeFile.type);
+        // The resume text is now in state, but we also need it in the action
+        formData.set('resumeFileText', resumeText);
         
         formAction(formData);
 
@@ -153,11 +170,11 @@ export function ApplyForm({ job }: { job: Job }) {
                 name="resume" // Name is handled manually, not submitted directly
                 type="file"
                 accept=".pdf,.doc,.docx,.txt"
-                onChange={(e) => setResumeFile(e.target.files?.[0] || null)}
+                onChange={handleFileChange}
                 required
             />
             <p className="text-sm text-muted-foreground">PDF, DOC, DOCX, or TXT files only.</p>
-            {state.errors?.resume && <p className="text-sm text-destructive">{state.errors.resume[0]}</p>}
+            {state.errors?.resumeFile && <p className="text-sm text-destructive">{state.errors.resumeFile[0]}</p>}
           </div>
 
            <div className="space-y-2">
@@ -165,7 +182,9 @@ export function ApplyForm({ job }: { job: Job }) {
               <Textarea
                 id="resumeFileText"
                 name="resumeFileText"
-                placeholder="Please paste the text content of your resume here. This is required for the AI matching."
+                placeholder="The text from your resume will appear here automatically after you upload it."
+                value={resumeText}
+                onChange={(e) => setResumeText(e.target.value)}
                 rows={8}
                 required
               />
