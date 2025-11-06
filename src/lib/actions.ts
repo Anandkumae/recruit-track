@@ -87,14 +87,13 @@ export async function applyForJob(
     const resumeBuffer = Buffer.from(await resume.arrayBuffer());
     const resumeText = resumeBuffer.toString('utf-8');
 
-    // 3. Upload the resume via the dedicated server action
+    // 3. Upload the resume
     const uploadResult = await uploadFile(
       resumeBuffer,
       resume.name,
       resume.type,
       userId
     );
-
     if (uploadResult.error || !uploadResult.fileUrl) {
       throw new Error(
         uploadResult.error || 'File URL was not returned from upload.'
@@ -146,6 +145,7 @@ export async function applyForJob(
     };
   }
 }
+
 
 export type MatcherState = {
   message?: string | null;
