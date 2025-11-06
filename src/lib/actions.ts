@@ -1,4 +1,3 @@
-
 'use server';
 
 import { z } from 'zod';
@@ -6,25 +5,16 @@ import { matchResumeToJob } from '@/ai/flows/ai-match-resume-to-job';
 import { randomUUID } from 'crypto';
 import { getFirestore, collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { getAuth, signInAnonymously } from 'firebase/auth';
+import { getAuth } from 'firebase/auth';
 import { firebaseConfig } from '@/firebase/config';
 
-// Initialize a dedicated Firebase app instance for server actions if it doesn't exist
+// Use a separate app instance for server-side actions to avoid conflicts.
+// The `name` makes it a singleton.
 const serverActionApp = !getApps().find(app => app.name === 'serverActionApp')
   ? initializeApp(firebaseConfig, 'serverActionApp')
   : getApp('serverActionApp');
 
 const firestore = getFirestore(serverActionApp);
-const storage = getStorage(serverActionApp);
-const auth = getAuth(serverActionApp);
-
-// Ensure the server is authenticated to perform actions
-const ensureServerAuth = async () => {
-    if (auth.currentUser === null) {
-        await signInAnonymously(auth);
-    }
-};
 
 const ApplySchema = z.object({
   name: z.string().min(1, 'Name is required.'),
@@ -33,7 +23,8 @@ const ApplySchema = z.object({
   jobTitle: z.string(),
   jobDescription: z.string(),
   userId: z.string().optional(),
-  resume: z.instanceof(File).refine(file => file.size > 0, 'A resume file is required.'),
+  resumeUrl: z.string().min(1, 'Resume is required.'), // We now expect a URL
+  resumeFileText: z.string().min(1, 'Resume content is missing.'), // Text content for AI
 });
 
 export type ApplicationState = {
@@ -42,7 +33,8 @@ export type ApplicationState = {
   errors?: {
     name?: string[];
     email?: string[];
-    resume?: string[];
+    resumeUrl?: string[];
+    resumeFileText?: string[];
     _form?: string[];
   };
 };
@@ -58,7 +50,8 @@ export async function applyForJob(
     jobTitle: formData.get('jobTitle'),
     jobDescription: formData.get('jobDescription'),
     userId: formData.get('userId'),
-    resume: formData.get('resume'),
+    resumeUrl: formData.get('resumeUrl'),
+    resumeFileText: formData.get('resumeFileText'),
   });
 
   if (!validatedFields.success) {
@@ -67,34 +60,24 @@ export async function applyForJob(
     };
   }
 
-  const { name, email, jobId, jobDescription, userId, resume } =
+  const { name, email, jobId, jobDescription, userId, resumeUrl, resumeFileText } =
     validatedFields.data;
 
   try {
-    // 1. Ensure server is authenticated
-    await ensureServerAuth();
-    
-    // 2. Read file content for upload and AI analysis
-    const resumeBuffer = await resume.arrayBuffer();
-    const resumeText = Buffer.from(resumeBuffer).toString('utf-8');
+    // File is already uploaded by the client. Now we just process the data.
 
-    // 3. Upload file to Firebase Storage
-    const storageRef = ref(storage, `resumes/${userId || 'guest'}/${Date.now()}_${resume.name}`);
-    const uploadResult = await uploadBytes(storageRef, resumeBuffer);
-    const downloadURL = await getDownloadURL(uploadResult.ref);
-
-    // 4. Perform AI Match Analysis
+    // 1. Perform AI Match Analysis
     const matchResult = await matchResumeToJob({
-      resumeText,
+      resumeText: resumeFileText,
       jobDescription,
     });
 
-    // 5. Save Candidate to Firestore
+    // 2. Save Candidate to Firestore
     const candidateData = {
       name,
       email,
       phone: '', // Not collected in form currently
-      resumeUrl: downloadURL,
+      resumeUrl: resumeUrl, // The URL from the client-side upload
       jobAppliedFor: jobId,
       status: 'Applied',
       appliedAt: serverTimestamp(),
@@ -107,7 +90,7 @@ export async function applyForJob(
 
     const docRef = await addDoc(collection(firestore, "candidates"), candidateData);
 
-    // Return Success State
+    // 3. Return Success State
     return {
       message: 'Application submitted successfully!',
       result: {

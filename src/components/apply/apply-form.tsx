@@ -1,8 +1,7 @@
-
 'use client';
 
-import React, { useState, useEffect, useActionState } from 'react';
-import { useFormStatus } from 'react-dom';
+import React, { useState, useEffect } from 'react';
+import { useFormStatus, useFormState } from 'react-dom';
 import {
   Card,
   CardContent,
@@ -13,35 +12,51 @@ import {
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Loader2, PartyPopper, Send } from 'lucide-react';
+import { Loader2, PartyPopper, Send, Upload } from 'lucide-react';
 import type { Job } from '@/lib/types';
-import { useUser } from '@/firebase';
+import { useUser, useFirebase } from '@/firebase';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { applyForJob, type ApplicationState } from '@/lib/actions';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { Textarea } from '../ui/textarea';
 
-function SubmitButton() {
+function SubmitButton({ isUploading }: { isUploading: boolean }) {
   const { pending } = useFormStatus();
+  const isDisabled = isUploading || pending;
+
   return (
-    <Button type="submit" disabled={pending} className="w-full">
-      {pending ? (
+    <Button type="submit" disabled={isDisabled} className="w-full">
+      {isUploading ? (
+        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+      ) : pending ? (
         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
       ) : (
         <Send className="mr-2 h-4 w-4" />
       )}
-      {pending ? 'Submitting...' : 'Submit Application'}
+      {isUploading
+        ? 'Uploading...'
+        : pending
+        ? 'Submitting...'
+        : 'Submit Application'}
     </Button>
   );
 }
 
 export function ApplyForm({ job }: { job: Job }) {
   const { user } = useUser();
+  const { storage } = useFirebase(); // Get storage instance
   const initialState: ApplicationState = {};
-  const [state, formAction] = useActionState(applyForJob, initialState);
+  const [state, formAction] = useFormState(applyForJob, initialState);
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
-  const [isClient, setIsClient] = useState(false);
+  const [resumeFile, setResumeFile] = useState<File | null>(null);
+  const [resumeFileText, setResumeFileText] = useState('');
 
+  const [isUploading, setIsUploading] = useState(false);
+  const [isClient, setIsClient] = useState(false);
+  const [localError, setLocalError] = useState<string | null>(null);
+  
   useEffect(() => {
     setIsClient(true);
     if (user) {
@@ -50,6 +65,59 @@ export function ApplyForm({ job }: { job: Job }) {
     }
   }, [user]);
 
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setResumeFile(file);
+      // Read file content for AI analysis
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const text = event.target?.result as string;
+        setResumeFileText(text);
+      };
+      reader.readAsText(file);
+    }
+  };
+  
+  // This wraps the server action call
+  const handleFormSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setLocalError(null);
+
+    if (!resumeFile) {
+        setLocalError('A resume file is required.');
+        return;
+    }
+    if (!user || !storage) {
+        setLocalError('You must be logged in to apply.');
+        return;
+    }
+
+    setIsUploading(true);
+
+    try {
+        // 1. Upload file to Firebase Storage
+        const storageRef = ref(storage, `resumes/${user.uid}/${Date.now()}_${resumeFile.name}`);
+        const uploadResult = await uploadBytes(storageRef, resumeFile);
+        const downloadURL = await getDownloadURL(uploadResult.ref);
+
+        // 2. Prepare form data for server action
+        const formData = new FormData(event.currentTarget);
+        formData.set('resumeUrl', downloadURL);
+        formData.set('resumeFileText', resumeFileText); // Pass file content
+        
+        // 3. Trigger the server action
+        formAction(formData);
+
+    } catch (error) {
+        console.error("Upload Error:", error);
+        setLocalError('File upload failed. Please try again.');
+    } finally {
+        setIsUploading(false);
+    }
+  };
+
+
   if (!isClient) {
     return (
       <div className="flex h-64 items-center justify-center">
@@ -57,7 +125,7 @@ export function ApplyForm({ job }: { job: Job }) {
       </div>
     );
   }
-
+  
   if (state.message) {
     return (
       <Card>
@@ -73,6 +141,9 @@ export function ApplyForm({ job }: { job: Job }) {
     );
   }
 
+  const formErrors = state.errors || {};
+  const submissionError = localError || formErrors._form?.[0];
+
   return (
     <Card>
       <CardHeader>
@@ -82,7 +153,7 @@ export function ApplyForm({ job }: { job: Job }) {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <form action={formAction} className="space-y-4">
+        <form onSubmit={handleFormSubmit} className="space-y-4">
           <input type="hidden" name="jobId" value={job.id} />
           <input type="hidden" name="jobTitle" value={job.title} />
           <input type="hidden" name="jobDescription" value={job.description} />
@@ -98,8 +169,8 @@ export function ApplyForm({ job }: { job: Job }) {
                 onChange={(e) => setName(e.target.value)}
                 required
               />
-              {state.errors?.name && (
-                <p className="text-sm text-destructive">{state.errors.name[0]}</p>
+              {formErrors.name && (
+                <p className="text-sm text-destructive">{formErrors.name[0]}</p>
               )}
             </div>
             <div className="space-y-2">
@@ -112,8 +183,8 @@ export function ApplyForm({ job }: { job: Job }) {
                 onChange={(e) => setEmail(e.target.value)}
                 required
               />
-              {state.errors?.email && (
-                <p className="text-sm text-destructive">{state.errors.email[0]}</p>
+              {formErrors.email && (
+                <p className="text-sm text-destructive">{formErrors.email[0]}</p>
               )}
             </div>
           </div>
@@ -125,22 +196,23 @@ export function ApplyForm({ job }: { job: Job }) {
               type="file"
               accept=".pdf,.doc,.docx,.txt"
               required
+              onChange={handleFileChange}
             />
             <p className="text-sm text-muted-foreground">
               PDF, DOC, DOCX, or TXT files only.
             </p>
-            {state.errors?.resume && (
-              <p className="text-sm text-destructive">{state.errors.resume[0]}</p>
+            {formErrors.resumeUrl && (
+              <p className="text-sm text-destructive">{formErrors.resumeUrl[0]}</p>
             )}
           </div>
 
-          {state.errors?._form && (
+          {submissionError && (
             <Alert variant="destructive">
               <AlertTitle>Submission Error</AlertTitle>
-              <AlertDescription>{state.errors._form[0]}</AlertDescription>
+              <AlertDescription>{submissionError}</AlertDescription>
             </Alert>
           )}
-          <SubmitButton />
+          <SubmitButton isUploading={isUploading} />
         </form>
       </CardContent>
     </Card>
