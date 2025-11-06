@@ -1,4 +1,3 @@
-
 'use server';
 
 import { z } from 'zod';
@@ -44,9 +43,7 @@ const ApplySchema = z.object({
   jobTitle: z.string(),
   jobDescription: z.string(),
   userId: z.string().optional(),
-  resumeText: z.string().min(1, 'Resume content is missing.'),
-  resumeFileName: z.string().min(1, 'Resume file name is missing.'),
-  resumeFileType: z.string().min(1, 'Resume file type is missing.'),
+  resume: z.instanceof(File),
 });
 
 export type ApplicationState = {
@@ -56,7 +53,6 @@ export type ApplicationState = {
     name?: string[];
     email?: string[];
     resume?: string[];
-    resumeText?: string[];
     _form?: string[];
   };
 };
@@ -65,6 +61,7 @@ export async function applyForJob(
   prevState: ApplicationState,
   formData: FormData
 ): Promise<ApplicationState> {
+  
   // 1. Validate form data
   const validatedFields = ApplySchema.safeParse({
     name: formData.get('name'),
@@ -73,9 +70,7 @@ export async function applyForJob(
     jobTitle: formData.get('jobTitle'),
     jobDescription: formData.get('jobDescription'),
     userId: formData.get('userId'),
-    resumeText: formData.get('resumeText'),
-    resumeFileName: formData.get('resumeFileName'),
-    resumeFileType: formData.get('resumeFileType'),
+    resume: formData.get('resume'),
   });
 
   if (!validatedFields.success) {
@@ -90,17 +85,20 @@ export async function applyForJob(
     jobId,
     jobDescription,
     userId,
-    resumeText,
-    resumeFileName,
-    resumeFileType,
+    resume,
   } = validatedFields.data;
 
   try {
+     // Convert file to buffer to get text and base64 content
+    const resumeBuffer = Buffer.from(await resume.arrayBuffer());
+    const resumeText = resumeBuffer.toString('utf-8');
+    const resumeBase64 = resumeBuffer.toString('base64');
+
     // 2. Upload the resume via the dedicated server action
     const uploadResult = await uploadFile(
-        resumeText,
-        resumeFileName,
-        resumeFileType,
+        resumeBase64,
+        resume.name,
+        resume.type,
         userId
     );
     
@@ -111,8 +109,8 @@ export async function applyForJob(
 
     // 3. Perform AI Match Analysis
     const matchResult = await matchResumeToJob({
-      resumeText: Buffer.from(resumeText, 'base64').toString('utf-8'),
-      jobDescription: jobDescription,
+      resumeText,
+      jobDescription,
     });
 
     // 4. Save Candidate to Firestore
@@ -128,7 +126,7 @@ export async function applyForJob(
       userId: userId || null,
       matchScore: matchResult.matchScore,
       matchReasoning: matchResult.reasoning,
-      skills: [],
+      skills: [], // Skills can be extracted by another process if needed
       avatarUrl: `https://picsum.photos/seed/${randomUUID()}/100/100`,
     };
 
