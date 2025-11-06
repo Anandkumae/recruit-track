@@ -4,13 +4,8 @@ import { z } from 'zod';
 import { matchResumeToJob } from '@/ai/flows/ai-match-resume-to-job';
 import { randomUUID } from 'crypto';
 import { getFirebaseAdmin } from '@/firebase/server-config';
-import { getAuth as getAdminAuth } from 'firebase-admin/auth';
-import { getStorage as getAdminStorage } from 'firebase-admin/storage';
 import { serverTimestamp } from 'firebase/firestore';
 
-
-const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
-const ACCEPTED_FILE_TYPES = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/plain'];
 
 const ApplySchema = z.object({
   name: z.string().min(1, 'Name is required.'),
@@ -19,14 +14,7 @@ const ApplySchema = z.object({
   jobTitle: z.string(),
   jobDescription: z.string(),
   userId: z.string().optional(),
-  resume: z
-    .any()
-    .refine((file) => file && file.size > 0, 'Resume is required.')
-    .refine((file) => file && file.size <= MAX_FILE_SIZE, `Max file size is 5MB.`)
-    .refine(
-      (file) => file && ACCEPTED_FILE_TYPES.includes(file.type),
-      '.pdf, .doc, .docx and .txt files are accepted.'
-    ),
+  resumeText: z.string().min(100, 'Resume text must be at least 100 characters.'),
 });
 
 export type ApplicationState = {
@@ -35,7 +23,7 @@ export type ApplicationState = {
   errors?: {
     name?: string[];
     email?: string[];
-    resume?: string[];
+    resumeText?: string[];
     _form?: string[];
   };
 };
@@ -51,7 +39,7 @@ export async function applyForJob(
     jobTitle: formData.get('jobTitle'),
     jobDescription: formData.get('jobDescription'),
     userId: formData.get('userId'),
-    resume: formData.get('resume'),
+    resumeText: formData.get('resumeText'),
   });
 
   if (!validatedFields.success) {
@@ -60,55 +48,38 @@ export async function applyForJob(
     };
   }
 
-  const { name, email, jobId, jobDescription, userId, resume } =
+  const { name, email, jobId, jobDescription, userId, resumeText } =
     validatedFields.data;
 
   try {
     const { firestore } = getFirebaseAdmin();
-    const adminStorage = getAdminStorage();
-
-    // 1. Upload file to Firebase Storage from the server
-    const fileBuffer = Buffer.from(await resume.arrayBuffer());
-    const filePath = `resumes/${userId || 'public'}/${Date.now()}_${resume.name}`;
-    const file = adminStorage.bucket().file(filePath);
-
-    await file.save(fileBuffer, {
-        metadata: {
-            contentType: resume.type,
-        }
-    });
-
-    const [downloadURL] = await file.getSignedUrl({
-        action: 'read',
-        expires: '03-09-2491' // Far-future expiration date
-    });
     
-    // 2. Perform AI Match Analysis
-    const resumeFileText = fileBuffer.toString('utf-8');
+    // 1. Perform AI Match Analysis
     const matchResult = await matchResumeToJob({
-      resumeText: resumeFileText,
+      resumeText: resumeText,
       jobDescription,
     });
 
-    // 3. Save Candidate to Firestore
+    // 2. Save Candidate to Firestore
     const candidateData = {
       name,
       email,
       phone: '', 
-      resumeUrl: downloadURL,
+      resumeText: resumeText,
       jobAppliedFor: jobId,
       status: 'Applied',
       appliedAt: serverTimestamp(),
       userId: userId || null,
       matchScore: matchResult.matchScore,
       matchReasoning: matchResult.reasoning,
-      skills: [],
+      skills: [], // Skills could be extracted by another AI flow in the future
       avatarUrl: `https://picsum.photos/seed/${randomUUID()}/100/100`,
+      resumeUrl: '', // No resume URL as we are using text
     };
 
     const docRef = await firestore.collection("candidates").add(candidateData);
 
-    // 4. Return Success State
+    // 3. Return Success State
     return {
       message: 'Application submitted successfully!',
       result: {

@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState, useEffect, useActionState } from 'react';
-import { useFormStatus } from 'react-dom';
+import React, { useState, useEffect } from 'react';
+import { useFormStatus, useActionState } from 'react-dom';
 import {
   Card,
   CardContent,
@@ -17,6 +17,7 @@ import type { Job } from '@/lib/types';
 import { useUser } from '@/firebase';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { applyForJob, type ApplicationState } from '@/lib/actions';
+import { Textarea } from '@/components/ui/textarea';
 
 function SubmitButton() {
   const { pending } = useFormStatus();
@@ -122,20 +123,20 @@ export function ApplyForm({ job }: { job: Job }) {
             </div>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="resume">Upload Resume</Label>
-            <Input
-              id="resume"
-              name="resume"
-              type="file"
-              accept=".pdf,.doc,.docx,.txt"
-              required
-            />
+            <Label htmlFor="resumeText">Paste Your Resume</Label>
+             <Textarea
+                id="resumeText"
+                name="resumeText"
+                placeholder="Paste the full text of your resume here..."
+                rows={12}
+                required
+              />
             <p className="text-sm text-muted-foreground">
-              PDF, DOC, DOCX, or TXT files only.
+              Please paste the plain text from your resume.
             </p>
-            {formErrors.resume && (
+            {formErrors.resumeText && (
               <p className="text-sm text-destructive">
-                {formErrors.resume[0]}
+                {formErrors.resumeText[0]}
               </p>
             )}
           </div>
