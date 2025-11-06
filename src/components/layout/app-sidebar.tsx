@@ -14,6 +14,7 @@ import {
   SidebarMenu,
   SidebarMenuItem,
   SidebarMenuButton,
+  SidebarTrigger,
   useSidebar
 } from '@/components/ui/sidebar';
 import { doc } from 'firebase/firestore';
@@ -23,7 +24,7 @@ function SidebarItem({ item }: { item: (typeof navItems)[0] }) {
     const { isMobile, setOpen } = useSidebar();
 
     const handleClick = () => {
-        if (!isMobile) {
+        if (isMobile) {
             setOpen(false);
         }
     }
@@ -82,13 +83,16 @@ export function AppSidebar() {
 
   return (
     <Sidebar className="border-r" side="left" collapsible="icon">
-      <SidebarHeader>
-        <Link href="/dashboard" className="flex items-center gap-2">
-          <Briefcase className="h-7 w-7 text-primary" />
-          <span className="text-lg font-semibold text-foreground">
-            RecruitTrack
-          </span>
-        </Link>
+      <SidebarHeader className='p-2 flex items-center justify-between'>
+        <SidebarMenuButton asChild variant="ghost" className="w-full justify-start h-10 px-2 text-lg font-semibold">
+           <Link href="/dashboard" className="flex items-center gap-2">
+            <Briefcase className="h-7 w-7 text-primary" />
+            <span className="text-lg font-semibold text-foreground">
+              RecruitTrack
+            </span>
+          </Link>
+        </SidebarMenuButton>
+        <SidebarTrigger className="hidden md:flex" />
       </SidebarHeader>
       <SidebarContent className="p-2">
         <SidebarMenu>
