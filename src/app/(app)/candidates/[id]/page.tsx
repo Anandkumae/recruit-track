@@ -90,6 +90,20 @@ export default function CandidateDetailsPage({ params }: { params: { id: string 
                             ))}
                         </CardContent>
                     </Card>
+
+                    {candidate.resumeText && (
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Resume Text</CardTitle>
+                                <CardDescription>The full text of the candidate's submitted resume.</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <pre className="text-sm text-foreground/80 rounded-md border bg-muted/50 p-3 whitespace-pre-wrap font-sans">
+                                    {candidate.resumeText}
+                                </pre>
+                            </CardContent>
+                        </Card>
+                    )}
                 </div>
                 <div className="space-y-6">
                     <Card>
@@ -127,7 +141,7 @@ export default function CandidateDetailsPage({ params }: { params: { id: string 
                     {candidate.resumeUrl && (
                         <Card>
                             <CardHeader>
-                                <CardTitle>Resume</CardTitle>
+                                <CardTitle>Resume File</CardTitle>
                             </CardHeader>
                             <CardContent>
                                 <Button asChild className="w-full">
