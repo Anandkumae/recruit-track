@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState, useEffect, useActionState } from 'react';
-import { useFormStatus } from 'react-dom';
+import React, { useState, useEffect } from 'react';
+import { useFormStatus, useFormState } from 'react-dom';
 
 import {
   Card,
@@ -34,11 +34,69 @@ function SubmitButton() {
   );
 }
 
+function FormFields({ isUploading, name, setName, email, setEmail, state }: { isUploading: boolean, name: string, setName: (name: string) => void, email: string, setEmail: (email: string) => void, state: ApplicationState }) {
+    const { pending } = useFormStatus();
+    const submissionPending = isUploading || pending;
+
+    return (
+        <>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                <Label htmlFor="name">Full Name</Label>
+                <Input
+                    id="name"
+                    name="name"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    required
+                    disabled={submissionPending}
+                />
+                {state.errors?.name && (
+                    <p className="text-sm text-destructive">{state.errors.name[0]}</p>
+                )}
+                </div>
+                <div className="space-y-2">
+                <Label htmlFor="email">Email Address</Label>
+                <Input
+                    id="email"
+                    name="email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    disabled={submissionPending}
+                />
+                {state.errors?.email && (
+                    <p className="text-sm text-destructive">{state.errors.email[0]}</p>
+                )}
+                </div>
+            </div>
+            <div className="space-y-2">
+                <Label htmlFor="resume">Upload Resume</Label>
+                <Input
+                id="resume"
+                name="resume"
+                type="file"
+                accept=".pdf,.doc,.docx,.txt"
+                required
+                disabled={submissionPending}
+                />
+                <p className="text-sm text-muted-foreground">
+                PDF, DOC, DOCX, or TXT files only.
+                </p>
+                {state.errors?.resumeUrl && (
+                <p className="text-sm text-destructive">{state.errors.resumeUrl[0]}</p>
+                )}
+            </div>
+        </>
+    );
+}
+
 export function ApplyForm({ job }: { job: Job }) {
   const { user } = useUser();
   const { storage } = useFirebase();
   const initialState: ApplicationState = {};
-  const [state, formAction] = useActionState(applyForJob, initialState);
+  const [state, formAction] = useFormState(applyForJob, initialState);
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -71,8 +129,6 @@ export function ApplyForm({ job }: { job: Job }) {
     }
 
     setIsUploading(true);
-    const submissionPending = isUploading || useFormStatus().pending;
-
 
     try {
       // 1. Upload file from the client
@@ -121,8 +177,6 @@ export function ApplyForm({ job }: { job: Job }) {
     );
   }
 
-  const submissionPending = useFormStatus().pending || isUploading;
-
   return (
     <Card>
       <CardHeader>
@@ -138,57 +192,18 @@ export function ApplyForm({ job }: { job: Job }) {
           <input type="hidden" name="jobDescription" value={job.description} />
           {user && <input type="hidden" name="userId" value={user.uid} />}
 
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="name">Full Name</Label>
-              <Input
-                id="name"
-                name="name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                required
-                disabled={submissionPending}
-              />
-               {state.errors?.name && (
-                <p className="text-sm text-destructive">{state.errors.name[0]}</p>
-              )}
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="email">Email Address</Label>
-              <Input
-                id="email"
-                name="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                disabled={submissionPending}
-              />
-               {state.errors?.email && (
-                <p className="text-sm text-destructive">{state.errors.email[0]}</p>
-              )}
-            </div>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="resume">Upload Resume</Label>
-            <Input
-              id="resume"
-              name="resume"
-              type="file"
-              accept=".pdf,.doc,.docx,.txt"
-              required
-              disabled={submissionPending}
+            <FormFields 
+                isUploading={isUploading}
+                name={name}
+                setName={setName}
+                email={email}
+                setEmail={setEmail}
+                state={state}
             />
-            <p className="text-sm text-muted-foreground">
-              PDF, DOC, DOCX, or TXT files only.
-            </p>
-            {state.errors?.resumeUrl && (
-              <p className="text-sm text-destructive">{state.errors.resumeUrl[0]}</p>
-            )}
-            {uploadError && (
-                 <p className="text-sm text-destructive">{uploadError}</p>
-            )}
-          </div>
+
+          {uploadError && (
+            <p className="text-sm text-destructive">{uploadError}</p>
+          )}
 
           {state.errors?._form && (
             <Alert variant="destructive">
@@ -196,14 +211,7 @@ export function ApplyForm({ job }: { job: Job }) {
               <AlertDescription>{state.errors._form[0]}</AlertDescription>
             </Alert>
           )}
-          <Button type="submit" disabled={submissionPending} className="w-full">
-              {submissionPending ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <Send className="mr-2 h-4 w-4" />
-              )}
-              {isUploading ? 'Uploading...' : (useFormStatus().pending ? 'Submitting...' : 'Submit Application')}
-            </Button>
+          <SubmitButton />
         </form>
       </CardContent>
     </Card>
