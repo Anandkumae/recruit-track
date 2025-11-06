@@ -1,7 +1,8 @@
 
 'use client';
 
-import React, { useState, useEffect, useActionState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useActionState } from 'react';
 import { useFormStatus } from 'react-dom';
 import {
   Card,
@@ -57,19 +58,19 @@ export function ApplyForm({ job }: { job: Job }) {
   const initialState: ApplicationState = {};
   const [state, formAction] = useActionState(applyForJob, initialState);
 
-  // Initialize state directly from the user object if it exists.
-  const [name, setName] = useState(user?.displayName || '');
-  const [email, setEmail] = useState(user?.email || '');
+  // Initialize state with empty strings to ensure server and client match
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
   const [resumeFile, setResumeFile] = useState<File | null>(null);
   const [resumeText, setResumeText] = useState('');
 
-  // Use useEffect to sync state if the user object loads after the initial render.
+  // Use useEffect to populate the form on the client side after hydration
   useEffect(() => {
     if (user) {
-      if (!name) setName(user.displayName || '');
-      if (!email) setEmail(user.email || '');
+      setName(user.displayName || '');
+      setEmail(user.email || '');
     }
-  }, [user, name, email]);
+  }, [user]);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0] || null;
