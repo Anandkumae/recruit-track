@@ -88,4 +88,7 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
+  *:not(input[type=text], input[type=email], input[type=password], input[type=search], input[type=tel], input[type=url], textarea) {
+    cursor: default;
+  }
 }
