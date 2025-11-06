@@ -2,55 +2,46 @@
 
 import { z } from 'zod';
 import { matchResumeToJob } from '@/ai/flows/ai-match-resume-to-job';
-import { randomUUID } from 'crypto';
 import { getFirebaseAdmin } from '@/firebase/server-config';
 import { serverTimestamp } from 'firebase/firestore';
 
+// This server action is now a pass-through.
+// The primary logic is handled client-side in ApplyForm to work with browser APIs for file uploads
+// and client-side Firebase SDK for auth-aware operations.
+// It can be extended in the future for server-only logic if needed.
 
 const ApplySchema = z.object({
   name: z.string().min(1, 'Name is required.'),
   email: z.string().email('Invalid email address.'),
   jobId: z.string(),
-  jobTitle: z.string(),
-  jobDescription: z.string(),
-  userId: z.string().optional(),
-  resumeText: z.string().min(100, 'Resume text must be at least 100 characters.'),
+  resumeUrl: z.string().url('A valid resume URL is required.'),
+  userId: z.string(),
 });
+
 
 export type ApplicationState = {
   message?: string | null;
-  result?: { candidateId: string; matchScore: number };
+  result?: { candidateId: string };
   errors?: {
     name?: string[];
     email?: string[];
-    resumeText?: string[];
+    resumeFile?: string[];
     _form?: string[];
   };
 };
 
-// This server action is no longer used for Firestore writes, but kept for other potential server logic.
-// The primary application logic is now client-side in ApplyForm.tsx to avoid Admin SDK issues.
 export async function applyForJob(
   prevState: ApplicationState,
   formData: FormData
 ): Promise<ApplicationState> {
-  const validatedFields = ApplySchema.safeParse({
-    name: formData.get('name'),
-    email: formData.get('email'),
-    jobId: formData.get('jobId'),
-    jobTitle: formData.get('jobTitle'),
-    jobDescription: formData.get('jobDescription'),
-    userId: formData.get('userId'),
-    resumeText: formData.get('resumeText'),
-  });
-
-  if (!validatedFields.success) {
-    return {
-      errors: validatedFields.error.flatten().fieldErrors,
-    };
-  }
-
-  return { message: "This action is handled on the client." };
+  
+  // The core logic (upload, AI match, Firestore write) is now on the client.
+  // This server action can be used for validation or other server-side tasks in the future.
+  // For now, we'll just return a success message as a placeholder.
+  
+  return {
+    message: 'Form data received by server. Client is processing the application.',
+  };
 }
 
 

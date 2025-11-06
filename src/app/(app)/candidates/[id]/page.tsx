@@ -83,19 +83,6 @@ export default function CandidateDetailsPage({ params }: { params: { id: string 
                         </CardContent>
                     </Card>
 
-                    {candidate.resumeText && (
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>Resume Text</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <pre className="text-sm text-foreground/80 whitespace-pre-wrap font-sans bg-muted/50 p-4 rounded-md">
-                                    {candidate.resumeText}
-                                </pre>
-                            </CardContent>
-                        </Card>
-                    )}
-
                     <Card>
                         <CardHeader>
                             <CardTitle>Skills</CardTitle>
