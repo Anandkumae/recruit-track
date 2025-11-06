@@ -1,7 +1,8 @@
+
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { useFormStatus, useFormState } from 'react-dom';
+import React, { useState, useEffect, useActionState } from 'react';
+import { useFormStatus } from 'react-dom';
 import {
   Card,
   CardContent,
@@ -12,13 +13,12 @@ import {
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Loader2, PartyPopper, Send, Upload } from 'lucide-react';
+import { Loader2, PartyPopper, Send } from 'lucide-react';
 import type { Job } from '@/lib/types';
 import { useUser, useFirebase } from '@/firebase';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { applyForJob, type ApplicationState } from '@/lib/actions';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { Textarea } from '../ui/textarea';
 
 function SubmitButton({ isUploading }: { isUploading: boolean }) {
   const { pending } = useFormStatus();
@@ -46,17 +46,16 @@ export function ApplyForm({ job }: { job: Job }) {
   const { user } = useUser();
   const { storage } = useFirebase(); // Get storage instance
   const initialState: ApplicationState = {};
-  const [state, formAction] = useFormState(applyForJob, initialState);
+  const [state, formAction] = useActionState(applyForJob, initialState);
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [resumeFile, setResumeFile] = useState<File | null>(null);
-  const [resumeFileText, setResumeFileText] = useState('');
 
   const [isUploading, setIsUploading] = useState(false);
   const [isClient, setIsClient] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
-  
+
   useEffect(() => {
     setIsClient(true);
     if (user) {
@@ -69,54 +68,46 @@ export function ApplyForm({ job }: { job: Job }) {
     const file = e.target.files?.[0];
     if (file) {
       setResumeFile(file);
-      // Read file content for AI analysis
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const text = event.target?.result as string;
-        setResumeFileText(text);
-      };
-      reader.readAsText(file);
     }
   };
-  
-  // This wraps the server action call
+
   const handleFormSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setLocalError(null);
 
     if (!resumeFile) {
-        setLocalError('A resume file is required.');
-        return;
+      setLocalError('A resume file is required.');
+      return;
     }
     if (!user || !storage) {
-        setLocalError('You must be logged in to apply.');
-        return;
+      setLocalError('You must be logged in to apply.');
+      return;
     }
 
     setIsUploading(true);
 
     try {
-        // 1. Upload file to Firebase Storage
-        const storageRef = ref(storage, `resumes/${user.uid}/${Date.now()}_${resumeFile.name}`);
-        const uploadResult = await uploadBytes(storageRef, resumeFile);
-        const downloadURL = await getDownloadURL(uploadResult.ref);
+      // 1. Upload file to Firebase Storage
+      const storageRef = ref(storage, `resumes/${user.uid}/${resumeFile.name}`);
+      await uploadBytes(storageRef, resumeFile);
+      const downloadURL = await getDownloadURL(storageRef);
+      
+      const text = await resumeFile.text();
 
-        // 2. Prepare form data for server action
-        const formData = new FormData(event.currentTarget);
-        formData.set('resumeUrl', downloadURL);
-        formData.set('resumeFileText', resumeFileText); // Pass file content
-        
-        // 3. Trigger the server action
-        formAction(formData);
+      // 2. Prepare form data for server action
+      const formData = new FormData(event.currentTarget);
+      formData.set('resumeUrl', downloadURL);
+      formData.set('resumeText', text); // Pass file content as text
 
+      // 3. Trigger the server action
+      formAction(formData);
     } catch (error) {
-        console.error("Upload Error:", error);
-        setLocalError('File upload failed. Please try again.');
+      console.error('Upload Error:', error);
+      setLocalError('File upload failed. Please try again.');
     } finally {
-        setIsUploading(false);
+      setIsUploading(false);
     }
   };
-
 
   if (!isClient) {
     return (
@@ -125,7 +116,7 @@ export function ApplyForm({ job }: { job: Job }) {
       </div>
     );
   }
-  
+
   if (state.message) {
     return (
       <Card>
@@ -133,8 +124,9 @@ export function ApplyForm({ job }: { job: Job }) {
           <PartyPopper className="h-12 w-12 text-green-500" />
           <CardTitle className="text-2xl">Application Submitted!</CardTitle>
           <CardDescription>
-            Thank you for applying. The hiring team will review your application.
-            Your initial AI match score is {state.result?.matchScore || 'N/A'}.
+            Thank you for applying. The hiring team will review your
+            application. Your initial AI match score is{' '}
+            {state.result?.matchScore || 'N/A'}.
           </CardDescription>
         </CardHeader>
       </Card>
@@ -168,6 +160,7 @@ export function ApplyForm({ job }: { job: Job }) {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 required
+                disabled={isUploading}
               />
               {formErrors.name && (
                 <p className="text-sm text-destructive">{formErrors.name[0]}</p>
@@ -182,6 +175,7 @@ export function ApplyForm({ job }: { job: Job }) {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
+                disabled={isUploading}
               />
               {formErrors.email && (
                 <p className="text-sm text-destructive">{formErrors.email[0]}</p>
@@ -197,12 +191,15 @@ export function ApplyForm({ job }: { job: Job }) {
               accept=".pdf,.doc,.docx,.txt"
               required
               onChange={handleFileChange}
+              disabled={isUploading}
             />
             <p className="text-sm text-muted-foreground">
               PDF, DOC, DOCX, or TXT files only.
             </p>
             {formErrors.resumeUrl && (
-              <p className="text-sm text-destructive">{formErrors.resumeUrl[0]}</p>
+              <p className="text-sm text-destructive">
+                {formErrors.resumeUrl[0]}
+              </p>
             )}
           </div>
 
