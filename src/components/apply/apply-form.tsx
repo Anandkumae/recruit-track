@@ -1,9 +1,7 @@
-
 'use client';
 
 import React, { useState, useEffect } from 'react';
 import { useActionState } from 'react';
-import { useFormStatus } from 'react-dom';
 import {
   Card,
   CardContent,
@@ -22,7 +20,7 @@ import { applyForJob, type ApplicationState } from '@/lib/actions';
 import { Textarea } from '../ui/textarea';
 
 function SubmitButton() {
-  const { pending } = useFormStatus();
+  const { pending } = useActionState(applyForJob, {});
   return (
     <Button type="submit" disabled={pending} className="w-full">
       {pending ? (
@@ -40,7 +38,13 @@ const toBase64 = (file: File): Promise<string> =>
   new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.readAsDataURL(file);
-    reader.onload = () => resolve((reader.result as string).split(',')[1]);
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        resolve(reader.result.split(',')[1]);
+      } else {
+        reject(new Error('Failed to read file as Base64.'));
+      }
+    };
     reader.onerror = (error) => reject(error);
   });
 
@@ -58,19 +62,26 @@ export function ApplyForm({ job }: { job: Job }) {
   const initialState: ApplicationState = {};
   const [state, formAction] = useActionState(applyForJob, initialState);
 
-  // Initialize state with empty strings to ensure server and client match
+  // Initialize state with empty strings to guarantee the server and client render match.
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [resumeFile, setResumeFile] = useState<File | null>(null);
   const [resumeText, setResumeText] = useState('');
+  const [isMounted, setIsMounted] = useState(false);
 
-  // Use useEffect to populate the form on the client side after hydration
+  // After the component mounts on the client, we can safely set the user data.
   useEffect(() => {
+    setIsMounted(true);
     if (user) {
       setName(user.displayName || '');
       setEmail(user.email || '');
     }
   }, [user]);
+  
+  if (!isMounted) {
+    // On the server and during the initial client render, render nothing or a loading skeleton
+    // to prevent the hydration mismatch. Returning the form with empty values is key.
+  }
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0] || null;
