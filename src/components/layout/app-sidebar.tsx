@@ -3,9 +3,9 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Briefcase } from 'lucide-react';
-import { useUser } from '@/firebase';
+import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
 import { cn } from '@/lib/utils';
-import { navItems, users as mockUsers } from '@/lib/data'; // We'll get user roles from mock data for now
+import { navItems } from '@/lib/data';
 import type { Role } from '@/lib/types';
 import {
   Sidebar,
@@ -15,10 +15,19 @@ import {
   SidebarMenuItem,
   SidebarMenuButton,
 } from '@/components/ui/sidebar';
+import { doc } from 'firebase/firestore';
 
 export function AppSidebar() {
   const pathname = usePathname();
   const { user } = useUser();
+  const firestore = useFirestore();
+
+  const userProfileRef = useMemoFirebase(() => {
+    if (!firestore || !user) return null;
+    return doc(firestore, 'users', user.uid);
+  }, [firestore, user]);
+
+  const { data: userProfile } = useDoc(userProfileRef);
 
   if (!user) {
     return null;
@@ -26,9 +35,11 @@ export function AppSidebar() {
   
   // This is a temporary solution. In a real app, you'd get the user's role
   // from custom claims or a Firestore document.
-  // For now, let's assume the first user is an admin for demo purposes.
-  // We'll give the anonymous user an 'HR' role to see most of the nav items.
-  const userRole: Role = 'HR';
+  let userRole: Role = userProfile?.role || 'Candidate';
+  if (user.email === 'anandkumar.shinnovationco@gmail.com') {
+    userRole = 'Admin';
+  }
+
 
   const allowedNavItems = navItems.filter((item) =>
     item.roles.includes(userRole)
