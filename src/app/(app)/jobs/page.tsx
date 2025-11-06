@@ -15,15 +15,28 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { users } from '@/lib/data';
-import type { Job, Role, WithId } from '@/lib/types';
+import type { Job, Role, WithId, User } from '@/lib/types';
 import { useUser, useFirestore, useDoc, useMemoFirebase, useCollection } from '@/firebase';
 import { format } from 'date-fns';
 import { doc, collection, query, orderBy } from 'firebase/firestore';
 
+function PosterName({ userId }: { userId: string }) {
+  const firestore = useFirestore();
+  const userRef = useMemoFirebase(() => {
+    if (!firestore || !userId) return null;
+    return doc(firestore, 'users', userId);
+  }, [firestore, userId]);
+  
+  const { data: user, isLoading } = useDoc<User>(userRef);
+
+  if (isLoading) return <Loader2 className="h-4 w-4 animate-spin" />;
+  return <>{user?.name || 'Unknown'}</>;
+}
+
+
 export default function JobsPage() {
   const [searchTerm, setSearchTerm] = useState('');
-  const { user } = useUser();
+  const { user, isUserLoading } = useUser();
   const firestore = useFirestore();
 
   const userProfileRef = useMemoFirebase(() => {
@@ -31,7 +44,7 @@ export default function JobsPage() {
     return doc(firestore, 'users', user.uid);
   }, [firestore, user]);
 
-  const { data: userProfile } = useDoc(userProfileRef);
+  const { data: userProfile, isLoading: isProfileLoading } = useDoc(userProfileRef);
 
   const jobsQuery = useMemoFirebase(() => {
     if (!firestore) return null;
@@ -40,7 +53,7 @@ export default function JobsPage() {
 
   const { data: jobs, isLoading: jobsLoading } = useCollection<Job>(jobsQuery);
 
-  let userRole: Role = 'Candidate'; // Default to the most restrictive role
+  let userRole: Role = 'Candidate';
 
   if (user?.email === 'anandkumar.shinnovationco@gmail.com') {
     userRole = 'Admin';
@@ -54,28 +67,28 @@ export default function JobsPage() {
   );
 
   const canCreateJob = userRole === 'Admin' || userRole === 'HR' || userRole === 'Manager';
-
-  const getPosterName = (userId: string) => {
-    // In a real app, you might fetch user profiles, but for now we use static data
-    // or the current admin's name if they are the poster.
-    if(user?.uid === userId) return user.displayName;
-    return users.find(u => u.id === userId)?.name || 'Unknown';
-  };
   
   const formatDate = (timestamp: any) => {
     if (!timestamp) return 'N/A';
-    // Firestore server timestamps can be null before being set,
-    // or they can be Firestore Timestamp objects.
     if (timestamp.toDate) {
       return format(timestamp.toDate(), 'MMM d, yyyy');
     }
-    // Fallback for string dates if you have any
     try {
         const date = new Date(timestamp);
         return format(date, 'MMM d, yyyy');
     } catch {
         return 'Invalid Date';
     }
+  }
+
+  const isLoading = isUserLoading || isProfileLoading;
+  
+  if (isLoading) {
+    return (
+       <div className="flex h-full w-full items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    )
   }
 
 
@@ -92,7 +105,7 @@ export default function JobsPage() {
         <CardHeader>
           <div className="flex items-center justify-between gap-4">
             <div>
-              <CardTitle>Jobs</CardTitle>
+              <CardTitle>All Jobs</CardTitle>
               <CardDescription>A list of all jobs in your organization.</CardDescription>
             </div>
             {canCreateJob && (
@@ -146,7 +159,7 @@ export default function JobsPage() {
                     <TableCell>
                       {formatDate(job.postedAt)}
                     </TableCell>
-                    <TableCell>{getPosterName(job.postedBy)}</TableCell>
+                    <TableCell><PosterName userId={job.postedBy} /></TableCell>
                     <TableCell className="text-right">
                        <Button variant="outline" size="sm" asChild>
                          <Link href={`/jobs/${job.id}`}>View</Link>

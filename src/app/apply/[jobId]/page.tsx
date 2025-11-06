@@ -4,21 +4,31 @@ import Link from "next/link";
 import { notFound, useParams } from "next/navigation";
 import { Briefcase, Loader2 } from "lucide-react";
 import { ApplyForm } from "@/components/apply/apply-form";
-import { useDoc, useFirestore, useMemoFirebase } from "@/firebase";
+import { useDoc, useFirestore, useMemoFirebase, useUser } from "@/firebase";
 import { doc } from "firebase/firestore";
-import type { Job } from "@/lib/types";
+import type { Job, User } from "@/lib/types";
 
 export default function ApplyPage() {
   const params = useParams();
   const jobId = params.jobId as string;
   const firestore = useFirestore();
+  const { user } = useUser();
 
   const jobRef = useMemoFirebase(() => {
     if (!firestore || !jobId) return null;
     return doc(firestore, 'jobs', jobId);
   }, [firestore, jobId]);
 
-  const { data: job, isLoading } = useDoc<Job>(jobRef);
+  const { data: job, isLoading: jobLoading } = useDoc<Job>(jobRef);
+
+  const userProfileRef = useMemoFirebase(() => {
+    if (!firestore || !user) return null;
+    return doc(firestore, 'users', user.uid);
+  }, [firestore, user]);
+
+  const { data: userProfile, isLoading: profileLoading } = useDoc<User>(userProfileRef);
+
+  const isLoading = jobLoading || profileLoading;
 
   if (isLoading) {
     return (
@@ -44,7 +54,7 @@ export default function ApplyPage() {
             RecruitTrack
           </Link>
         </div>
-        <ApplyForm job={job} />
+        <ApplyForm job={job} userProfile={userProfile} />
       </div>
     </div>
   );

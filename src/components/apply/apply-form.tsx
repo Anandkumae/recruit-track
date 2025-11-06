@@ -13,19 +13,20 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Loader2, PartyPopper, Send } from 'lucide-react';
-import type { Job } from '@/lib/types';
+import type { Job, User } from '@/lib/types';
 import { useUser } from '@/firebase';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { applyForJob, type ApplicationState } from '@/lib/actions';
 import { Textarea } from '../ui/textarea';
 
-export function ApplyForm({ job }: { job: Job }) {
+export function ApplyForm({ job, userProfile }: { job: Job, userProfile: User | null }) {
   const { user } = useUser();
   const initialState: ApplicationState = {};
   const [state, formAction] = useActionState(applyForJob, initialState);
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [resumeText, setResumeText] = useState('');
   const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
@@ -34,7 +35,8 @@ export function ApplyForm({ job }: { job: Job }) {
       setName(user.displayName || '');
       setEmail(user.email || '');
     }
-  }, [user]);
+    // A real app might fetch the resume text if it exists
+  }, [user, userProfile]);
 
   if (!isClient) {
     return (
@@ -110,7 +112,12 @@ export function ApplyForm({ job }: { job: Job }) {
                 rows={10}
                 placeholder="Paste the full text of your resume here..."
                 required
+                value={resumeText}
+                onChange={(e) => setResumeText(e.target.value)}
             />
+             <p className="text-xs text-muted-foreground">
+                For best results with our AI Matcher, please paste the full text content of your resume.
+            </p>
             {state.errors?.resumeText && (
                 <p className="text-sm text-destructive">{state.errors.resumeText[0]}</p>
             )}

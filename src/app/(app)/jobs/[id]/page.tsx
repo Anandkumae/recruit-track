@@ -34,11 +34,9 @@ export default function JobDetailsPage() {
     
     const formatDate = (timestamp: any) => {
         if (!timestamp) return 'N/A';
-        // Firestore Timestamps have a toDate() method.
         if (timestamp.toDate) {
             return format(timestamp.toDate(), 'MMM d, yyyy');
         }
-        // Fallback for string or number dates
         try {
             return format(new Date(timestamp), 'MMM d, yyyy');
         } catch {
@@ -46,7 +44,7 @@ export default function JobDetailsPage() {
         }
     }
 
-    if (jobLoading) {
+    if (jobLoading || (job && posterLoading)) {
          return (
             <div className="flex h-full w-full items-center justify-center">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -111,12 +109,10 @@ export default function JobDetailsPage() {
                                 <Calendar className="h-4 w-4 text-muted-foreground" />
                                 <span className="text-sm">Posted on {formatDate(job.postedAt)}</span>
                             </div>
-                            {posterLoading ? <Loader2 className="h-4 w-4 animate-spin"/> : (
-                                <div className="flex items-center gap-2">
-                                    <UserIcon className="h-4 w-4 text-muted-foreground" />
-                                    <span className="text-sm">Posted by {poster?.name || 'Unknown'}</span>
-                                </div>
-                            )}
+                            <div className="flex items-center gap-2">
+                                <UserIcon className="h-4 w-4 text-muted-foreground" />
+                                <span className="text-sm">Posted by {poster?.name || 'Unknown'}</span>
+                            </div>
                              <div className="flex items-center gap-2">
                                 <CheckCircle className="h-4 w-4 text-muted-foreground" />
                                  <Badge variant={job.status === 'Open' ? 'default' : 'secondary'}>
