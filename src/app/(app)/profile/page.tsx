@@ -2,7 +2,7 @@
 
 import { useUser, useFirebase, useDoc, useMemoFirebase } from '@/firebase';
 import { doc, updateDoc } from 'firebase/firestore';
-import { ref, getDownloadURL, uploadBytes } from 'firebase/storage';
+import { ref, getDownloadURL, uploadBytes, Storage } from 'firebase/storage';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -13,7 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 
-async function uploadResume(storage: any, userId: string, file: File) {
+async function uploadResume(storage: Storage, userId: string, file: File) {
     const storageRef = ref(storage, `resumes/${userId}/${file.name}`);
     await uploadBytes(storageRef, file);
     return storageRef.fullPath;
@@ -28,6 +28,7 @@ export default function ProfilePage() {
     const [isEditing, setIsEditing] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [resumeDownloadUrl, setResumeDownloadUrl] = useState<string | null>(null);
+    const [isUrlLoading, setIsUrlLoading] = useState(false);
 
     const userProfileRef = useMemoFirebase(() => {
         if (!firestore || !user) return null;
@@ -51,10 +52,12 @@ export default function ProfilePage() {
             });
 
             if (userProfile.resumeUrl && storage) {
+                setIsUrlLoading(true);
                 const storageRef = ref(storage, userProfile.resumeUrl);
                 getDownloadURL(storageRef)
                     .then(url => setResumeDownloadUrl(url))
-                    .catch(console.error);
+                    .catch(console.error)
+                    .finally(() => setIsUrlLoading(false));
             } else {
                 setResumeDownloadUrl(null);
             }
@@ -237,16 +240,18 @@ export default function ProfilePage() {
                              <div className="flex items-center justify-between gap-3 p-3 rounded-md bg-muted/50 border">
                                 <div className="flex items-center gap-3">
                                     <Briefcase className="h-5 w-5 text-muted-foreground" />
-                                    <span className="text-sm font-medium text-foreground truncate">{userProfile.resumeUrl.split('/').pop()}</span>
+                                    <span className="text-sm font-medium text-foreground truncate">{decodeURIComponent(userProfile.resumeUrl.split('/').pop() || '')}</span>
                                 </div>
-                                {resumeDownloadUrl ? (
+                                {isUrlLoading ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : resumeDownloadUrl ? (
                                     <Button asChild variant="outline" size="sm">
                                         <Link href={resumeDownloadUrl} target="_blank" rel="noopener noreferrer">
                                             <Eye className="mr-2 h-4 w-4" />
                                             View
                                         </Link>
                                     </Button>
-                                ) : <Loader2 className="h-4 w-4 animate-spin" />}
+                                ) : null}
                              </div>
                               <p className="text-xs text-muted-foreground">To update, upload a new file below.</p>
                          </div>
