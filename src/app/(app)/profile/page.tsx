@@ -20,7 +20,7 @@ async function uploadResume(storage: Storage, userId: string, file: File) {
     return storageRef.fullPath;
 }
 
-function ResumeSection({ resumeUrl, storage }: { resumeUrl: string, storage: Storage }) {
+function ResumeSection({ resumeUrl, storage }: { resumeUrl: string, storage: Storage | null }) {
     const [resumeDownloadUrl, setResumeDownloadUrl] = useState<string | null>(null);
     const [isUrlLoading, setIsUrlLoading] = useState(false);
 
@@ -66,6 +66,7 @@ export default function ProfilePage() {
     const [isUploading, setIsUploading] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
+    const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
     const userProfileRef = useMemoFirebase(() => {
         if (!firestore || !user) return null;
@@ -123,32 +124,46 @@ export default function ProfilePage() {
     };
 
 
-    const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
-        if (file && user && firestore && storage) {
-            setIsUploading(true);
-            try {
-                const resumePath = await uploadResume(storage, user.uid, file);
-                const userDocRef = doc(firestore, 'users', user.uid);
-                await updateDoc(userDocRef, { resumeUrl: resumePath });
-                
-                toast({
-                    title: 'Resume Uploaded',
-                    description: `${file.name} has been saved to your profile.`,
-                });
-                // The useDoc listener will automatically update the UI and trigger the useEffect to get the new download URL.
-            } catch (error) {
-                toast({
-                    title: 'Upload Failed',
-                    description: 'There was an error uploading your resume.',
-                    variant: 'destructive',
-                });
-                console.error("Upload error:", error);
-            } finally {
-                setIsUploading(false);
-            }
+        if (file) {
+            setSelectedFile(file);
         }
     };
+    
+    const handleFileUpload = async () => {
+        if (!selectedFile || !user || !firestore || !storage) {
+            toast({
+                title: 'Upload Failed',
+                description: 'Please select a file first.',
+                variant: 'destructive',
+            });
+            return;
+        }
+
+        setIsUploading(true);
+        try {
+            const resumePath = await uploadResume(storage, user.uid, selectedFile);
+            const userDocRef = doc(firestore, 'users', user.uid);
+            await updateDoc(userDocRef, { resumeUrl: resumePath });
+            
+            toast({
+                title: 'Resume Uploaded',
+                description: `${selectedFile.name} has been saved to your profile.`,
+            });
+            setSelectedFile(null); // Reset file input
+        } catch (error) {
+            toast({
+                title: 'Upload Failed',
+                description: 'There was an error uploading your resume. Check permissions or try again.',
+                variant: 'destructive',
+            });
+            console.error("Upload error:", error);
+        } finally {
+            setIsUploading(false);
+        }
+    };
+
 
     const getInitials = (name: string) => {
         return name ? name.split(' ').map(n => n[0]).join('') : '';
@@ -261,26 +276,30 @@ export default function ProfilePage() {
                     <CardDescription>Keep your resume up-to-date for quick applications.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    {userProfile.resumeUrl && storage ? (
+                    {userProfile.resumeUrl ? (
                          <ResumeSection resumeUrl={userProfile.resumeUrl} storage={storage} />
-                    ) : userProfile.resumeUrl && !storage ? (
-                         <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                            <span>Initializing Storage...</span>
-                         </div>
-                    ): (
+                    ) : (
                         <p className="text-sm text-muted-foreground">You have not uploaded a resume yet.</p>
                     )}
                    
-                    <div className="mt-4">
-                        <Label htmlFor="resume-upload" className="block text-sm font-medium mb-2">Upload Resume</Label>
-                        <div className="flex items-center gap-2">
-                            <label className="flex-1">
-                                <span className="sr-only">Choose file</span>
-                                <Input id="resume-upload" type="file" onChange={handleFileUpload} disabled={isUploading || !storage} className="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20" />
-                            </label>
-                        </div>
-                         <p className="text-xs text-muted-foreground mt-2">Accepted formats: PDF, DOCX (Max 5MB).</p>
+                    <div className="mt-4 space-y-3">
+                        <Label htmlFor="resume-upload">Choose a file to upload</Label>
+                        <Input 
+                            id="resume-upload" 
+                            type="file" 
+                            onChange={handleFileSelect} 
+                            disabled={isUploading || !storage} 
+                            className="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20" 
+                        />
+                        <p className="text-xs text-muted-foreground">Accepted formats: PDF, DOCX (Max 5MB).</p>
+                        <Button onClick={handleFileUpload} disabled={!selectedFile || isUploading || !storage}>
+                            {isUploading ? (
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            ) : (
+                                <Upload className="mr-2 h-4 w-4" />
+                            )}
+                            Upload Resume
+                        </Button>
                     </div>
                 </CardContent>
             </Card>
@@ -289,5 +308,3 @@ export default function ProfilePage() {
     </div>
   );
 }
-
-    
