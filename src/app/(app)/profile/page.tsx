@@ -20,13 +20,18 @@ function ResumeSection({ resumeUrl, storage }: { resumeUrl?: string, storage: St
 
     useEffect(() => {
         if (resumeUrl && storage) {
+            setIsLoading(true);
             const fileRef = ref(storage, resumeUrl);
             getDownloadURL(fileRef)
                 .then((url) => setDownloadURL(url))
-                .catch((error) => console.error("Error getting download URL:", error))
+                .catch((error) => {
+                    console.error("Error getting download URL:", error);
+                    setDownloadURL(null); // Ensure no stale URL is shown
+                })
                 .finally(() => setIsLoading(false));
         } else {
             setIsLoading(false);
+            setDownloadURL(null);
         }
     }, [resumeUrl, storage]);
 
