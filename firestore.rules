@@ -109,12 +109,13 @@ service firebase.storage {
     // Allow any authenticated user to write to the resumes folder.
     // The app logic ensures they can only write to their own sub-folder.
     match /resumes/{allPaths=**} {
-      allow read, write: if request.auth != null;
+      allow read: if request.auth != null;
+      allow write: if request.auth != null;
     }
 
-    // Fallback public read for any other path.
+    // Fallback disallow read for any other path.
     match /{allPaths=**} {
-      allow read;
+      allow read, write: if false;
     }
   }
 }

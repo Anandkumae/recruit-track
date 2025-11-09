@@ -8,11 +8,11 @@ export type User = {
   name: string;
   email: string;
   phone?: string;
-  avatarUrl: string;
+  avatarUrl?: string;
   role: Role;
   department?: string;
   resumeUrl?: string; 
-  resumeText?: string; // Added field for resume text
+  resumeText?: string;
 };
 
 export type HiringStage = 'Applied' | 'Shortlisted' | 'Interviewed' | 'Hired' | 'Rejected';
@@ -39,10 +39,11 @@ export type Candidate = {
   jobAppliedFor: string; // Job ID
   status: HiringStage;
   notes?: string;
-  appliedAt: string;
+  appliedAt: Timestamp | string;
   matchScore?: number;
   matchReasoning?: string;
   avatarUrl: string;
+  userId: string;
 };
 
 export type NavItem = {

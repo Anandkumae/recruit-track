@@ -1,19 +1,25 @@
 
-import { candidates, jobs } from "@/lib/data";
-import { notFound } from "next/navigation";
+'use client';
+
+import { useDoc, useFirestore, useMemoFirebase, useFirebase } from "@/firebase";
+import type { Candidate, Job, User } from "@/lib/types";
+import { notFound, useParams } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, AtSign, Briefcase, Calendar, CheckCircle, Download, FileText, Phone, Star } from "lucide-react";
+import { ArrowLeft, AtSign, Briefcase, Calendar, CheckCircle, Eye, FileText, Loader2, Phone } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import type { HiringStage } from "@/lib/types";
+import { doc } from 'firebase/firestore';
+import React, { useState, useEffect } from 'react';
+import { ref, getDownloadURL, type Storage } from 'firebase/storage';
 
 const getInitials = (name: string) => {
-    return name.split(' ').map(n => n[0]).join('');
+    return name ? name.split(' ').map(n => n[0]).join('') : '';
 }
 
 const statusColors: Record<HiringStage, string> = {
@@ -24,15 +30,100 @@ const statusColors: Record<HiringStage, string> = {
     Rejected: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
 };
 
+function ResumeSection({ resumeUrl, storage }: { resumeUrl?: string, storage: Storage | null }) {
+    const [downloadURL, setDownloadURL] = useState<string | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
 
-export default function CandidateDetailsPage({ params }: { params: { id: string } }) {
-    const candidate = candidates.find(c => c.id === params.id);
+    useEffect(() => {
+        if (resumeUrl && storage) {
+            setIsLoading(true);
+            const fileRef = ref(storage, resumeUrl);
+            getDownloadURL(fileRef)
+                .then((url) => setDownloadURL(url))
+                .catch((error) => {
+                    console.error("Error getting download URL:", error);
+                    setDownloadURL(null);
+                })
+                .finally(() => setIsLoading(false));
+        } else {
+            setIsLoading(false);
+            setDownloadURL(null);
+        }
+    }, [resumeUrl, storage]);
+
+    if (isLoading) {
+        return (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span>Loading resume...</span>
+            </div>
+        );
+    }
+    
+    if (downloadURL) {
+        return (
+            <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                    <FileText className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm">Candidate's uploaded resume</span>
+                </div>
+                <Button variant="outline" size="sm" asChild>
+                    <Link href={downloadURL} target="_blank" rel="noopener noreferrer">
+                        <Eye className="mr-2 h-4 w-4" /> View
+                    </Link>
+                </Button>
+            </div>
+        );
+    }
+
+    return <p className="text-sm text-muted-foreground">This candidate has not uploaded a resume file.</p>;
+}
+
+
+export default function CandidateDetailsPage() {
+    const params = useParams();
+    const id = params.id as string;
+    const { firestore, storage } = useFirebase();
+
+    const candidateRef = useMemoFirebase(() => {
+        if (!firestore || !id) return null;
+        return doc(firestore, 'candidates', id);
+    }, [firestore, id]);
+
+    const { data: candidate, isLoading: candidateLoading } = useDoc<Candidate>(candidateRef);
+    
+    const jobRef = useMemoFirebase(() => {
+        if (!firestore || !candidate?.jobAppliedFor) return null;
+        return doc(firestore, 'jobs', candidate.jobAppliedFor);
+    }, [firestore, candidate?.jobAppliedFor]);
+
+    const { data: job, isLoading: jobLoading } = useDoc<Job>(jobRef);
+
+    const formatDate = (timestamp: any) => {
+        if (!timestamp) return 'N/A';
+        if (timestamp.toDate) {
+            return format(timestamp.toDate(), 'MMM d, yyyy');
+        }
+        try {
+            return format(new Date(timestamp), 'MMM d, yyyy');
+        } catch {
+            return 'Invalid Date';
+        }
+    }
+    
+    const isLoading = candidateLoading || (candidate && jobLoading);
+
+    if (isLoading) {
+        return (
+            <div className="flex h-full w-full items-center justify-center">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+        );
+    }
 
     if (!candidate) {
         notFound();
     }
-
-    const job = jobs.find(j => j.id === candidate.jobAppliedFor);
 
     return (
         <div className="space-y-8">
@@ -65,20 +156,26 @@ export default function CandidateDetailsPage({ params }: { params: { id: string 
                         </CardHeader>
                         <CardContent className="space-y-4">
                              <div>
-                                <div className="flex items-baseline justify-between">
-                                  <span className="text-sm font-medium">Match Score</span>
-                                  <span className="text-xl font-bold text-primary">
-                                    {candidate.matchScore}
-                                    <span className="text-xs text-muted-foreground">/100</span>
-                                  </span>
-                                </div>
-                                <Progress value={candidate.matchScore} className="mt-2" />
+                                {candidate.matchScore ? (
+                                    <>
+                                        <div className="flex items-baseline justify-between">
+                                        <span className="text-sm font-medium">Match Score</span>
+                                        <span className="text-xl font-bold text-primary">
+                                            {candidate.matchScore}
+                                            <span className="text-xs text-muted-foreground">/100</span>
+                                        </span>
+                                        </div>
+                                        <Progress value={candidate.matchScore} className="mt-2" />
+                                    </>
+                                ) : <p className="text-sm text-muted-foreground">No AI match score available.</p>}
                               </div>
                               <div>
                                 <span className="text-sm font-medium">AI Reasoning</span>
-                                <p className="mt-1 text-sm text-foreground/80 rounded-md border bg-muted/50 p-3">
-                                  {candidate.matchReasoning}
-                                </p>
+                                {candidate.matchReasoning ? (
+                                     <p className="mt-1 text-sm text-foreground/80 rounded-md border bg-muted/50 p-3">
+                                        {candidate.matchReasoning}
+                                     </p>
+                                ) : <p className="text-sm text-muted-foreground mt-1">No AI reasoning available.</p>}
                               </div>
                         </CardContent>
                     </Card>
@@ -88,25 +185,29 @@ export default function CandidateDetailsPage({ params }: { params: { id: string 
                             <CardTitle>Skills</CardTitle>
                         </CardHeader>
                         <CardContent className="flex flex-wrap gap-2">
-                             {candidate.skills.map(skill => (
+                             {candidate.skills && candidate.skills.length > 0 ? candidate.skills.map(skill => (
                                 <Badge key={skill} variant="secondary">{skill}</Badge>
-                            ))}
+                            )) : <p className="text-sm text-muted-foreground">No skills listed.</p>}
                         </CardContent>
                     </Card>
-
-                    {candidate.resumeText && (
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>Resume</CardTitle>
-                                <CardDescription>The full text of the candidate's submitted resume.</CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                                <p className="text-sm text-foreground/80 whitespace-pre-wrap font-mono bg-muted/50 p-4 rounded-md">
-                                    {candidate.resumeText}
-                                </p>
-                            </CardContent>
-                        </Card>
-                    )}
+                    
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Resume</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            <ResumeSection resumeUrl={candidate.resumeUrl} storage={storage} />
+                            
+                             {candidate.resumeText && (
+                                <div>
+                                    <h4 className="text-sm font-medium mb-2">Pasted Resume Text</h4>
+                                    <p className="text-sm text-foreground/80 whitespace-pre-wrap font-mono bg-muted/50 p-4 rounded-md">
+                                        {candidate.resumeText}
+                                    </p>
+                                </div>
+                             )}
+                        </CardContent>
+                    </Card>
                 </div>
                 <div className="space-y-6">
                     <Card>
@@ -120,11 +221,11 @@ export default function CandidateDetailsPage({ params }: { params: { id: string 
                             </div>
                             <div className="flex items-center gap-2">
                                 <Phone className="h-4 w-4 text-muted-foreground" />
-                                <span className="text-sm">{candidate.phone}</span>
+                                <span className="text-sm">{candidate.phone || 'Not Provided'}</span>
                             </div>
                             <div className="flex items-center gap-2">
                                 <Calendar className="h-4 w-4 text-muted-foreground" />
-                                <span className="text-sm">Applied on {format(parseISO(candidate.appliedAt), 'MMM d, yyyy')}</span>
+                                <span className="text-sm">Applied on {formatDate(candidate.appliedAt)}</span>
                             </div>
                              <div className="flex items-center gap-2">
                                 <CheckCircle className="h-4 w-4 text-muted-foreground" />

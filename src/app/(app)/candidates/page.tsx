@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Search } from 'lucide-react';
+import { Search, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { Input } from '@/components/ui/input';
 import {
@@ -14,21 +14,30 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { candidates as allCandidates, jobs } from '@/lib/data';
 import { Progress } from '@/components/ui/progress';
-import { format, parseISO } from 'date-fns';
+import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
-import type { HiringStage } from '@/lib/types';
+import type { HiringStage, Candidate, Job, WithId } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { TableHead } from '@/components/ui/table';
+import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
+import { collection, query, orderBy } from 'firebase/firestore';
 
 
-const getJobTitle = (jobId: string) => {
-    return jobs.find(j => j.id === jobId)?.title || 'Unknown Job';
+function JobTitle({ jobId }: { jobId: string }) {
+  const firestore = useFirestore();
+  const jobRef = useMemoFirebase(() => {
+    if (!firestore || !jobId) return null;
+    return doc(firestore, 'jobs', jobId);
+  }, [firestore, jobId]);
+  const { data: job, isLoading } = useDoc<Job>(jobRef);
+  if (isLoading) return <Loader2 className="h-4 w-4 animate-spin" />;
+  return <>{job?.title || 'Unknown Job'}</>;
 }
 
+
 const getInitials = (name: string) => {
-    return name.split(' ').map(n => n[0]).join('');
+    return name ? name.split(' ').map(n => n[0]).join('') : '';
 }
 
 const statusColors: Record<HiringStage, string> = {
@@ -42,12 +51,33 @@ const statusColors: Record<HiringStage, string> = {
 
 export default function CandidatesPage() {
   const [searchTerm, setSearchTerm] = useState('');
+  const firestore = useFirestore();
 
-  const filteredCandidates = allCandidates.filter((candidate) =>
+  const candidatesQuery = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return query(collection(firestore, 'candidates'), orderBy('appliedAt', 'desc'));
+  }, [firestore]);
+  
+  const { data: candidates, isLoading: candidatesLoading } = useCollection<Candidate>(candidatesQuery);
+
+  const filteredCandidates = candidates?.filter((candidate) =>
     candidate.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    candidate.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    getJobTitle(candidate.jobAppliedFor).toLowerCase().includes(searchTerm.toLowerCase())
+    candidate.email.toLowerCase().includes(searchTerm.toLowerCase())
   );
+  
+  const formatDate = (timestamp: any) => {
+    if (!timestamp) return 'N/A';
+    if (timestamp.toDate) {
+      return format(timestamp.toDate(), 'MMM d, yyyy');
+    }
+    try {
+        const date = new Date(timestamp);
+        return format(date, 'MMM d, yyyy');
+    } catch {
+        return 'Invalid Date';
+    }
+  }
+
 
   return (
     <div className="flex flex-col gap-8">
@@ -66,7 +96,7 @@ export default function CandidatesPage() {
                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
                 type="search"
-                placeholder="Search by name, email, or job..."
+                placeholder="Search by name, email..."
                 className="pl-8"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -86,9 +116,15 @@ export default function CandidatesPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredCandidates.length > 0 ? (
+              {candidatesLoading ? (
+                 <TableRow>
+                    <TableCell colSpan={6} className="text-center h-24">
+                       <Loader2 className="h-6 w-6 animate-spin mx-auto text-primary" />
+                    </TableCell>
+                </TableRow>
+              ) : filteredCandidates && filteredCandidates.length > 0 ? (
                 filteredCandidates.map((candidate) => (
-                  <TableRow key={candidate.id} className="cursor-pointer hover:bg-muted/50">
+                  <TableRow key={candidate.id}>
                     <TableCell>
                         <Link href={`/candidates/${candidate.id}`} className="flex items-center gap-3 group">
                             <Avatar>
@@ -98,11 +134,14 @@ export default function CandidatesPage() {
                             <div className="font-medium group-hover:underline">{candidate.name}</div>
                         </Link>
                     </TableCell>
-                    <TableCell>{getJobTitle(candidate.jobAppliedFor)}</TableCell>
+                    <TableCell>
+                      {/* This part needs to fetch job title based on job ID */}
+                      {candidate.jobAppliedFor}
+                    </TableCell>
                     <TableCell>
                         <div className="flex items-center gap-2">
-                            <Progress value={candidate.matchScore} className="w-24" />
-                            <span className="text-sm font-medium">{candidate.matchScore}%</span>
+                            <Progress value={candidate.matchScore || 0} className="w-24" />
+                            <span className="text-sm font-medium">{candidate.matchScore || 0}%</span>
                         </div>
                     </TableCell>
                     <TableCell>
@@ -111,7 +150,7 @@ export default function CandidatesPage() {
                         </Badge>
                     </TableCell>
                     <TableCell>
-                        {format(parseISO(candidate.appliedAt), 'MMM d, yyyy')}
+                        {formatDate(candidate.appliedAt)}
                     </TableCell>
                     <TableCell className="text-right">
                        <Button variant="outline" size="sm" asChild>
