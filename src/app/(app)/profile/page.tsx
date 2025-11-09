@@ -284,10 +284,6 @@ export default function ProfilePage() {
                    
                     <div className="mt-4 space-y-3">
                         <Label htmlFor="resume-upload">Upload a new resume</Label>
-                         <div className="p-4 text-sm text-center text-muted-foreground bg-muted/50 rounded-lg border border-dashed">
-                            Resume upload is temporarily disabled due to a configuration issue.
-                        </div>
-                        {/* 
                         <Input 
                             id="resume-upload" 
                             type="file" 
@@ -304,7 +300,6 @@ export default function ProfilePage() {
                             )}
                             Upload Resume
                         </Button>
-                        */}
                     </div>
                 </CardContent>
             </Card>
