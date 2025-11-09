@@ -13,60 +13,15 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-
-async function uploadResume(storage: Storage, userId: string, file: File) {
-    const storageRef = ref(storage, `resumes/${userId}/${file.name}`);
-    await uploadBytes(storageRef, file);
-    return storageRef.fullPath;
-}
-
-function ResumeSection({ resumeUrl, storage }: { resumeUrl: string, storage: Storage | null }) {
-    const [resumeDownloadUrl, setResumeDownloadUrl] = useState<string | null>(null);
-    const [isUrlLoading, setIsUrlLoading] = useState(false);
-
-    useEffect(() => {
-        if (resumeUrl && storage) {
-            setIsUrlLoading(true);
-            const storageRef = ref(storage, resumeUrl);
-            getDownloadURL(storageRef)
-                .then(url => setResumeDownloadUrl(url))
-                .catch(console.error)
-                .finally(() => setIsUrlLoading(false));
-        }
-    }, [resumeUrl, storage]);
-
-    return (
-        <div className="space-y-3">
-             <div className="flex items-center justify-between gap-3 p-3 rounded-md bg-muted/50 border">
-                <div className="flex items-center gap-3">
-                    <Briefcase className="h-5 w-5 text-muted-foreground" />
-                    <span className="text-sm font-medium text-foreground truncate">{decodeURIComponent(resumeUrl.split('/').pop() || '')}</span>
-                </div>
-                {isUrlLoading ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                ) : resumeDownloadUrl ? (
-                    <Button asChild variant="outline" size="sm">
-                        <Link href={resumeDownloadUrl} target="_blank" rel="noopener noreferrer">
-                            <Eye className="mr-2 h-4 w-4" />
-                            View
-                        </Link>
-                    </Button>
-                ) : null}
-             </div>
-              <p className="text-xs text-muted-foreground">To update, upload a new file below.</p>
-         </div>
-    );
-}
+import { Textarea } from '@/components/ui/textarea';
 
 
 export default function ProfilePage() {
     const { user } = useUser();
     const { firestore, storage } = useFirebase();
     const { toast } = useToast();
-    const [isUploading, setIsUploading] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
-    const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
     const userProfileRef = useMemoFirebase(() => {
         if (!firestore || !user) return null;
@@ -79,6 +34,7 @@ export default function ProfilePage() {
         name: '',
         phone: '',
         qualification: '',
+        resumeText: '',
     });
 
     useEffect(() => {
@@ -87,11 +43,12 @@ export default function ProfilePage() {
                 name: userProfile.name || '',
                 phone: userProfile.phone || '',
                 qualification: userProfile.qualification || '',
+                resumeText: userProfile.resumeText || '',
             });
         }
     }, [userProfile]);
 
-    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         const { name, value } = e.target;
         setFormData(prev => ({ ...prev, [name]: value }));
     };
@@ -105,6 +62,7 @@ export default function ProfilePage() {
                 name: formData.name,
                 phone: formData.phone,
                 qualification: formData.qualification,
+                resumeText: formData.resumeText,
             });
             toast({
                 title: 'Profile Updated',
@@ -122,48 +80,6 @@ export default function ProfilePage() {
             setIsSaving(false);
         }
     };
-
-
-    const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
-        const file = event.target.files?.[0];
-        if (file) {
-            setSelectedFile(file);
-        }
-    };
-    
-    const handleFileUpload = async () => {
-        if (!selectedFile || !user || !firestore || !storage) {
-            toast({
-                title: 'Upload Failed',
-                description: 'Please select a file first.',
-                variant: 'destructive',
-            });
-            return;
-        }
-
-        setIsUploading(true);
-        try {
-            const resumePath = await uploadResume(storage, user.uid, selectedFile);
-            const userDocRef = doc(firestore, 'users', user.uid);
-            await updateDoc(userDocRef, { resumeUrl: resumePath });
-            
-            toast({
-                title: 'Resume Uploaded',
-                description: `${selectedFile.name} has been saved to your profile.`,
-            });
-            setSelectedFile(null); // Reset file input
-        } catch (error) {
-            toast({
-                title: 'Upload Failed',
-                description: 'There was an error uploading your resume. Check permissions or try again.',
-                variant: 'destructive',
-            });
-            console.error("Upload error:", error);
-        } finally {
-            setIsUploading(false);
-        }
-    };
-
 
     const getInitials = (name: string) => {
         return name ? name.split(' ').map(n => n[0]).join('') : '';
@@ -272,36 +188,45 @@ export default function ProfilePage() {
 
             <Card>
                 <CardHeader>
-                    <CardTitle>Resume</CardTitle>
-                    <CardDescription>Keep your resume up-to-date for quick applications.</CardDescription>
+                    <CardTitle>My Resume</CardTitle>
+                    <CardDescription>Keep your resume text up-to-date for quick applications.</CardDescription>
                 </CardHeader>
-                <CardContent>
-                    {userProfile.resumeUrl && storage ? (
-                         <ResumeSection resumeUrl={userProfile.resumeUrl} storage={storage} />
+                 <CardContent>
+                    {isEditing ? (
+                        <div className="space-y-2">
+                            <Label htmlFor="resumeText">Resume Text</Label>
+                            <Textarea
+                                id="resumeText"
+                                name="resumeText"
+                                value={formData.resumeText}
+                                onChange={handleInputChange}
+                                rows={15}
+                                placeholder="Paste the full text of your resume here..."
+                                disabled={isSaving}
+                            />
+                            <p className="text-xs text-muted-foreground">This text will be used when you apply for jobs.</p>
+                        </div>
                     ) : (
-                        <p className="text-sm text-muted-foreground">You have not uploaded a resume yet.</p>
-                    )}
-                   
-                    <div className="mt-4 space-y-3">
-                        <Label htmlFor="resume-upload">Upload a new resume</Label>
-                        <Input 
-                            id="resume-upload" 
-                            type="file" 
-                            onChange={handleFileSelect} 
-                            disabled={isUploading || !storage} 
-                            className="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20" 
-                        />
-                        <p className="text-xs text-muted-foreground">Accepted formats: PDF, DOCX (Max 5MB).</p>
-                        <Button onClick={handleFileUpload} disabled={!selectedFile || isUploading || !storage}>
-                            {isUploading ? (
-                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        <div className="space-y-3">
+                            {userProfile.resumeText ? (
+                                <p className="text-sm text-foreground/80 whitespace-pre-wrap font-mono bg-muted/50 p-4 rounded-md">
+                                    {userProfile.resumeText.substring(0, 500)}...
+                                </p>
                             ) : (
-                                <Upload className="mr-2 h-4 w-4" />
+                                <p className="text-sm text-muted-foreground">You have not saved your resume text yet. Click the edit button to add it.</p>
                             )}
-                            Upload Resume
-                        </Button>
-                    </div>
+                        </div>
+                    )}
                 </CardContent>
+                 {isEditing && (
+                    <CardFooter className="justify-end gap-2">
+                         <Button variant="ghost" onClick={() => setIsEditing(false)} disabled={isSaving}>Cancel</Button>
+                        <Button onClick={handleSave} disabled={isSaving}>
+                            {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                            Save Changes
+                        </Button>
+                    </CardFooter>
+                )}
             </Card>
         </div>
       </div>

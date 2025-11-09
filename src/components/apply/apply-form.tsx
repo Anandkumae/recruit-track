@@ -32,10 +32,12 @@ export function ApplyForm({ job, userProfile }: { job: Job, userProfile: User | 
   useEffect(() => {
     setIsClient(true);
     if (user) {
-      setName(user.displayName || '');
+      setName(user.displayName || userProfile?.name || '');
       setEmail(user.email || '');
     }
-    // A real app might fetch the resume text if it exists
+    if (userProfile?.resumeText) {
+      setResumeText(userProfile.resumeText);
+    }
   }, [user, userProfile]);
 
   if (!isClient) {

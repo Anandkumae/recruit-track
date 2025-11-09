@@ -12,7 +12,7 @@ const ApplySchema = z.object({
   email: z.string().email('Invalid email address.'),
   jobId: z.string(),
   userId: z.string().min(1, 'User ID is required.'),
-  resumeText: z.string().min(50, 'Resume text is required.'),
+  resumeText: z.string().min(50, 'Resume text must be at least 50 characters.'),
 });
 
 export type ApplicationState = {
@@ -55,6 +55,12 @@ export async function applyForJob(
         return { errors: { _form: ['The job you are applying for no longer exists.'] } };
     }
     const jobDescription = jobDoc.data()?.description || '';
+
+    // Update the user's profile with the new resume text
+    // This makes it available for future applications
+    const userDocRef = firestore.collection('users').doc(userId);
+    await userDocRef.update({ resumeText: resumeText });
+
 
     const matchResult = await matchResumeToJob({
       resumeText,
