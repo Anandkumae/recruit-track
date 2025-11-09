@@ -107,7 +107,7 @@ export default function ProfilePage() {
                     title: 'Resume Uploaded',
                     description: `${file.name} has been saved to your profile.`,
                 });
-                // The useDoc listener will automatically update the UI.
+                // The useDoc listener will automatically update the UI and trigger the useEffect to get the new download URL.
             } catch (error) {
                 toast({
                     title: 'Upload Failed',
@@ -239,14 +239,14 @@ export default function ProfilePage() {
                                     <Briefcase className="h-5 w-5 text-muted-foreground" />
                                     <span className="text-sm font-medium text-foreground truncate">{userProfile.resumeUrl.split('/').pop()}</span>
                                 </div>
-                                {resumeDownloadUrl && (
+                                {resumeDownloadUrl ? (
                                     <Button asChild variant="outline" size="sm">
                                         <Link href={resumeDownloadUrl} target="_blank" rel="noopener noreferrer">
                                             <Eye className="mr-2 h-4 w-4" />
                                             View
                                         </Link>
                                     </Button>
-                                )}
+                                ) : <Loader2 className="h-4 w-4 animate-spin" />}
                              </div>
                               <p className="text-xs text-muted-foreground">To update, upload a new file below.</p>
                          </div>
