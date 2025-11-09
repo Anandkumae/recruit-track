@@ -1,37 +1,33 @@
 'use client';
 
-import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
+import { useUser, useFirebase, useDoc, useMemoFirebase } from '@/firebase';
 import { doc, updateDoc } from 'firebase/firestore';
+import { ref, getDownloadURL, uploadBytes } from 'firebase/storage';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Loader2, Upload, User as UserIcon, Mail, Phone, Book, Briefcase, Pencil, Save } from "lucide-react";
+import { Loader2, Upload, User as UserIcon, Mail, Phone, Book, Briefcase, Pencil, Save, Eye } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 
-// In a real app, this would involve Firebase Storage
-// For this demo, we'll just simulate the upload and store a placeholder URL.
-async function uploadResume(firestore: any, userId: string, file: File) {
-    // Simulate upload delay
-    await new Promise(res => setTimeout(res, 1500));
-    const resumeUrl = `resumes/${userId}/${file.name}`;
-    
-    const userDocRef = doc(firestore, 'users', userId);
-    await updateDoc(userDocRef, { resumeUrl });
-    
-    return resumeUrl;
+async function uploadResume(storage: any, userId: string, file: File) {
+    const storageRef = ref(storage, `resumes/${userId}/${file.name}`);
+    await uploadBytes(storageRef, file);
+    return storageRef.fullPath;
 }
 
 
 export default function ProfilePage() {
     const { user } = useUser();
-    const firestore = useFirestore();
+    const { firestore, storage } = useFirebase();
     const { toast } = useToast();
     const [isUploading, setIsUploading] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
+    const [resumeDownloadUrl, setResumeDownloadUrl] = useState<string | null>(null);
 
     const userProfileRef = useMemoFirebase(() => {
         if (!firestore || !user) return null;
@@ -53,8 +49,17 @@ export default function ProfilePage() {
                 phone: userProfile.phone || '',
                 qualification: userProfile.qualification || '',
             });
+
+            if (userProfile.resumeUrl && storage) {
+                const storageRef = ref(storage, userProfile.resumeUrl);
+                getDownloadURL(storageRef)
+                    .then(url => setResumeDownloadUrl(url))
+                    .catch(console.error);
+            } else {
+                setResumeDownloadUrl(null);
+            }
         }
-    }, [userProfile]);
+    }, [userProfile, storage]);
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
@@ -91,15 +96,18 @@ export default function ProfilePage() {
 
     const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
-        if (file && user && firestore) {
+        if (file && user && firestore && storage) {
             setIsUploading(true);
             try {
-                await uploadResume(firestore, user.uid, file);
+                const resumePath = await uploadResume(storage, user.uid, file);
+                const userDocRef = doc(firestore, 'users', user.uid);
+                await updateDoc(userDocRef, { resumeUrl: resumePath });
+                
                 toast({
                     title: 'Resume Uploaded',
                     description: `${file.name} has been saved to your profile.`,
                 });
-                // No refetch needed, useDoc provides real-time updates.
+                // The useDoc listener will automatically update the UI.
             } catch (error) {
                 toast({
                     title: 'Upload Failed',
@@ -226,9 +234,19 @@ export default function ProfilePage() {
                 <CardContent>
                     {userProfile.resumeUrl ? (
                          <div className="space-y-3">
-                             <div className="flex items-center gap-3 p-3 rounded-md bg-muted/50 border">
-                                <Briefcase className="h-5 w-5 text-muted-foreground" />
-                                <span className="text-sm font-medium text-foreground truncate">{userProfile.resumeUrl.split('/').pop()}</span>
+                             <div className="flex items-center justify-between gap-3 p-3 rounded-md bg-muted/50 border">
+                                <div className="flex items-center gap-3">
+                                    <Briefcase className="h-5 w-5 text-muted-foreground" />
+                                    <span className="text-sm font-medium text-foreground truncate">{userProfile.resumeUrl.split('/').pop()}</span>
+                                </div>
+                                {resumeDownloadUrl && (
+                                    <Button asChild variant="outline" size="sm">
+                                        <Link href={resumeDownloadUrl} target="_blank" rel="noopener noreferrer">
+                                            <Eye className="mr-2 h-4 w-4" />
+                                            View
+                                        </Link>
+                                    </Button>
+                                )}
                              </div>
                               <p className="text-xs text-muted-foreground">To update, upload a new file below.</p>
                          </div>
@@ -239,15 +257,10 @@ export default function ProfilePage() {
                     <div className="mt-4">
                         <Label htmlFor="resume-upload" className="block text-sm font-medium mb-2">Upload Resume</Label>
                         <div className="flex items-center gap-2">
-                             <Input id="resume-upload" type="file" onChange={handleFileUpload} disabled={isUploading} className="flex-1" />
-                            <Button onClick={() => document.getElementById('resume-upload')?.click()} disabled={isUploading} variant="outline">
-                                {isUploading ? (
-                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                ) : (
-                                    <Upload className="mr-2 h-4 w-4" />
-                                )}
-                                {isUploading ? 'Uploading...' : 'Choose File'}
-                            </Button>
+                            <label className="flex-1">
+                                <span className="sr-only">Choose file</span>
+                                <Input id="resume-upload" type="file" onChange={handleFileUpload} disabled={isUploading} className="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20" />
+                            </label>
                         </div>
                          <p className="text-xs text-muted-foreground mt-2">Accepted formats: PDF, DOCX (Max 5MB).</p>
                     </div>
