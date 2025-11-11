@@ -2,7 +2,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useActionState } from 'react';
+import { useActionState } from 'react-dom';
 import {
   Card,
   CardContent,
@@ -19,25 +19,46 @@ import { useUser } from '@/firebase';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { applyForJob, type ApplicationState } from '@/lib/actions';
 import { Textarea } from '../ui/textarea';
+import { useFormStatus } from 'react-dom';
 
-export function ApplyForm({ job, userProfile }: { job: WithId<Job>, userProfile: User | null }) {
+function SubmitButton() {
+  const { pending } = useFormStatus();
+
+  return (
+     <Button type="submit" className="w-full" disabled={pending}>
+        {pending ? (
+          <>
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Submitting...
+          </>
+        ) : (
+          <>
+            <Send className="mr-2 h-4 w-4" /> Submit Application
+          </>
+        )}
+      </Button>
+  );
+}
+
+
+export function ApplyForm({ job, userProfile }: { job: WithId<Job>, userProfile: WithId<User> | null }) {
   const { user } = useUser();
-  const initialState: ApplicationState = {};
+  const initialState: ApplicationState = { jobId: job.id, userId: user?.uid ?? '' };
   const [state, formAction] = useActionState(applyForJob, initialState);
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [resumeText, setResumeText] = useState('');
   const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
     setIsClient(true);
-    if (user) {
-      setName(user.displayName || userProfile?.name || '');
-      setEmail(user.email || '');
+    if (userProfile) {
+      setName(userProfile.name || '');
+      setPhone(userProfile.phone || '');
     }
-    if (userProfile?.resumeText) {
-      setResumeText(userProfile.resumeText);
+    if (user) {
+      setEmail(user.email || '');
     }
   }, [user, userProfile]);
 
@@ -49,15 +70,14 @@ export function ApplyForm({ job, userProfile }: { job: WithId<Job>, userProfile:
     );
   }
 
-  if (state.message && !state.errors) {
+  if (state.success) {
     return (
       <Card>
         <CardHeader className="items-center text-center">
           <PartyPopper className="h-12 w-12 text-green-500" />
           <CardTitle className="text-2xl">Application Submitted!</CardTitle>
           <CardDescription>
-            Thank you for applying. The hiring team will review your
-            application.
+            Thank you for applying. You will be redirected to your dashboard shortly.
           </CardDescription>
         </CardHeader>
       </Card>
@@ -69,14 +89,11 @@ export function ApplyForm({ job, userProfile }: { job: WithId<Job>, userProfile:
       <CardHeader>
         <CardTitle className="text-2xl">Apply for {job.title}</CardTitle>
         <CardDescription>
-          Fill out the form below and paste your resume to submit your application.
+          Fill out the form below to submit your application.
         </CardDescription>
       </CardHeader>
       <CardContent>
         <form action={formAction} className="space-y-4">
-           {/* Hidden input for job ID */}
-           <input type="hidden" name="jobId" value={job.id} />
-           <input type="hidden" name="userId" value={user?.uid || ''} />
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="name">Full Name</Label>
@@ -98,14 +115,28 @@ export function ApplyForm({ job, userProfile }: { job: WithId<Job>, userProfile:
                 name="email"
                 type="email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
+                readOnly
+                disabled
               />
               {state.errors?.email && (
                 <p className="text-sm text-destructive">{state.errors.email[0]}</p>
               )}
             </div>
           </div>
+
+           <div className="space-y-2">
+              <Label htmlFor="phone">Phone Number</Label>
+              <Input
+                id="phone"
+                name="phone"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                required
+              />
+               {state.errors?.phone && (
+                <p className="text-sm text-destructive">{state.errors.phone[0]}</p>
+              )}
+            </div>
           
           <div className="space-y-2">
             <Label htmlFor="resumeText">Paste your Resume</Label>
@@ -133,10 +164,7 @@ export function ApplyForm({ job, userProfile }: { job: WithId<Job>, userProfile:
             </Alert>
           )}
           
-          <Button type="submit" className="w-full">
-              <Send className="mr-2 h-4 w-4" />
-            Submit Application
-          </Button>
+          <SubmitButton />
 
         </form>
       </CardContent>

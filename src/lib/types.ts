@@ -9,6 +9,7 @@ export type User = {
   name: string;
   email: string;
   phone?: string;
+  qualification?: string;
   avatarUrl?: string;
   role: Role;
   department?: string;
@@ -29,7 +30,6 @@ export type Job = {
 };
 
 export type Candidate = {
-  id:string;
   name: string;
   email: string;
   phone: string;

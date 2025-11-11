@@ -12,19 +12,21 @@ import type { Job } from '@/lib/types';
 const ApplySchema = z.object({
   name: z.string().min(1, 'Name is required.'),
   email: z.string().email('Invalid email address.'),
+  phone: z.string().min(1, 'Phone number is required.'),
   jobId: z.string(),
   userId: z.string().min(1, 'User ID is required.'),
   resumeText: z.string().min(50, 'Resume text must be at least 50 characters.'),
 });
 
 export type ApplicationState = {
-  message?: string | null;
-  result?: { candidateId: string };
+  jobId: string;
+  userId: string;
+  success?: boolean;
   errors?: {
     name?: string[];
     email?: string[];
+    phone?: string[];
     resumeText?: string[];
-    userId?: string[];
     _form?: string[];
   };
 };
@@ -34,46 +36,51 @@ export async function applyForJob(
   formData: FormData
 ): Promise<ApplicationState> {
   const { firestore } = getFirebaseAdmin();
+  const { jobId, userId } = prevState;
   
   const validatedFields = ApplySchema.safeParse({
     name: formData.get('name'),
     email: formData.get('email'),
-    jobId: formData.get('jobId'),
-    userId: formData.get('userId'),
+    phone: formData.get('phone'),
+    jobId: jobId,
+    userId: userId,
     resumeText: formData.get('resumeText'),
   });
-
+  
   if (!validatedFields.success) {
     return {
+      ...prevState,
       errors: validatedFields.error.flatten().fieldErrors,
     };
   }
 
-  const { name, email, jobId, userId, resumeText } = validatedFields.data;
+  const { name, email, phone, resumeText } = validatedFields.data;
 
   try {
     const jobDoc = await firestore.collection('jobs').doc(jobId).get();
     if (!jobDoc.exists) {
-        return { errors: { _form: ['The job you are applying for no longer exists.'] } };
+        return { ...prevState, errors: { _form: ['The job you are applying for no longer exists.'] } };
     }
     const jobData = jobDoc.data() as Job;
     const jobDescription = jobData?.description || '';
 
-    // Update the user's profile with the new resume text
-    // This makes it available for future applications
+    // Update the user's profile with the new resume text and phone
     const userDocRef = firestore.collection('users').doc(userId);
-    await userDocRef.set({ resumeText: resumeText }, { merge: true });
+    await userDocRef.set({ resumeText: resumeText, phone: phone }, { merge: true });
 
-
-    const matchResult = await matchResumeToJob({
-      resumeText,
-      jobDescription,
-    });
+    // Optional: Only run AI match if resume text or job description is substantial
+    let matchResult = { matchScore: 0, reasoning: 'Not enough information to generate a score.' };
+    if (resumeText.length > 100 && jobDescription.length > 100) {
+        matchResult = await matchResumeToJob({
+            resumeText,
+            jobDescription,
+        });
+    }
 
     const candidateData = {
       name,
       email,
-      phone: '', // Not collected in this form
+      phone,
       resumeText,
       jobAppliedFor: jobId,
       status: 'Applied' as const,
@@ -85,7 +92,7 @@ export async function applyForJob(
       avatarUrl: `https://picsum.photos/seed/${userId}/100/100`,
     };
 
-    const docRef = await firestore.collection('candidates').add(candidateData);
+    await firestore.collection('candidates').add(candidateData);
     
     // Revalidate paths to show new data
     revalidatePath('/candidates');
@@ -93,12 +100,11 @@ export async function applyForJob(
 
   } catch (error) {
     console.error('Submission Error:', error);
-    const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
-    return { errors: { _form: ['An unexpected error occurred while submitting your application. Please try again.'] }};
+    return { ...prevState, errors: { _form: ['An unexpected error occurred. Please try again.'] }};
   }
   
-  // Redirect to dashboard on success
-  redirect('/dashboard');
+  // This will trigger a redirect on the client-side
+  return { ...prevState, success: true, errors: {} };
 }
 
 

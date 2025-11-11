@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, Briefcase, Calendar, CheckCircle, User as UserIcon, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { useDoc, useFirestore, useMemoFirebase } from "@/firebase";
-import type { Job, User } from '@/lib/types';
+import type { Job, User, WithId } from '@/lib/types';
 import { doc } from 'firebase/firestore';
 
 
@@ -37,7 +37,7 @@ export default function JobDetailsPage() {
         return doc(firestore, 'jobs', id);
     }, [firestore, id]);
 
-    const { data: job, isLoading } = useDoc<Job>(jobRef);
+    const { data: job, isLoading } = useDoc<WithId<Job>>(jobRef);
 
     if (isLoading) {
         return (

@@ -27,7 +27,7 @@ export default function ApplyPage() {
     return doc(firestore, 'users', user.uid);
   }, [firestore, user]);
 
-  const { data: userProfile, isLoading: profileLoading } = useDoc<User>(userProfileRef);
+  const { data: userProfile, isLoading: profileLoading } = useDoc<WithId<User>>(userProfileRef);
 
   const isLoading = jobLoading || profileLoading;
 

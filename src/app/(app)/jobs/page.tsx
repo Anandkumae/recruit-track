@@ -44,14 +44,14 @@ export default function JobsPage() {
     return query(collection(firestore, 'jobs'), orderBy('createdAt', 'desc'));
   }, [firestore]);
 
-  const { data: jobs, isLoading: jobsLoading } = useCollection<Job>(jobsQuery);
+  const { data: jobs, isLoading: jobsLoading } = useCollection<WithId<Job>>(jobsQuery);
   
   const userProfileRef = useMemoFirebase(() => {
     if (!firestore || !user) return null;
     return doc(firestore, 'users', user.uid);
   }, [firestore, user]);
 
-  const { data: userProfile, isLoading: isProfileLoading } = useDoc(userProfileRef);
+  const { data: userProfile, isLoading: isProfileLoading } = useDoc<User>(userProfileRef);
 
   let userRole: Role = 'Candidate';
   if (user?.email === 'anandkumar.shinnovationco@gmail.com') {
@@ -69,11 +69,9 @@ export default function JobsPage() {
   
   const formatDate = (timestamp: any) => {
     if (!timestamp) return 'N/A';
-    // Firestore Timestamps have a toDate() method
     if (timestamp.toDate) {
       return format(timestamp.toDate(), 'MMM d, yyyy');
     }
-    // Fallback for string dates (though less ideal)
     try {
         const date = new Date(timestamp);
         return format(date, 'MMM d, yyyy');

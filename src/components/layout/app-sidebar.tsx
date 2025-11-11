@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -6,7 +7,7 @@ import { Briefcase } from 'lucide-react';
 import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
 import { cn } from '@/lib/utils';
 import { navItems } from '@/lib/data';
-import type { Role } from '@/lib/types';
+import type { Role, WithId, User } from '@/lib/types';
 import {
   Sidebar,
   SidebarContent,
@@ -60,7 +61,7 @@ export function AppSidebar() {
     return doc(firestore, 'users', user.uid);
   }, [firestore, user]);
 
-  const { data: userProfile } = useDoc(userProfileRef);
+  const { data: userProfile } = useDoc<WithId<User>>(userProfileRef);
 
   if (!user) {
     return null;
@@ -76,9 +77,6 @@ export function AppSidebar() {
 
 
   const allowedNavItems = navItems.filter((item) => {
-    if (item.roles.includes('Admin') && user.email === 'anandkumar.shinnovationco@gmail.com') {
-      return true;
-    }
     return item.roles.includes(userRole);
   });
 
