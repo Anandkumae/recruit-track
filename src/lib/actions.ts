@@ -5,7 +5,6 @@ import { z } from 'zod';
 import { matchResumeToJob } from '@/ai/flows/ai-match-resume-to-job';
 import { getFirebaseAdmin } from '@/firebase/server-config';
 import { FieldValue } from 'firebase-admin/firestore';
-import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import type { Job } from '@/lib/types';
 
@@ -68,8 +67,7 @@ export async function applyForJob(
     const userDocRef = firestore.collection('users').doc(userId);
     await userDocRef.set({ resumeText: resumeText, phone: phone }, { merge: true });
 
-    // Optional: Only run AI match if resume text or job description is substantial
-    let matchResult = { matchScore: 0, reasoning: 'Not enough information to generate a score.' };
+    let matchResult = { matchScore: 0, reasoning: 'AI analysis not performed.' };
     if (resumeText.length > 100 && jobDescription.length > 100) {
         matchResult = await matchResumeToJob({
             resumeText,
@@ -88,22 +86,21 @@ export async function applyForJob(
       userId,
       matchScore: matchResult.matchScore,
       matchReasoning: matchResult.reasoning,
-      skills: [], // Could be extracted by AI in the future
+      skills: [], 
       avatarUrl: `https://picsum.photos/seed/${userId}/100/100`,
     };
 
     await firestore.collection('candidates').add(candidateData);
     
-    // Revalidate paths to show new data
     revalidatePath('/candidates');
     revalidatePath('/dashboard');
+    revalidatePath(`/jobs/${jobId}`);
 
   } catch (error) {
     console.error('Submission Error:', error);
     return { ...prevState, errors: { _form: ['An unexpected error occurred. Please try again.'] }};
   }
   
-  // This will trigger a redirect on the client-side
   return { ...prevState, success: true, errors: {} };
 }
 

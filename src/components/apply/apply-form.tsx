@@ -20,6 +20,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { applyForJob, type ApplicationState } from '@/lib/actions';
 import { Textarea } from '../ui/textarea';
 import { useFormStatus } from 'react-dom';
+import { useRouter } from 'next/navigation';
 
 function SubmitButton() {
   const { pending } = useFormStatus();
@@ -42,6 +43,7 @@ function SubmitButton() {
 
 export function ApplyForm({ job, userProfile }: { job: WithId<Job>, userProfile: WithId<User> | null }) {
   const { user } = useUser();
+  const router = useRouter();
   const initialState: ApplicationState = { jobId: job.id, userId: user?.uid ?? '' };
   const [state, formAction] = useActionState(applyForJob, initialState);
 
@@ -56,11 +58,21 @@ export function ApplyForm({ job, userProfile }: { job: WithId<Job>, userProfile:
     if (userProfile) {
       setName(userProfile.name || '');
       setPhone(userProfile.phone || '');
+      setResumeText(userProfile.resumeText || '');
     }
     if (user) {
       setEmail(user.email || '');
     }
   }, [user, userProfile]);
+
+  useEffect(() => {
+    if (state.success) {
+        setTimeout(() => {
+            router.push('/dashboard');
+        }, 2000);
+    }
+  }, [state.success, router]);
+
 
   if (!isClient) {
     return (

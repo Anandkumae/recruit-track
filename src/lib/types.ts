@@ -20,6 +20,7 @@ export type User = {
 export type HiringStage = 'Applied' | 'Shortlisted' | 'Interviewed' | 'Hired' | 'Rejected';
 
 export type Job = {
+  id?: string; // Optional because it's added after fetching
   title: string;
   department: string;
   description: string;
