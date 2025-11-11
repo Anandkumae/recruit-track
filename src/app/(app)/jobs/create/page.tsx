@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -94,7 +95,7 @@ export default function CreateJobPage() {
             requirements: requirements.split('\n').filter(req => req.trim() !== ''),
             postedBy: user.uid,
             status: 'Open' as const,
-            postedAt: serverTimestamp(),
+            createdAt: serverTimestamp(),
         };
 
         await addDoc(collection(firestore, 'jobs'), jobData);

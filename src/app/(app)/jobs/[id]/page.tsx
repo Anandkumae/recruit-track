@@ -107,7 +107,7 @@ export default function JobDetailsPage() {
                             </div>
                             <div className="flex items-center gap-2">
                                 <Calendar className="h-4 w-4 text-muted-foreground" />
-                                <span className="text-sm">Posted on {formatDate(job.postedAt)}</span>
+                                <span className="text-sm">Posted on {formatDate(job.createdAt)}</span>
                             </div>
                             <div className="flex items-center gap-2">
                                 <UserIcon className="h-4 w-4 text-muted-foreground" />

@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState } from 'react';
@@ -48,7 +49,7 @@ export default function JobsPage() {
 
   const jobsQuery = useMemoFirebase(() => {
     if (!firestore) return null;
-    return query(collection(firestore, 'jobs'), orderBy('postedAt', 'desc'));
+    return query(collection(firestore, 'jobs'), orderBy('createdAt', 'desc'));
   }, [firestore]);
 
   const { data: jobs, isLoading: jobsLoading } = useCollection<Job>(jobsQuery);
@@ -157,7 +158,7 @@ export default function JobsPage() {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      {formatDate(job.postedAt)}
+                      {formatDate(job.createdAt)}
                     </TableCell>
                     <TableCell><PosterName userId={job.postedBy} /></TableCell>
                     <TableCell className="text-right">

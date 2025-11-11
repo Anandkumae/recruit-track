@@ -1,3 +1,4 @@
+
 import type { LucideIcon } from 'lucide-react';
 import type { Timestamp } from 'firebase/firestore';
 
@@ -24,7 +25,7 @@ export type Job = {
   description: string;
   requirements: string[];
   status: 'Open' | 'Closed';
-  postedAt: Timestamp | string;
+  createdAt: Timestamp | string;
   postedBy: string; // User ID
 };
 
