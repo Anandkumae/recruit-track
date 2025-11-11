@@ -1,12 +1,12 @@
 'use client';
 
-import Link from "next/link";
-import { notFound, useParams } from "next/navigation";
-import { Briefcase, Loader2 } from "lucide-react";
-import { ApplyForm } from "@/components/apply/apply-form";
-import { useDoc, useFirestore, useMemoFirebase, useUser } from "@/firebase";
-import { doc } from "firebase/firestore";
-import type { Job, User } from "@/lib/types";
+import Link from 'next/link';
+import { notFound, useParams } from 'next/navigation';
+import { Briefcase, Loader2 } from 'lucide-react';
+import { ApplyForm } from '@/components/apply/apply-form';
+import { useDoc, useFirestore, useMemoFirebase, useUser } from '@/firebase';
+import { doc } from 'firebase/firestore';
+import type { Job, User } from '@/lib/types';
 
 export default function ApplyPage() {
   const params = useParams();
@@ -43,19 +43,17 @@ export default function ApplyPage() {
   }
 
   return (
-    <div className="flex min-h-screen w-full justify-center bg-muted/40 p-4 sm:p-6 md:p-8">
-      <div className="w-full max-w-2xl">
+    <div className="w-full max-w-2xl mx-auto">
         <div className="mb-8 flex justify-center">
-          <Link
-            href="/"
-            className="flex items-center gap-2 text-2xl font-bold text-primary"
-          >
-            <Briefcase className="h-7 w-7" />
-            LeoRecruit
-          </Link>
+            <Link
+                href="/"
+                className="flex items-center gap-2 text-2xl font-bold text-primary"
+            >
+                <Briefcase className="h-7 w-7" />
+                LeoRecruit
+            </Link>
         </div>
         <ApplyForm job={job} userProfile={userProfile} />
-      </div>
     </div>
   );
 }
