@@ -20,19 +20,26 @@ import { cn } from '@/lib/utils';
 import type { HiringStage, Candidate, Job, WithId } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { TableHead } from '@/components/ui/table';
-import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
-import { collection, query, orderBy } from 'firebase/firestore';
+import { useCollection, useFirestore, useMemoFirebase, useDoc } from '@/firebase';
+import { collection, query, orderBy, doc } from 'firebase/firestore';
 
 
-function JobTitle({ jobId }: { jobId: string }) {
+function JobTitleLink({ jobId }: { jobId: string }) {
   const firestore = useFirestore();
   const jobRef = useMemoFirebase(() => {
     if (!firestore || !jobId) return null;
     return doc(firestore, 'jobs', jobId);
   }, [firestore, jobId]);
   const { data: job, isLoading } = useDoc<Job>(jobRef);
+
   if (isLoading) return <Loader2 className="h-4 w-4 animate-spin" />;
-  return <>{job?.title || 'Unknown Job'}</>;
+  if (!job) return <>Unknown Job</>;
+
+  return (
+    <Link href={`/jobs/${jobId}`} className="hover:underline">
+      {job.title}
+    </Link>
+  );
 }
 
 
@@ -135,8 +142,7 @@ export default function CandidatesPage() {
                         </Link>
                     </TableCell>
                     <TableCell>
-                      {/* This part needs to fetch job title based on job ID */}
-                      {candidate.jobAppliedFor}
+                      <JobTitleLink jobId={candidate.jobAppliedFor} />
                     </TableCell>
                     <TableCell>
                         <div className="flex items-center gap-2">
