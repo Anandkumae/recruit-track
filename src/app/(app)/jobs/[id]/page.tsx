@@ -123,7 +123,7 @@ export default function JobDetailsPage() {
                     </Card>
                     {job.status === 'Open' && (
                          <Button asChild className="w-full">
-                            <Link href={`/apply/${job.id}`}>Apply Now</Link>
+                            <Link href={`/apply/${id}`}>Apply Now</Link>
                         </Button>
                     )}
                 </div>
