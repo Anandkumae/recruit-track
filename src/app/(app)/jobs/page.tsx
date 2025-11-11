@@ -16,15 +16,20 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import type { Role } from '@/lib/types';
-import { useUser } from '@/firebase';
-import { format, parseISO } from 'date-fns';
-import jobsData from '@/lib/jobs.json';
-import { users as usersData } from '@/lib/data';
+import type { Role, WithId, Job, User } from '@/lib/types';
+import { useUser, useFirestore, useCollection, useMemoFirebase, useDoc } from '@/firebase';
+import { format } from 'date-fns';
+import { collection, doc, query, orderBy } from 'firebase/firestore';
 
-// Since we are using static JSON, we can fetch poster name synchronously
 function PosterName({ userId }: { userId: string }) {
-  const user = usersData.find(u => u.id === userId);
+  const firestore = useFirestore();
+  const userRef = useMemoFirebase(() => {
+    if (!firestore || !userId) return null;
+    return doc(firestore, 'users', userId);
+  }, [firestore, userId]);
+  const { data: user, isLoading } = useDoc<User>(userRef);
+
+  if (isLoading) return <Loader2 className="h-4 w-4 animate-spin" />;
   return <>{user?.name || 'Unknown'}</>;
 }
 
@@ -32,36 +37,52 @@ function PosterName({ userId }: { userId: string }) {
 export default function JobsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const { user, isUserLoading } = useUser();
-  const [jobs] = useState(jobsData); // Use local jobs data
+  const firestore = useFirestore();
 
-  // For this example, role is determined statically.
-  // In a real app, this would use the userProfile from useDoc
+  const jobsQuery = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return query(collection(firestore, 'jobs'), orderBy('createdAt', 'desc'));
+  }, [firestore]);
+
+  const { data: jobs, isLoading: jobsLoading } = useCollection<Job>(jobsQuery);
+  
+  const userProfileRef = useMemoFirebase(() => {
+    if (!firestore || !user) return null;
+    return doc(firestore, 'users', user.uid);
+  }, [firestore, user]);
+
+  const { data: userProfile, isLoading: isProfileLoading } = useDoc(userProfileRef);
+
   let userRole: Role = 'Candidate';
-  if (user?.email === 'anandkumar.shinnovationco@gmail.com' || user?.email === 'admin@leorecruit.com') {
+  if (user?.email === 'anandkumar.shinnovationco@gmail.com') {
     userRole = 'Admin';
-  } else if (user?.email === 'hr@leorecruit.com') {
-      userRole = 'HR';
-  } else if (user?.email === 'manager@leorecruit.com') {
-      userRole = 'Manager'
+  } else if (userProfile?.role) {
+    userRole = userProfile.role;
   }
 
-  const filteredJobs = jobs.filter((job) =>
+  const filteredJobs = jobs?.filter((job) =>
     job.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
     job.department.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const canCreateJob = userRole === 'Admin' || userRole === 'HR' || userRole === 'Manager';
   
-  const formatDate = (dateString: string) => {
+  const formatDate = (timestamp: any) => {
+    if (!timestamp) return 'N/A';
+    // Firestore Timestamps have a toDate() method
+    if (timestamp.toDate) {
+      return format(timestamp.toDate(), 'MMM d, yyyy');
+    }
+    // Fallback for string dates (though less ideal)
     try {
-        const date = parseISO(dateString);
+        const date = new Date(timestamp);
         return format(date, 'MMM d, yyyy');
     } catch {
         return 'Invalid Date';
     }
   }
 
-  if (isUserLoading) {
+  if (isUserLoading || isProfileLoading) {
     return (
        <div className="flex h-full w-full items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -118,7 +139,13 @@ export default function JobsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredJobs.length > 0 ? (
+              {jobsLoading ? (
+                 <TableRow>
+                    <TableCell colSpan={6} className="text-center h-24">
+                       <Loader2 className="h-6 w-6 animate-spin mx-auto text-primary" />
+                    </TableCell>
+                </TableRow>
+              ) : filteredJobs && filteredJobs.length > 0 ? (
                 filteredJobs.map((job) => (
                   <TableRow key={job.id}>
                     <TableCell className="font-medium">{job.title}</TableCell>

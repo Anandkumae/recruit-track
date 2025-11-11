@@ -7,32 +7,39 @@ import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Briefcase, Calendar, CheckCircle, User as UserIcon, Loader2 } from "lucide-react";
-import { format, parseISO } from "date-fns";
-import jobs from '@/lib/jobs.json';
-import { users } from '@/lib/data';
-import type { Job } from '@/lib/types';
-import { useEffect, useState } from "react";
+import { format } from "date-fns";
+import { useDoc, useFirestore, useMemoFirebase } from "@/firebase";
+import type { Job, User } from '@/lib/types';
+import { doc } from 'firebase/firestore';
 
-// This is a temporary type definition until the main types are updated
-type StaticJob = Omit<Job, 'createdAt' | 'postedBy'> & {
-  id: string;
-  createdAt: string;
-  postedBy: string;
-};
+
+function PosterName({ userId }: { userId: string }) {
+  const firestore = useFirestore();
+  const userRef = useMemoFirebase(() => {
+    if (!firestore || !userId) return null;
+    return doc(firestore, 'users', userId);
+  }, [firestore, userId]);
+  const { data: user, isLoading } = useDoc<User>(userRef);
+
+  if (isLoading) return <Loader2 className="h-4 w-4 animate-spin" />;
+  return <>{user?.name || 'Unknown'}</>;
+}
+
 
 export default function JobDetailsPage() {
     const params = useParams();
     const router = useRouter();
     const id = params.id as string;
+    const firestore = useFirestore();
     
-    const [job, setJob] = useState<StaticJob | null | undefined>(undefined);
+    const jobRef = useMemoFirebase(() => {
+        if (!firestore || !id) return null;
+        return doc(firestore, 'jobs', id);
+    }, [firestore, id]);
 
-    useEffect(() => {
-        const foundJob = (jobs as StaticJob[]).find(j => j.id === id);
-        setJob(foundJob);
-    }, [id]);
+    const { data: job, isLoading } = useDoc<Job>(jobRef);
 
-    if (job === undefined) {
+    if (isLoading) {
         return (
             <div className="flex h-full w-full items-center justify-center">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -45,12 +52,13 @@ export default function JobDetailsPage() {
         return null;
     }
     
-    const poster = users.find(u => u.id === job.postedBy);
-
-    const formatDate = (dateString: string) => {
+    const formatDate = (timestamp: any) => {
+        if (!timestamp) return 'N/A';
+        if (timestamp.toDate) {
+            return format(timestamp.toDate(), 'MMM d, yyyy');
+        }
         try {
-            const date = parseISO(dateString);
-            return format(date, 'MMM d, yyyy');
+            return format(new Date(timestamp), 'MMM d, yyyy');
         } catch {
             return 'Invalid Date';
         }
@@ -108,7 +116,9 @@ export default function JobDetailsPage() {
                             </div>
                             <div className="flex items-center gap-2">
                                 <UserIcon className="h-4 w-4 text-muted-foreground" />
-                                <span className="text-sm">Posted by {poster?.name || 'Unknown'}</span>
+                                <span className="text-sm">
+                                    Posted by <PosterName userId={job.postedBy} />
+                                </span>
                             </div>
                              <div className="flex items-center gap-2">
                                 <CheckCircle className="h-4 w-4 text-muted-foreground" />
