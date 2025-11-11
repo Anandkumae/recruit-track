@@ -1,37 +1,52 @@
 
 'use client';
 
-import { useParams, notFound } from "next/navigation";
+import { useParams, notFound, useRouter } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Briefcase, Calendar, CheckCircle, User as UserIcon } from "lucide-react";
+import { ArrowLeft, Briefcase, Calendar, CheckCircle, User as UserIcon, Loader2 } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import jobs from '@/lib/jobs.json';
 import { users } from '@/lib/data';
 import type { Job } from '@/lib/types';
+import { useEffect, useState } from "react";
 
 // This is a temporary type definition until the main types are updated
-type StaticJob = Omit<Job, 'createdAt'> & {
+type StaticJob = Omit<Job, 'createdAt' | 'postedBy'> & {
   id: string;
   createdAt: string;
+  postedBy: string;
 };
 
 export default function JobDetailsPage() {
     const params = useParams();
+    const router = useRouter();
     const id = params.id as string;
     
-    // Find the job from the local JSON file
-    const job = (jobs as StaticJob[]).find(j => j.id === id);
-    
-    // Find the poster's details from the local data file
-    const poster = users.find(u => u.id === job?.postedBy);
+    const [job, setJob] = useState<StaticJob | null | undefined>(undefined);
 
-    if (!job) {
-        notFound();
+    useEffect(() => {
+        const foundJob = (jobs as StaticJob[]).find(j => j.id === id);
+        setJob(foundJob);
+    }, [id]);
+
+    if (job === undefined) {
+        return (
+            <div className="flex h-full w-full items-center justify-center">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+        );
     }
     
+    if (!job) {
+        notFound();
+        return null;
+    }
+    
+    const poster = users.find(u => u.id === job.postedBy);
+
     const formatDate = (dateString: string) => {
         try {
             const date = parseISO(dateString);
@@ -44,10 +59,8 @@ export default function JobDetailsPage() {
     return (
         <div className="space-y-8">
             <div className="flex items-center gap-4">
-                <Button variant="outline" size="icon" asChild>
-                    <Link href="/jobs">
-                        <ArrowLeft className="h-4 w-4" />
-                    </Link>
+                <Button variant="outline" size="icon" onClick={() => router.back()}>
+                    <ArrowLeft className="h-4 w-4" />
                 </Button>
                 <div>
                     <h1 className="text-3xl font-bold tracking-tight">{job.title}</h1>

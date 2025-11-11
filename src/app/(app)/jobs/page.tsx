@@ -16,7 +16,7 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import type { Role, User } from '@/lib/types';
+import type { Role } from '@/lib/types';
 import { useUser } from '@/firebase';
 import { format, parseISO } from 'date-fns';
 import jobsData from '@/lib/jobs.json';
@@ -32,7 +32,7 @@ function PosterName({ userId }: { userId: string }) {
 export default function JobsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const { user, isUserLoading } = useUser();
-  const [jobs, setJobs] = useState(jobsData); // Use local jobs data
+  const [jobs] = useState(jobsData); // Use local jobs data
 
   // For this example, role is determined statically.
   // In a real app, this would use the userProfile from useDoc
