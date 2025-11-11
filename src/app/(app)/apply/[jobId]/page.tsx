@@ -44,7 +44,7 @@ export default function ApplyPage() {
   }
 
   return (
-    <div className="w-full max-w-2xl mx-auto py-12">
+    <div className="w-full max-w-2xl mx-auto py-12 px-4">
         <div className="mb-8 flex justify-center">
             <Link
                 href="/"

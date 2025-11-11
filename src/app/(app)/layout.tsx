@@ -24,8 +24,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { data: userProfile, isLoading: isProfileLoading } = useDoc(userProfileRef);
 
   React.useEffect(() => {
-    if (isUserLoading || isProfileLoading) {
-      // Still waiting for auth or profile data
+    if (isUserLoading) {
+      // Still waiting for auth data, do nothing yet.
       return;
     }
 
@@ -34,20 +34,24 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       router.replace('/login');
       return;
     }
-
-    // Check if the user is the special admin
+    
+    // User is logged in, now check for profile (unless they are the admin)
     const isAdmin = user.email === 'anandkumar.shinnovationco@gmail.com';
-
-    // If the user is the admin, don't force profile creation
     if (isAdmin) {
       if (pathname === '/create-profile') {
         router.replace('/dashboard');
       }
-      return; // Skip profile check for admin
+      return; // Admin doesn't need a user profile, so skip further checks
+    }
+    
+    // For non-admins, wait until the profile has finished loading
+    if (isProfileLoading) {
+      return;
     }
 
+    // Now we know the user exists and their profile has been checked
     if (!userProfile && pathname !== '/create-profile' && !pathname.startsWith('/apply/')) {
-      // User is logged in but has no profile, redirect to create one, unless they are applying
+      // User has no profile, redirect to create one, but allow them to access apply pages
       router.replace('/create-profile');
       return;
     }
@@ -58,10 +62,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     }
   }, [user, isUserLoading, userProfile, isProfileLoading, router, pathname]);
 
-  const isLoading = isUserLoading || (user && isProfileLoading && user.email !== 'anandkumar.shinnovationco@gmail.com');
+  const isLoading = isUserLoading || (user && isProfileLoading && user.email !== 'anandkumar.shinnovationco@gmail.com' && !pathname.startsWith('/apply/'));
   
-  // Allow apply page to render without a full profile initially
-  if (pathname.startsWith('/apply/')) {
+  if (pathname === '/create-profile' || pathname.startsWith('/apply/')) {
+    // Render these pages within a simpler layout, or just the children directly
+    // This avoids forcing a full dashboard layout before a profile exists.
     return <>{children}</>;
   }
 
@@ -72,28 +77,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       </div>
     );
   }
-
-  if (!userProfile && pathname !== '/create-profile' && user.email !== 'anandkumar.shinnovationco@gmail.com') {
-     // Still loading or redirecting
-    return (
-      <div className="flex h-screen w-full items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-
-  if (pathname === '/create-profile') {
-    // Admins shouldn't be on the create-profile page
-    if (user.email === 'anandkumar.shinnovationco@gmail.com') {
-        return (
-          <div className="flex h-screen w-full items-center justify-center">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          </div>
-        )
-    }
-    return <>{children}</>;
-  }
-
 
   return (
     <SidebarProvider>
