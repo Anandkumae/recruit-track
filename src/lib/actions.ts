@@ -83,17 +83,19 @@ export async function applyForJob(
     };
 
     const docRef = await firestore.collection('candidates').add(candidateData);
-
-    return {
-      message: 'Application submitted successfully!',
-      result: { candidateId: docRef.id },
-    };
+    
+    // Revalidate paths to show new data and redirect
+    revalidatePath('/candidates');
+    revalidatePath('/dashboard');
 
   } catch (error) {
     console.error('Submission Error:', error);
     const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
     return { errors: { _form: ['An unexpected error occurred while submitting your application. Please try again.'] }};
   }
+  
+  // Redirect to dashboard on success
+  redirect('/dashboard');
 }
 
 
