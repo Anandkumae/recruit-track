@@ -1,3 +1,4 @@
+
 'use server';
 
 import { z } from 'zod';
@@ -54,7 +55,8 @@ export async function applyForJob(
     if (!jobDoc.exists) {
         return { errors: { _form: ['The job you are applying for no longer exists.'] } };
     }
-    const jobDescription = jobDoc.data()?.description || '';
+    const jobData = jobDoc.data() as Job;
+    const jobDescription = jobData?.description || '';
 
     // Update the user's profile with the new resume text
     // This makes it available for future applications
@@ -84,7 +86,7 @@ export async function applyForJob(
 
     const docRef = await firestore.collection('candidates').add(candidateData);
     
-    // Revalidate paths to show new data and redirect
+    // Revalidate paths to show new data
     revalidatePath('/candidates');
     revalidatePath('/dashboard');
 
@@ -139,47 +141,4 @@ export async function getMatch(prevState: MatcherState, formData: FormData) {
     console.error('AI Matcher Error:', error);
     return { errors: { _form: ['The AI analysis failed. Please try again.'] } };
   }
-}
-
-
-const CreateJobSchema = z.object({
-    title: z.string().min(3, "Title must be at least 3 characters."),
-    department: z.string().min(2, "Department is required."),
-    description: z.string().min(50, "Description must be at least 50 characters."),
-    requirements: z.string().min(1, "At least one requirement is needed."),
-    postedBy: z.string().min(1, "User ID is required."),
-});
-
-export type CreateJobState = {
-    message?: string | null;
-    errors?: {
-        title?: string[];
-        department?: string[];
-        description?: string[];
-        requirements?: string[];
-        _form?: string[];
-    };
-};
-
-export async function createJob(prevState: CreateJobState, formData: FormData): Promise<CreateJobState> {
-   // This server action is no longer used for database operations
-   // but we keep the validation logic as a reference or for future server-side checks.
-    const validatedFields = CreateJobSchema.safeParse({
-        title: formData.get('title'),
-        department: formData.get('department'),
-        description: formData.get('description'),
-        requirements: formData.get('requirements'),
-        postedBy: formData.get('postedBy'),
-    });
-
-    if (!validatedFields.success) {
-        return {
-            errors: validatedFields.error.flatten().fieldErrors,
-        };
-    }
-    
-    // In the new flow, the client handles the Firestore write.
-    // This action will now just revalidate and redirect.
-    revalidatePath('/jobs');
-    redirect('/jobs');
 }

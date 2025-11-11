@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -45,8 +46,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       return; // Skip profile check for admin
     }
 
-    if (!userProfile && pathname !== '/create-profile') {
-      // User is logged in but has no profile, redirect to create one
+    if (!userProfile && pathname !== '/create-profile' && !pathname.startsWith('/apply/')) {
+      // User is logged in but has no profile, redirect to create one, unless they are applying
       router.replace('/create-profile');
       return;
     }
@@ -59,6 +60,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   const isLoading = isUserLoading || (user && isProfileLoading && user.email !== 'anandkumar.shinnovationco@gmail.com');
   
+  // Allow apply page to render without a full profile initially
+  if (pathname.startsWith('/apply/')) {
+    return <>{children}</>;
+  }
+
   if (isLoading || !user) {
      return (
       <div className="flex h-screen w-full items-center justify-center">
