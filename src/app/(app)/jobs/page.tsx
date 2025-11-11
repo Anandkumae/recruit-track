@@ -16,7 +16,7 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import type { Job, Role, WithId, User } from '@/lib/types';
+import type { Job, Role, User, WithId } from '@/lib/types';
 import { useUser, useFirestore, useDoc, useMemoFirebase, useCollection } from '@/firebase';
 import { format } from 'date-fns';
 import { doc, collection, query, orderBy } from 'firebase/firestore';
@@ -52,7 +52,7 @@ export default function JobsPage() {
     return query(collection(firestore, 'jobs'), orderBy('createdAt', 'desc'));
   }, [firestore]);
 
-  const { data: jobs, isLoading: jobsLoading } = useCollection<Job>(jobsQuery);
+  const { data: jobs, isLoading: jobsLoading } = useCollection<WithId<Job>>(jobsQuery);
 
   let userRole: Role = 'Candidate';
 

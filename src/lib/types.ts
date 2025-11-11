@@ -19,7 +19,6 @@ export type User = {
 export type HiringStage = 'Applied' | 'Shortlisted' | 'Interviewed' | 'Hired' | 'Rejected';
 
 export type Job = {
-  id: string;
   title: string;
   department: string;
   description: string;

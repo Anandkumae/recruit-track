@@ -7,6 +7,7 @@ import { getFirebaseAdmin } from '@/firebase/server-config';
 import { FieldValue } from 'firebase-admin/firestore';
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
+import type { Job } from '@/lib/types';
 
 const ApplySchema = z.object({
   name: z.string().min(1, 'Name is required.'),
@@ -61,7 +62,7 @@ export async function applyForJob(
     // Update the user's profile with the new resume text
     // This makes it available for future applications
     const userDocRef = firestore.collection('users').doc(userId);
-    await userDocRef.update({ resumeText: resumeText });
+    await userDocRef.set({ resumeText: resumeText }, { merge: true });
 
 
     const matchResult = await matchResumeToJob({

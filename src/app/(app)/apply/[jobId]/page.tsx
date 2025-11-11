@@ -7,7 +7,7 @@ import { Briefcase, Loader2 } from 'lucide-react';
 import { ApplyForm } from '@/components/apply/apply-form';
 import { useDoc, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import { doc } from 'firebase/firestore';
-import type { Job, User } from '@/lib/types';
+import type { Job, User, WithId } from '@/lib/types';
 
 export default function ApplyPage() {
   const params = useParams();
@@ -20,7 +20,7 @@ export default function ApplyPage() {
     return doc(firestore, 'jobs', jobId);
   }, [firestore, jobId]);
 
-  const { data: job, isLoading: jobLoading } = useDoc<Job>(jobRef);
+  const { data: job, isLoading: jobLoading } = useDoc<WithId<Job>>(jobRef);
 
   const userProfileRef = useMemoFirebase(() => {
     if (!firestore || !user) return null;
