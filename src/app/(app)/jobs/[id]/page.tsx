@@ -1,61 +1,45 @@
 
 'use client';
 
-import { useDoc, useFirestore, useMemoFirebase, useUser } from "@/firebase";
-import { notFound, useParams } from "next/navigation";
+import { useParams, notFound } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Briefcase, Calendar, CheckCircle, User as UserIcon, Loader2 } from "lucide-react";
-import { format } from "date-fns";
-import { doc } from "firebase/firestore";
-import type { Job, User, WithId } from "@/lib/types";
+import { ArrowLeft, Briefcase, Calendar, CheckCircle, User as UserIcon } from "lucide-react";
+import { format, parseISO } from "date-fns";
+import jobs from '@/lib/jobs.json';
+import { users } from '@/lib/data';
+import type { Job } from '@/lib/types';
 
+// This is a temporary type definition until the main types are updated
+type StaticJob = Omit<Job, 'createdAt'> & {
+  id: string;
+  createdAt: string;
+};
 
 export default function JobDetailsPage() {
     const params = useParams();
     const id = params.id as string;
-    const firestore = useFirestore();
-
-    const jobRef = useMemoFirebase(() => {
-        if (!firestore || !id) return null;
-        return doc(firestore, 'jobs', id);
-    }, [firestore, id]);
-
-    const { data: job, isLoading: jobLoading } = useDoc<WithId<Job>>(jobRef);
-
-    const posterRef = useMemoFirebase(() => {
-        if (!firestore || !job?.postedBy) return null;
-        return doc(firestore, 'users', job.postedBy);
-    }, [firestore, job?.postedBy]);
-
-    const { data: poster, isLoading: posterLoading } = useDoc<User>(posterRef);
     
-    const formatDate = (timestamp: any) => {
-        if (!timestamp) return 'N/A';
-        if (timestamp.toDate) {
-            return format(timestamp.toDate(), 'MMM d, yyyy');
-        }
-        try {
-            return format(new Date(timestamp), 'MMM d, yyyy');
-        } catch {
-            return 'Invalid Date';
-        }
-    }
-
-    if (jobLoading || (job && posterLoading)) {
-         return (
-            <div className="flex h-full w-full items-center justify-center">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            </div>
-        );
-    }
+    // Find the job from the local JSON file
+    const job = (jobs as StaticJob[]).find(j => j.id === id);
+    
+    // Find the poster's details from the local data file
+    const poster = users.find(u => u.id === job?.postedBy);
 
     if (!job) {
         notFound();
     }
-
+    
+    const formatDate = (dateString: string) => {
+        try {
+            const date = parseISO(dateString);
+            return format(date, 'MMM d, yyyy');
+        } catch {
+            return 'Invalid Date';
+        }
+    }
 
     return (
         <div className="space-y-8">
