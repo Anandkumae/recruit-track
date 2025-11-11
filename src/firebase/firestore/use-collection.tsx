@@ -76,10 +76,10 @@ export function useCollection<T = any>(
     const unsubscribe = onSnapshot(
       memoizedTargetRefOrQuery,
       (snapshot: QuerySnapshot<DocumentData>) => {
-        const results: ResultItemType[] = [];
-        for (const doc of snapshot.docs) {
-          results.push({ ...(doc.data() as T), id: doc.id });
-        }
+        const results = snapshot.docs.map(doc => ({
+          ...(doc.data() as T),
+          id: doc.id,
+        }));
         setData(results);
         setError(null);
         setIsLoading(false);
