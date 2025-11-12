@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useParams, notFound, useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
@@ -29,15 +29,25 @@ function PosterName({ userId }: { userId: string }) {
 export default function JobDetailsPage() {
     const params = useParams();
     const router = useRouter();
-    const id = params.id as string;
+    const rawId = params.id;
+    const id = Array.isArray(rawId) ? rawId[0] : rawId;
+    const decodedId = id ? decodeURIComponent(id) : '';
     const firestore = useFirestore();
     
     const jobRef = useMemoFirebase(() => {
-        if (!firestore || !id) return null;
-        return doc(firestore, 'jobs', id);
-    }, [firestore, id]);
+        if (!firestore || !decodedId) return null;
+        return doc(firestore, 'jobs', decodedId);
+    }, [firestore, decodedId]);
 
-    const { data: job, isLoading } = useDoc<WithId<Job>>(jobRef);
+    const { data: job, isLoading, error } = useDoc<WithId<Job>>(jobRef);
+
+    if (!jobRef) {
+        return (
+            <div className="flex h-full w-full items-center justify-center">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+        );
+    }
 
     if (isLoading) {
         return (
@@ -47,9 +57,44 @@ export default function JobDetailsPage() {
         );
     }
     
+    if (error) {
+        return (
+            <div className="flex h-full w-full items-center justify-center">
+                <Card className="max-w-md">
+                    <CardHeader>
+                        <CardTitle>Unable to load job</CardTitle>
+                        <CardDescription>
+                            We hit a permissions or network issue while loading this job. Please try again or contact support if it persists.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent className="flex justify-end">
+                        <Button variant="outline" onClick={() => router.back()}>
+                            Go back
+                        </Button>
+                    </CardContent>
+                </Card>
+            </div>
+        );
+    }
+
     if (!job) {
-        notFound();
-        return null;
+        return (
+            <div className="flex h-full w-full items-center justify-center">
+                <Card className="max-w-md">
+                    <CardHeader>
+                        <CardTitle>Job not found</CardTitle>
+                        <CardDescription>
+                            The job you are trying to view no longer exists or has been removed.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent className="flex justify-end">
+                        <Button variant="outline" onClick={() => router.push('/jobs')}>
+                            Back to jobs
+                        </Button>
+                    </CardContent>
+                </Card>
+            </div>
+        );
     }
     
     const formatDate = (timestamp: any) => {

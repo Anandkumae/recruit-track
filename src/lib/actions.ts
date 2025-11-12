@@ -6,7 +6,7 @@ import { matchResumeToJob } from '@/ai/flows/ai-match-resume-to-job';
 import { getFirebaseAdmin } from '@/firebase/server-config';
 import { FieldValue } from 'firebase-admin/firestore';
 import { revalidatePath } from 'next/cache';
-import type { Job } from '@/lib/types';
+import type { Job, User } from '@/lib/types';
 
 const ApplySchema = z.object({
   name: z.string().min(1, 'Name is required.'),
@@ -14,7 +14,6 @@ const ApplySchema = z.object({
   phone: z.string().min(1, 'Phone number is required.'),
   jobId: z.string(),
   userId: z.string().min(1, 'User ID is required.'),
-  resumeText: z.string().min(50, 'Resume text must be at least 50 characters.'),
 });
 
 export type ApplicationState = {
@@ -25,7 +24,6 @@ export type ApplicationState = {
     name?: string[];
     email?: string[];
     phone?: string[];
-    resumeText?: string[];
     _form?: string[];
   };
 };
@@ -43,7 +41,6 @@ export async function applyForJob(
     phone: formData.get('phone'),
     jobId: jobId,
     userId: userId,
-    resumeText: formData.get('resumeText'),
   });
   
   if (!validatedFields.success) {
@@ -53,7 +50,7 @@ export async function applyForJob(
     };
   }
 
-  const { name, email, phone, resumeText } = validatedFields.data;
+  const { name, email, phone } = validatedFields.data;
 
   try {
     const jobDoc = await firestore.collection('jobs').doc(jobId).get();
@@ -63,23 +60,34 @@ export async function applyForJob(
     const jobData = jobDoc.data() as Job;
     const jobDescription = jobData?.description || '';
 
-    // Update the user's profile with the new resume text and phone
+    // Fetch the user's profile to reuse their stored resume and ensure details are current
     const userDocRef = firestore.collection('users').doc(userId);
-    await userDocRef.set({ resumeText: resumeText, phone: phone }, { merge: true });
+    const userDocSnapshot = await userDocRef.get();
+    const userData = userDocSnapshot.data() as Partial<User> | undefined;
+    const resumeTextFromProfile =
+      typeof userData?.resumeText === 'string' ? userData.resumeText : '';
+    const resumeUrlFromProfile =
+      typeof userData?.resumeUrl === 'string' ? userData.resumeUrl : undefined;
+
+    // Update contact information if it has changed
+    await userDocRef.set({ phone }, { merge: true });
 
     let matchResult = { matchScore: 0, reasoning: 'AI analysis not performed.' };
-    if (resumeText.length > 100 && jobDescription.length > 100) {
+    if (
+      resumeTextFromProfile &&
+      resumeTextFromProfile.length > 100 &&
+      jobDescription.length > 100
+    ) {
         matchResult = await matchResumeToJob({
-            resumeText,
+            resumeText: resumeTextFromProfile,
             jobDescription,
         });
     }
 
-    const candidateData = {
+    const candidateData: Record<string, unknown> = {
       name,
       email,
       phone,
-      resumeText,
       jobAppliedFor: jobId,
       status: 'Applied' as const,
       appliedAt: FieldValue.serverTimestamp(),
@@ -89,6 +97,14 @@ export async function applyForJob(
       skills: [], 
       avatarUrl: `https://picsum.photos/seed/${userId}/100/100`,
     };
+
+    if (resumeTextFromProfile) {
+      candidateData.resumeText = resumeTextFromProfile;
+    }
+
+    if (resumeUrlFromProfile) {
+      candidateData.resumeUrl = resumeUrlFromProfile;
+    }
 
     await firestore.collection('candidates').add(candidateData);
     
