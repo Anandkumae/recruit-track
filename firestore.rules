@@ -1,94 +1,35 @@
-/**
- * @file LeoRecruit Firestore Security Rules
- * @description This ruleset enforces a role-based access control model for the LeoRecruit internal hiring platform.
- *
- * Data Structure:
- * - `/users/{userId}`: Stores user profiles. Access is restricted to the owning user.
- * - `/jobs/{jobId}`: Stores job postings. Accessible for reading by everyone, but write access is limited to HR/Admin (simulated using a roles_admin collection).
- * - `/candidates/{candidateId}`: Stores candidate profiles.
- * - `/roles_admin/{userId}`: Indicates admin role. Existence of document grants admin privileges.
- *
- * Key Security Decisions:
- * - User listing is disallowed for privacy.
- * - Jobs are publicly readable, but writes are restricted to authorized users.
- *
- * Denormalization for Authorization:
- * - Candidates denormalize `jobAppliedFor` to allow secure listing of candidates for a given job.
- */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    /**
-     * @description Manages user profile access.
-     * @path /users/{userId}
-     * @allow (create) User with ID 'user123' can create their own profile.
-     * @allow (get) Any signed-in user can read public profile data.
-     * @allow (update) User with ID 'user123' can update their own profile.
-     * @allow (delete) User with ID 'user123' can delete their own profile.
-     * @deny (get) User with ID 'user456' cannot read user profile 'user123'.
-     * @principle Enforces document ownership for all operations on user profiles.
-     */
     match /users/{userId} {
-      allow get: if isSignedIn(); // Allow any signed-in user to read profiles.
-      allow list: if false; // Listing users is disallowed for privacy.
+      allow get: if isSignedIn();
+      allow list: if false;
       allow create: if isOwner(userId) && request.resource.data.id == userId;
       allow update: if isOwner(userId) && request.resource.data.id.size() > 0;
       allow delete: if isOwner(userId);
     }
 
-    /**
-     * @description Manages job posting access. Jobs are publicly readable, but writes are limited to admins.
-     * @path /jobs/{jobId}
-     * @allow (get) Any user can read a job posting.
-     * @allow (list) Any user can list job postings.
-     * @allow (create) Admin user can create a job posting.
-     * @allow (update) Admin user can update a job posting.
-     * @allow (delete) Admin user can delete a job posting.
-     * @deny (create) Non-admin user cannot create a job posting.
-     * @principle Public read, restricted writes based on admin role.
-     */
     match /jobs/{jobId} {
       allow get, list: if true;
-      allow create: if isAdmin();
-      allow update: if isAdmin();
-      allow delete: if isAdmin();
+      allow create, update, delete: if isAdmin();
     }
 
-    /**
-     * @description Manages candidate profile access.
-     * @path /candidates/{candidateId}
-     * @allow (create) Any authenticated user can create a candidate profile for themselves.
-     * @allow (get) Any authenticated user can read a candidate profile.
-     * @allow (update) Any authenticated user can update a candidate profile.
-     * @allow (delete) Any authenticated user can delete a candidate profile.
-     * @deny (get) Non-authenticated user cannot read a candidate profile.
-     * @principle Open access for authenticated users.
-     */
     match /candidates/{candidateId} {
-      allow get: if isSignedIn();
-      allow list: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update: if isSignedIn() && request.resource.data.size() > 0;
-      allow delete: if isSignedIn();
+      allow get, list, create, update, delete: if isSignedIn();
     }
 
-    /**
-     * @description Determines if a user is an admin based on the existence of a document in the `/roles_admin/{userId}` collection.
-     * @path /roles_admin/{userId}
-     * @allow (create) An admin can create an admin role document for another user.
-     * @allow (get) Any authenticated user can check if a user is an admin.
-     * @allow (update) An admin can update an admin role document.
-     * @allow (delete) An admin can delete an admin role document.
-     * @deny (create) A non-admin user cannot create an admin role document.
-     * @principle Role-based access control; admin privileges are granted by document existence.
-     */
     match /roles_admin/{userId} {
-        allow get: if true; // Anyone can check for admin status.
-        allow list: if false; // No listing of admins.
-        allow create: if isAdmin(); // Only existing admins can grant admin status.
-        allow update: if false; // No updates allowed.
-        allow delete: if isAdmin(); // Only admins can revoke admin status.
+      allow get: if true;
+      allow list: if false;
+      allow create, delete: if isAdmin();
+      allow update: if false;
+    }
+
+    // ✅ FIXED INTERVIEWS RULE
+    match /interviews/{interviewId} {
+      allow read: if request.auth != null; // ✅ covers both get and list
+      allow create, update, delete: if isAdmin(); // only admin can modify
     }
 
     function isSignedIn() {
@@ -100,22 +41,20 @@ service cloud.firestore {
     }
 
     function isAdmin() {
-      return exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid)) || request.auth.token.email == "anandkumar.shinnovationco@gmail.com";
+      return exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid))
+        || request.auth.token.email == "anandkumar.shinnovationco@gmail.com";
     }
   }
 }
+
 service firebase.storage {
   match /b/{bucket}/o {
-    // Allow any authenticated user to write to the resumes folder.
-    // The app logic ensures they can only write to their own sub-folder.
     match /resumes/{allPaths=**} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null;
+      allow read, write: if request.auth != null;
     }
-
-    // Fallback disallow read for any other path.
     match /{allPaths=**} {
       allow read, write: if false;
     }
   }
 }
+

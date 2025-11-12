@@ -6,7 +6,7 @@ import { matchResumeToJob } from '@/ai/flows/ai-match-resume-to-job';
 import { getFirebaseAdmin } from '@/firebase/server-config';
 import { FieldValue } from 'firebase-admin/firestore';
 import { revalidatePath } from 'next/cache';
-import type { Job, User } from '@/lib/types';
+import type { Job, User, Interview, Candidate } from '@/lib/types';
 
 const ApplySchema = z.object({
   name: z.string().min(1, 'Name is required.'),
@@ -161,4 +161,113 @@ export async function getMatch(prevState: MatcherState, formData: FormData) {
     console.error('AI Matcher Error:', error);
     return { errors: { _form: ['The AI analysis failed. Please try again.'] } };
   }
+}
+
+const ScheduleInterviewSchema = z.object({
+  candidateId: z.string().min(1, 'Candidate ID is required.'),
+  scheduledAt: z.string().min(1, 'Interview date and time is required.'),
+  location: z.string().optional(),
+  meetingLink: z.string().url('Invalid meeting link URL.').optional().or(z.literal('')),
+  notes: z.string().optional(),
+  scheduledBy: z.string().min(1, 'Scheduler user ID is required.'),
+  scheduledByName: z.string().optional(),
+});
+
+export type ScheduleInterviewState = {
+  candidateId: string;
+  success?: boolean;
+  errors?: {
+    candidateId?: string[];
+    scheduledAt?: string[];
+    location?: string[];
+    meetingLink?: string[];
+    notes?: string[];
+    scheduledBy?: string[];
+    _form?: string[];
+  };
+};
+
+export async function scheduleInterview(
+  prevState: ScheduleInterviewState,
+  formData: FormData
+): Promise<ScheduleInterviewState> {
+  const { firestore } = getFirebaseAdmin();
+  const { candidateId } = prevState;
+  
+  const validatedFields = ScheduleInterviewSchema.safeParse({
+    candidateId: formData.get('candidateId') || candidateId,
+    scheduledAt: formData.get('scheduledAt'),
+    location: formData.get('location'),
+    meetingLink: formData.get('meetingLink'),
+    notes: formData.get('notes'),
+    scheduledBy: formData.get('scheduledBy'),
+    scheduledByName: formData.get('scheduledByName'),
+  });
+  
+  if (!validatedFields.success) {
+    return {
+      ...prevState,
+      errors: validatedFields.error.flatten().fieldErrors,
+    };
+  }
+
+  const { scheduledAt, location, meetingLink, notes, scheduledBy, scheduledByName } = validatedFields.data;
+
+  try {
+    // Fetch candidate data
+    const candidateDoc = await firestore.collection('candidates').doc(candidateId).get();
+    if (!candidateDoc.exists) {
+      return { ...prevState, errors: { _form: ['Candidate not found.'] } };
+    }
+    const candidateData = candidateDoc.data() as Candidate;
+    
+    // Fetch job data
+    const jobDoc = await firestore.collection('jobs').doc(candidateData.jobAppliedFor).get();
+    if (!jobDoc.exists) {
+      return { ...prevState, errors: { _form: ['Job not found.'] } };
+    }
+    const jobData = jobDoc.data() as Job;
+    
+    // Parse scheduled date
+    const scheduledDate = new Date(scheduledAt);
+    if (isNaN(scheduledDate.getTime())) {
+      return { ...prevState, errors: { scheduledAt: ['Invalid date format.'] } };
+    }
+
+    // Create interview document
+    const interviewData: Omit<Interview, 'id'> = {
+      candidateId,
+      candidateName: candidateData.name,
+      candidateEmail: candidateData.email,
+      jobId: candidateData.jobAppliedFor,
+      jobTitle: jobData.title,
+      scheduledAt: scheduledDate.toISOString(),
+      scheduledBy,
+      scheduledByName: scheduledByName || undefined,
+      location: location || undefined,
+      meetingLink: meetingLink || undefined,
+      notes: notes || undefined,
+      status: 'Scheduled',
+      createdAt: new Date().toISOString(),
+    };
+
+    await firestore.collection('interviews').add(interviewData);
+    
+    // Update candidate status to 'Interviewed' if not already
+    if (candidateData.status !== 'Interviewed' && candidateData.status !== 'Hired') {
+      await firestore.collection('candidates').doc(candidateId).update({
+        status: 'Interviewed',
+      });
+    }
+    
+    revalidatePath('/candidates');
+    revalidatePath(`/candidates/${candidateId}`);
+    revalidatePath('/dashboard');
+
+  } catch (error) {
+    console.error('Schedule Interview Error:', error);
+    return { ...prevState, errors: { _form: ['An unexpected error occurred. Please try again.'] } };
+  }
+  
+  return { ...prevState, success: true, errors: {} };
 }

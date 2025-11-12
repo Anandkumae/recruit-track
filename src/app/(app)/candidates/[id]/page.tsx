@@ -1,22 +1,28 @@
 
 'use client';
 
-import { useDoc, useFirestore, useMemoFirebase, useFirebase } from "@/firebase";
-import type { Candidate, Job, User } from "@/lib/types";
+import { useDoc, useFirestore, useMemoFirebase, useFirebase, useUser, useCollection } from "@/firebase";
+import type { Candidate, Job, User, Interview, WithId } from "@/lib/types";
 import { notFound, useParams } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, AtSign, Briefcase, Calendar, CheckCircle, Eye, FileText, Loader2, Phone } from "lucide-react";
+import { ArrowLeft, AtSign, Briefcase, Calendar, CheckCircle, Eye, FileText, Loader2, Phone, Clock, MapPin, Link as LinkIcon, Plus } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import type { HiringStage } from "@/lib/types";
-import { doc } from 'firebase/firestore';
-import React, { useState, useEffect } from 'react';
+import { doc, collection, query, where, orderBy } from 'firebase/firestore';
+import React, { useState, useEffect, useActionState } from 'react';
 import { ref, getDownloadURL, type Storage } from 'firebase/storage';
+import { scheduleInterview, type ScheduleInterviewState } from '@/lib/actions';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 
 const getInitials = (name: string) => {
     return name ? name.split(' ').map(n => n[0]).join('') : '';
@@ -80,10 +86,226 @@ function ResumeSection({ resumeUrl, storage }: { resumeUrl?: string, storage: St
 }
 
 
+function InterviewSchedulingSection({ candidateId, candidateName, jobTitle }: { candidateId: string, candidateName: string, jobTitle: string }) {
+    const { user } = useUser();
+    const firestore = useFirestore();
+    const [isDialogOpen, setIsDialogOpen] = useState(false);
+    const [state, formAction] = useActionState<ScheduleInterviewState, FormData>(scheduleInterview, { candidateId });
+
+    // Fetch existing interviews for this candidate
+    // Only query if user is admin and we have a valid candidateId
+    const interviewsQuery = useMemoFirebase(() => {
+        if (!firestore || !candidateId || !candidateId.trim()) return null;
+        if (!isAdmin) return null; // Only admins can see interviews
+        return query(
+            collection(firestore, 'interviews'),
+            where('candidateId', '==', candidateId),
+            orderBy('scheduledAt', 'desc')
+        );
+    }, [firestore, candidateId, isAdmin]);
+
+    const { data: interviews, isLoading: interviewsLoading } = useCollection<WithId<Interview>>(interviewsQuery);
+
+    const formatDateTime = (timestamp: any) => {
+        if (!timestamp) return 'N/A';
+        try {
+            const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+            return format(date, 'MMM d, yyyy h:mm a');
+        } catch {
+            return 'Invalid Date';
+        }
+    };
+
+    const isAdmin = user?.email === 'anandkumar.shinnovationco@gmail.com';
+
+    if (!isAdmin) return null;
+
+    useEffect(() => {
+        if (state?.success) {
+            setIsDialogOpen(false);
+        }
+    }, [state?.success]);
+
+    return (
+        <Card>
+            <CardHeader>
+                <div className="flex items-center justify-between">
+                    <div>
+                        <CardTitle>Interview Scheduling</CardTitle>
+                        <CardDescription>Schedule and manage interviews for this candidate.</CardDescription>
+                    </div>
+                    <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                        <DialogTrigger asChild>
+                            <Button size="sm">
+                                <Plus className="mr-2 h-4 w-4" />
+                                Schedule Interview
+                            </Button>
+                        </DialogTrigger>
+                        <DialogContent className="max-w-2xl">
+                            <DialogHeader>
+                                <DialogTitle>Schedule Interview</DialogTitle>
+                                <DialogDescription>
+                                    Schedule an interview for {candidateName} for the position: {jobTitle}
+                                </DialogDescription>
+                            </DialogHeader>
+                            <form action={formAction} className="space-y-4">
+                                <input type="hidden" name="candidateId" value={candidateId} />
+                                <input type="hidden" name="scheduledBy" value={user?.uid || ''} />
+                                <input type="hidden" name="scheduledByName" value={user?.email || ''} />
+                                
+                                {state?.errors?._form && (
+                                    <Alert variant="destructive">
+                                        <AlertDescription>{state.errors._form[0]}</AlertDescription>
+                                    </Alert>
+                                )}
+
+                                <div className="space-y-2">
+                                    <Label htmlFor="scheduledAt">Date & Time *</Label>
+                                    <Input
+                                        id="scheduledAt"
+                                        name="scheduledAt"
+                                        type="datetime-local"
+                                        required
+                                        className={state?.errors?.scheduledAt ? 'border-red-500' : ''}
+                                    />
+                                    {state?.errors?.scheduledAt && (
+                                        <p className="text-sm text-red-500">{state.errors.scheduledAt[0]}</p>
+                                    )}
+                                </div>
+
+                                <div className="space-y-2">
+                                    <Label htmlFor="location">Location</Label>
+                                    <Input
+                                        id="location"
+                                        name="location"
+                                        placeholder="e.g., Conference Room A, Zoom, etc."
+                                        className={state?.errors?.location ? 'border-red-500' : ''}
+                                    />
+                                    {state?.errors?.location && (
+                                        <p className="text-sm text-red-500">{state.errors.location[0]}</p>
+                                    )}
+                                </div>
+
+                                <div className="space-y-2">
+                                    <Label htmlFor="meetingLink">Meeting Link</Label>
+                                    <Input
+                                        id="meetingLink"
+                                        name="meetingLink"
+                                        type="url"
+                                        placeholder="https://zoom.us/j/..."
+                                        className={state?.errors?.meetingLink ? 'border-red-500' : ''}
+                                    />
+                                    {state?.errors?.meetingLink && (
+                                        <p className="text-sm text-red-500">{state.errors.meetingLink[0]}</p>
+                                    )}
+                                </div>
+
+                                <div className="space-y-2">
+                                    <Label htmlFor="notes">Notes</Label>
+                                    <Textarea
+                                        id="notes"
+                                        name="notes"
+                                        placeholder="Additional notes about the interview..."
+                                        rows={3}
+                                        className={state?.errors?.notes ? 'border-red-500' : ''}
+                                    />
+                                    {state?.errors?.notes && (
+                                        <p className="text-sm text-red-500">{state.errors.notes[0]}</p>
+                                    )}
+                                </div>
+
+                                <div className="flex justify-end gap-2">
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        onClick={() => setIsDialogOpen(false)}
+                                    >
+                                        Cancel
+                                    </Button>
+                                    <Button type="submit" disabled={state?.success}>
+                                        {state?.success ? 'Scheduled!' : 'Schedule Interview'}
+                                    </Button>
+                                </div>
+                            </form>
+                        </DialogContent>
+                    </Dialog>
+                </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                {interviewsLoading ? (
+                    <div className="flex items-center justify-center py-8">
+                        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                    </div>
+                ) : interviews && interviews.length > 0 ? (
+                    <div className="space-y-3">
+                        {interviews.map((interview) => (
+                            <div
+                                key={interview.id}
+                                className="border rounded-lg p-4 space-y-2"
+                            >
+                                <div className="flex items-start justify-between">
+                                    <div className="space-y-1 flex-1">
+                                        <div className="flex items-center gap-2">
+                                            <Clock className="h-4 w-4 text-muted-foreground" />
+                                            <span className="font-medium">
+                                                {formatDateTime(interview.scheduledAt)}
+                                            </span>
+                                            <Badge
+                                                variant={
+                                                    interview.status === 'Scheduled'
+                                                        ? 'default'
+                                                        : interview.status === 'Completed'
+                                                        ? 'secondary'
+                                                        : 'destructive'
+                                                }
+                                            >
+                                                {interview.status}
+                                            </Badge>
+                                        </div>
+                                        {interview.location && (
+                                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                                <MapPin className="h-3 w-3" />
+                                                {interview.location}
+                                            </div>
+                                        )}
+                                        {interview.meetingLink && (
+                                            <div className="flex items-center gap-2">
+                                                <LinkIcon className="h-3 w-3 text-muted-foreground" />
+                                                <a
+                                                    href={interview.meetingLink}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="text-sm text-primary hover:underline"
+                                                >
+                                                    Join Meeting
+                                                </a>
+                                            </div>
+                                        )}
+                                        {interview.notes && (
+                                            <p className="text-sm text-muted-foreground mt-2">
+                                                {interview.notes}
+                                            </p>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                ) : (
+                    <p className="text-sm text-muted-foreground text-center py-8">
+                        No interviews scheduled yet.
+                    </p>
+                )}
+            </CardContent>
+        </Card>
+    );
+}
+
 export default function CandidateDetailsPage() {
     const params = useParams();
     const id = params.id as string;
     const { firestore, storage } = useFirebase();
+    const { user } = useUser();
 
     const candidateRef = useMemoFirebase(() => {
         if (!firestore || !id) return null;
@@ -208,6 +430,14 @@ export default function CandidateDetailsPage() {
                              )}
                         </CardContent>
                     </Card>
+
+                    {user?.email === 'anandkumar.shinnovationco@gmail.com' && (
+                        <InterviewSchedulingSection
+                            candidateId={id}
+                            candidateName={candidate.name}
+                            jobTitle={job?.title || 'Unknown Job'}
+                        />
+                    )}
                 </div>
                 <div className="space-y-6">
                     <Card>

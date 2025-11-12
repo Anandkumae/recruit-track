@@ -55,3 +55,20 @@ export type NavItem = {
 };
 
 export type WithId<T> = T & { id: string };
+
+export type Interview = {
+  candidateId: string;
+  candidateName: string;
+  candidateEmail: string;
+  jobId: string;
+  jobTitle: string;
+  scheduledAt: Timestamp | string;
+  scheduledBy: string; // Admin/HR user ID
+  scheduledByName?: string; // Admin/HR name
+  location?: string;
+  meetingLink?: string;
+  notes?: string;
+  status: 'Scheduled' | 'Completed' | 'Cancelled' | 'Rescheduled';
+  createdAt: Timestamp | string;
+  updatedAt?: Timestamp | string;
+};
