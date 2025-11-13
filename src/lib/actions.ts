@@ -163,9 +163,6 @@ export async function getMatch(prevState: MatcherState, formData: FormData) {
   
   const { candidateId, jobDescription } = validatedFields.data;
   
-  // Note: We are no longer initializing Firebase Admin here.
-  // Instead, we pass IDs and URLs directly to the Genkit flow.
-  
   try {
     const { firestore } = getFirebaseAdmin();
     const candidateDoc = await firestore.collection('candidates').doc(candidateId).get();
@@ -175,9 +172,11 @@ export async function getMatch(prevState: MatcherState, formData: FormData) {
     }
     const candidate = candidateDoc.data() as Candidate;
 
+    if (!candidate.resumeText) {
+       return { errors: { _form: ['The selected candidate does not have resume text available for analysis.'] } };
+    }
+
     const result = await matchResumeToJob({
-      // Pass the resume URL (gs:// path) or text to the flow
-      resumeUrl: candidate.resumeUrl,
       resumeText: candidate.resumeText,
       jobDescription,
     });
@@ -185,7 +184,6 @@ export async function getMatch(prevState: MatcherState, formData: FormData) {
     return { message: 'Analysis complete', result };
   } catch (error) {
     console.error('AI Matcher Error:', error);
-    // Provide a more generic error to the user
     return { errors: { _form: ['The AI analysis failed. This could be due to a configuration issue or a problem with the resume file.'] } };
   }
 }
