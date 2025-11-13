@@ -3,7 +3,7 @@
 
 import { z } from 'zod';
 import { matchResumeToJob } from '@/ai/flows/ai-match-resume-to-job';
-import { firestore } from '@/firebase/server-config';
+import { getFirestoreAdmin } from '@/firebase/server-config';
 import { FieldValue } from 'firebase-admin/firestore';
 import { revalidatePath } from 'next/cache';
 import type { Job, User, Interview, Candidate, HiringStage } from '@/lib/types';
@@ -68,6 +68,7 @@ export async function applyForJob(
   const { name, email, phone, resumeText, resumeUrl, avatarUrl } = validatedFields.data;
 
   try {
+    const firestore = getFirestoreAdmin();
     const jobDoc = await firestore.collection('jobs').doc(jobId).get();
     if (!jobDoc.exists) {
         return { ...prevState, errors: { _form: ['The job you are applying for no longer exists.'] } };
@@ -196,6 +197,7 @@ export async function getMatch(prevState: MatcherState, formData: FormData): Pro
  */
 export async function getCandidateResumeTextAction(candidateId: string): Promise<{ resumeText?: string; error?: string; }> {
     try {
+        const firestore = getFirestoreAdmin();
         const doc = await firestore.collection('candidates').doc(candidateId).get();
 
         if (!doc.exists) {
@@ -269,6 +271,7 @@ export async function scheduleInterview(
   const { scheduledAt, location, meetingLink, notes, scheduledBy, scheduledByName } = validatedFields.data;
 
   try {
+    const firestore = getFirestoreAdmin();
     // Fetch candidate data
     const candidateDoc = await firestore.collection('candidates').doc(candidateId).get();
     if (!candidateDoc.exists) {
@@ -355,6 +358,7 @@ export async function rerunAiMatch(
   const { candidateId } = validatedFields.data;
 
   try {
+    const firestore = getFirestoreAdmin();
     const candidateRef = firestore.collection('candidates').doc(candidateId);
     const candidateDoc = await candidateRef.get();
 
@@ -432,6 +436,7 @@ export async function updateCandidateStatus(
   const { candidateId, status } = validatedFields.data;
 
   try {
+    const firestore = getFirestoreAdmin();
     const candidateRef = firestore.collection('candidates').doc(candidateId);
     const candidateDoc = await candidateRef.get();
 
