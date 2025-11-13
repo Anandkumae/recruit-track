@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useRef, ChangeEvent } from 'react';
@@ -7,7 +8,7 @@ import { storage } from '@/lib/firebase';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Loader2, Upload, X } from 'lucide-react';
-import { toast } from 'sonner';
+import { useToast } from '@/hooks/use-toast';
 
 interface ProfileImageUploadProps {
   currentImageUrl?: string;
@@ -21,6 +22,7 @@ export function ProfileImageUpload({
   onUploadError 
 }: ProfileImageUploadProps) {
   const { user } = useUser();
+  const { toast } = useToast();
   const [isUploading, setIsUploading] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(currentImageUrl || null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -32,13 +34,13 @@ export function ProfileImageUpload({
     // Validate file type
     const validTypes = ['image/jpeg', 'image/png', 'image/webp'];
     if (!validTypes.includes(file.type)) {
-      toast.error('Invalid file type. Please upload a JPG, PNG, or WebP image.');
+      toast({ title: 'Invalid file type', description: 'Please upload a JPG, PNG, or WebP image.', variant: 'destructive'});
       return;
     }
 
     // Validate file size (max 2MB)
     if (file.size > 2 * 1024 * 1024) {
-      toast.error('Image size should be less than 2MB');
+      toast({ title: 'Image size too large', description: 'Image size should be less than 2MB', variant: 'destructive'});
       return;
     }
 
@@ -57,11 +59,11 @@ export function ProfileImageUpload({
       const downloadURL = await getDownloadURL(storageRef);
       
       onUploadSuccess?.(downloadURL);
-      toast.success('Profile image updated successfully!');
+      toast({ title: 'Success!', description: 'Profile image updated successfully!' });
     } catch (error) {
       console.error('Error uploading image:', error);
       onUploadError?.(error as Error);
-      toast.error('Failed to upload image. Please try again.');
+      toast({ title: 'Upload Error', description: 'Failed to upload image. Please try again.', variant: 'destructive' });
     } finally {
       setIsUploading(false);
     }
