@@ -2,20 +2,6 @@
 import * as admin from 'firebase-admin';
 import { firebaseConfig } from './config';
 
-// Ensure the necessary environment variables are set for production.
-// In a real production environment, you would use GOOGLE_APPLICATION_CREDENTIALS
-// or have the environment automatically configured (e.g., in Cloud Functions/Run).
-if (process.env.NODE_ENV === 'production' && !process.env.GOOGLE_APPLICATION_CREDENTIALS) {
-    // A service account key is needed for server-side admin access.
-    // For this demonstration, we'll try to use a placeholder but warn the user.
-    // In a real app, this should be a securely managed service account JSON file.
-    console.warn(
-      `WARNING: GOOGLE_APPLICATION_CREDENTIALS environment variable not set.
-       Firebase Admin SDK initialization might fail in a production environment.
-       For local development, this might be okay if you've logged in via the gcloud CLI.`
-    );
-}
-
 // Singleton pattern to ensure we only initialize the admin app once.
 let adminApp: admin.app.App;
 let adminFirestore: admin.firestore.Firestore;
@@ -28,21 +14,17 @@ function initializeAdminApp() {
   }
 
   try {
-    // In many server environments (like Cloud Run, Cloud Functions),
-    // initializing with no arguments will automatically use the environment's
-    // default credentials.
+    // In the Firebase Studio environment, initializing with the project ID
+    // is sufficient as the credentials are handled by the environment.
     adminApp = admin.initializeApp({
-      credential: admin.credential.applicationDefault(),
       projectId: firebaseConfig.projectId,
       storageBucket: firebaseConfig.storageBucket,
     });
   } catch (e) {
     console.error('Firebase Admin initialization failed:', e);
-    // If automatic initialization fails, it might be because the credentials
-    // are not set up in the environment. Provide guidance.
+    // If initialization fails, provide guidance.
     throw new Error(
-      `Firebase Admin SDK could not be initialized. Ensure your server environment
-       is configured with the correct Google Application Credentials.`
+      `Firebase Admin SDK could not be initialized. This might be a temporary environment issue. Please try again.`
     );
   }
   
