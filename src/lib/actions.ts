@@ -9,49 +9,50 @@ import { Readable } from 'stream';
 import * as admin from 'firebase-admin';
 
 // --- Firebase Admin SDK Initialization ---
-// This logic is now self-contained within the server actions file.
+// This logic is now self-contained and memoized within this server actions file.
 
-let firestore: admin.firestore.Firestore;
+let adminDb: admin.firestore.Firestore;
 
 /**
  * Initializes the Firebase Admin SDK and returns a Firestore instance.
  * Ensures that initialization only happens once (singleton pattern).
  */
-function getFirestoreAdmin() {
-  if (firestore) {
-    return firestore;
-  }
+function initializeAdminApp() {
+    if (admin.apps.length > 0) {
+        if (!adminDb) {
+            adminDb = admin.firestore();
+        }
+        return;
+    }
 
-  if (admin.apps.length === 0) {
     try {
-      const serviceAccount = {
-        projectId: process.env.FIREBASE_PROJECT_ID,
-        clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-        // Crucially, replace the escaped newlines with actual newlines
-        privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-      };
+        const serviceAccount = {
+            projectId: process.env.FIREBASE_PROJECT_ID,
+            clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+            privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+        };
 
-      if (!serviceAccount.projectId || !serviceAccount.clientEmail || !serviceAccount.privateKey) {
-        throw new Error('Firebase service account credentials are not fully set in environment variables.');
-      }
+        if (!serviceAccount.projectId || !serviceAccount.clientEmail || !serviceAccount.privateKey) {
+            throw new Error('Firebase service account credentials are not fully set in environment variables.');
+        }
 
-      admin.initializeApp({
-        credential: admin.credential.cert(serviceAccount),
-        storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
-      });
+        admin.initializeApp({
+            credential: admin.credential.cert(serviceAccount),
+            storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
+        });
+
+        adminDb = admin.firestore();
 
     } catch (error: any) {
-      console.error('Firebase Admin SDK initialization failed:', error);
-      throw new Error(
-        'Firebase Admin SDK could not be initialized. Check your service account credentials.'
-      );
+        console.error('Firebase Admin SDK initialization failed:', error);
+        throw new Error(
+            'Firebase Admin SDK could not be initialized. Check your service account credentials.'
+        );
     }
-  }
-
-  firestore = admin.firestore();
-  return firestore;
 }
 
+// Call initialization logic at the module level
+initializeAdminApp();
 
 // Helper to convert a file to a Base64 Data URI
 async function fileToDataURI(file: File): Promise<string> {
@@ -112,8 +113,7 @@ export async function applyForJob(
   const { name, email, phone, resumeText, resumeUrl, avatarUrl } = validatedFields.data;
 
   try {
-    const firestore = getFirestoreAdmin();
-    const jobDoc = await firestore.collection('jobs').doc(jobId).get();
+    const jobDoc = await adminDb.collection('jobs').doc(jobId).get();
     if (!jobDoc.exists) {
         return { ...prevState, errors: { _form: ['The job you are applying for no longer exists.'] } };
     }
@@ -121,7 +121,7 @@ export async function applyForJob(
     const jobDescription = jobData?.description || '';
 
     // Update user's contact information
-    const userDocRef = firestore.collection('users').doc(userId);
+    const userDocRef = adminDb.collection('users').doc(userId);
     await userDocRef.set({ phone }, { merge: true });
 
     let matchResult = { matchScore: 0, reasoning: 'AI analysis could not be performed.' };
@@ -169,7 +169,7 @@ export async function applyForJob(
       resumeUrl: resumeUrl || '',
     };
 
-    await firestore.collection('candidates').add(candidateData);
+    await adminDb.collection('candidates').add(candidateData);
     
     revalidatePath('/candidates');
     revalidatePath('/dashboard');
@@ -241,8 +241,7 @@ export async function getMatch(prevState: MatcherState, formData: FormData): Pro
  */
 export async function getCandidateResumeTextAction(candidateId: string): Promise<{ resumeText?: string; error?: string; }> {
     try {
-        const firestore = getFirestoreAdmin();
-        const doc = await firestore.collection('candidates').doc(candidateId).get();
+        const doc = await adminDb.collection('candidates').doc(candidateId).get();
 
         if (!doc.exists) {
             return { error: `Candidate with ID '${candidateId}' not found.` };
@@ -315,16 +314,15 @@ export async function scheduleInterview(
   const { scheduledAt, location, meetingLink, notes, scheduledBy, scheduledByName } = validatedFields.data;
 
   try {
-    const firestore = getFirestoreAdmin();
     // Fetch candidate data
-    const candidateDoc = await firestore.collection('candidates').doc(candidateId).get();
+    const candidateDoc = await adminDb.collection('candidates').doc(candidateId).get();
     if (!candidateDoc.exists) {
       return { ...prevState, errors: { _form: ['Candidate not found.'] } };
     }
     const candidateData = candidateDoc.data() as Candidate;
     
     // Fetch job data
-    const jobDoc = await firestore.collection('jobs').doc(candidateData.jobAppliedFor).get();
+    const jobDoc = await adminDb.collection('jobs').doc(candidateData.jobAppliedFor).get();
     if (!jobDoc.exists) {
       return { ...prevState, errors: { _form: ['Job not found.'] } };
     }
@@ -353,11 +351,11 @@ export async function scheduleInterview(
       createdAt: new Date().toISOString(),
     };
 
-    await firestore.collection('interviews').add(interviewData);
+    await adminDb.collection('interviews').add(interviewData);
     
     // Update candidate status to 'Interviewed' if not already
     if (candidateData.status !== 'Interviewed' && candidateData.status !== 'Hired') {
-      await firestore.collection('candidates').doc(candidateId).update({
+      await adminDb.collection('candidates').doc(candidateId).update({
         status: 'Interviewed',
       });
     }
@@ -402,8 +400,7 @@ export async function rerunAiMatch(
   const { candidateId } = validatedFields.data;
 
   try {
-    const firestore = getFirestoreAdmin();
-    const candidateRef = firestore.collection('candidates').doc(candidateId);
+    const candidateRef = adminDb.collection('candidates').doc(candidateId);
     const candidateDoc = await candidateRef.get();
 
     if (!candidateDoc.exists) {
@@ -412,7 +409,7 @@ export async function rerunAiMatch(
     
     const candidate = candidateDoc.data() as Candidate;
     
-    const jobRef = firestore.collection('jobs').doc(candidate.jobAppliedFor);
+    const jobRef = adminDb.collection('jobs').doc(candidate.jobAppliedFor);
     const jobDoc = await jobRef.get();
     
     if (!jobDoc.exists) {
@@ -480,8 +477,7 @@ export async function updateCandidateStatus(
   const { candidateId, status } = validatedFields.data;
 
   try {
-    const firestore = getFirestoreAdmin();
-    const candidateRef = firestore.collection('candidates').doc(candidateId);
+    const candidateRef = adminDb.collection('candidates').doc(candidateId);
     const candidateDoc = await candidateRef.get();
 
     if (!candidateDoc.exists) {
