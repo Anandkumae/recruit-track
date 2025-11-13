@@ -22,21 +22,23 @@ function getDb(): admin.firestore.Firestore {
         return adminDb;
     }
 
+    const projectId = process.env.FIREBASE_PROJECT_ID;
+    const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
+    const privateKey = process.env.FIREBASE_PRIVATE_KEY;
+
+    if (!projectId || !clientEmail || !privateKey) {
+        throw new Error('Firebase service account credentials are not fully set in environment variables.');
+    }
+
     if (admin.apps.length === 0) {
         try {
-            const serviceAccount = {
-                projectId: process.env.FIREBASE_PROJECT_ID,
-                clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-                // Crucially, replace the escaped newlines with actual newlines
-                privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-            };
-
-            if (!serviceAccount.projectId || !serviceAccount.clientEmail || !serviceAccount.privateKey) {
-                throw new Error('Firebase service account credentials are not fully set in environment variables.');
-            }
-            
             admin.initializeApp({
-                credential: admin.credential.cert(serviceAccount),
+                credential: admin.credential.cert({
+                    projectId,
+                    clientEmail,
+                    // Crucially, replace the escaped newlines with actual newlines
+                    privateKey: privateKey.replace(/\\n/g, '\n'),
+                }),
                 storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
             });
 
@@ -500,3 +502,5 @@ export async function updateCandidateStatus(
     return { errors: { _form: ['Failed to update candidate status.'] } };
   }
 }
+
+    
