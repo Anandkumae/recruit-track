@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { matchResumeToJob } from '@/ai/flows/ai-match-resume-to-job';
 import { revalidatePath } from 'next/cache';
 import type { Job, User, Interview, Candidate, HiringStage } from '@/lib/types';
-import { adminDb } from '@/lib/firebaseAdmin';
+import { adminDb } from './firebaseAdmin.server';
 import { FieldValue } from 'firebase-admin/firestore';
 
 
@@ -45,7 +45,6 @@ export async function applyForJob(
   formData: FormData
 ): Promise<ApplicationState> {
 
-  const db = adminDb;
   const { jobId, userId } = prevState;
   
   const validatedFields = ApplySchema.safeParse({
@@ -69,7 +68,7 @@ export async function applyForJob(
   const { name, email, phone, resumeText, resumeUrl, avatarUrl } = validatedFields.data;
 
   try {
-    const jobDoc = await db.collection('jobs').doc(jobId).get();
+    const jobDoc = await adminDb.collection('jobs').doc(jobId).get();
     if (!jobDoc.exists) {
         return { ...prevState, errors: { _form: ['The job you are applying for no longer exists.'] } };
     }
@@ -77,7 +76,7 @@ export async function applyForJob(
     const jobDescription = jobData?.description || '';
 
     // Update user's contact information
-    const userDocRef = db.collection('users').doc(userId);
+    const userDocRef = adminDb.collection('users').doc(userId);
     await userDocRef.set({ phone }, { merge: true });
 
     let matchResult = { matchScore: 0, reasoning: 'AI analysis could not be performed.' };
@@ -125,7 +124,7 @@ export async function applyForJob(
       resumeUrl: resumeUrl || '',
     };
 
-    await db.collection('candidates').add(candidateData);
+    await adminDb.collection('candidates').add(candidateData);
     
     revalidatePath('/candidates');
     revalidatePath('/dashboard');
@@ -196,9 +195,8 @@ export async function getMatch(prevState: MatcherState, formData: FormData): Pro
  * It fetches the resume text for a given candidate.
  */
 export async function getCandidateResumeTextAction(candidateId: string): Promise<{ resumeText?: string; error?: string; }> {
-    const db = adminDb;
     try {
-        const doc = await db.collection('candidates').doc(candidateId).get();
+        const doc = await adminDb.collection('candidates').doc(candidateId).get();
 
         if (!doc.exists) {
             return { error: `Candidate with ID '${candidateId}' not found.` };
@@ -249,7 +247,6 @@ export async function scheduleInterview(
   prevState: ScheduleInterviewState,
   formData: FormData
 ): Promise<ScheduleInterviewState> {
-  const db = adminDb;
   const { candidateId } = prevState;
   
   const validatedFields = ScheduleInterviewSchema.safeParse({
@@ -273,14 +270,14 @@ export async function scheduleInterview(
 
   try {
     // Fetch candidate data
-    const candidateDoc = await db.collection('candidates').doc(candidateId).get();
+    const candidateDoc = await adminDb.collection('candidates').doc(candidateId).get();
     if (!candidateDoc.exists) {
       return { ...prevState, errors: { _form: ['Candidate not found.'] } };
     }
     const candidateData = candidateDoc.data() as Candidate;
     
     // Fetch job data
-    const jobDoc = await db.collection('jobs').doc(candidateData.jobAppliedFor).get();
+    const jobDoc = await adminDb.collection('jobs').doc(candidateData.jobAppliedFor).get();
     if (!jobDoc.exists) {
       return { ...prevState, errors: { _form: ['Job not found.'] } };
     }
@@ -309,11 +306,11 @@ export async function scheduleInterview(
       createdAt: new Date().toISOString(),
     };
 
-    await db.collection('interviews').add(interviewData);
+    await adminDb.collection('interviews').add(interviewData);
     
     // Update candidate status to 'Interviewed' if not already
     if (candidateData.status !== 'Interviewed' && candidateData.status !== 'Hired') {
-      await db.collection('candidates').doc(candidateId).update({
+      await adminDb.collection('candidates').doc(candidateId).update({
         status: 'Interviewed',
       });
     }
@@ -347,7 +344,6 @@ export async function rerunAiMatch(
   prevState: RerunAiMatchState,
   formData: FormData
 ): Promise<RerunAiMatchState> {
-  const db = adminDb;
   const validatedFields = RerunAiMatchSchema.safeParse({
     candidateId: formData.get('candidateId'),
   });
@@ -359,7 +355,7 @@ export async function rerunAiMatch(
   const { candidateId } = validatedFields.data;
 
   try {
-    const candidateRef = db.collection('candidates').doc(candidateId);
+    const candidateRef = adminDb.collection('candidates').doc(candidateId);
     const candidateDoc = await candidateRef.get();
 
     if (!candidateDoc.exists) {
@@ -368,7 +364,7 @@ export async function rerunAiMatch(
     
     const candidate = candidateDoc.data() as Candidate;
     
-    const jobRef = db.collection('jobs').doc(candidate.jobAppliedFor);
+    const jobRef = adminDb.collection('jobs').doc(candidate.jobAppliedFor);
     const jobDoc = await jobRef.get();
     
     if (!jobDoc.exists) {
@@ -424,7 +420,6 @@ export async function updateCandidateStatus(
   prevState: UpdateCandidateStatusState,
   formData: FormData
 ): Promise<UpdateCandidateStatusState> {
-  const db = adminDb;
   const validatedFields = UpdateCandidateStatusSchema.safeParse({
     candidateId: formData.get('candidateId'),
     status: formData.get('status'),
@@ -437,7 +432,7 @@ export async function updateCandidateStatus(
   const { candidateId, status } = validatedFields.data;
 
   try {
-    const candidateRef = db.collection('candidates').doc(candidateId);
+    const candidateRef = adminDb.collection('candidates').doc(candidateId);
     const candidateDoc = await candidateRef.get();
 
     if (!candidateDoc.exists) {
