@@ -10,7 +10,7 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
-import { getCandidateResumeText } from '@/lib/actions';
+import { getCandidateResumeText as getCandidateResumeTextAction } from '@/lib/actions';
 
 
 const getResumeTextByCandidateIdTool = ai.defineTool(
@@ -27,7 +27,7 @@ const getResumeTextByCandidateIdTool = ai.defineTool(
   async ({ candidateId }) => {
     // This tool calls a Next.js server action.
     // The server action is responsible for securely accessing the database.
-    const result = await getCandidateResumeText(candidateId);
+    const result = await getCandidateResumeTextAction(candidateId);
     if (result.error) {
         return { resumeText: `ERROR: ${result.error}` };
     }
@@ -73,7 +73,7 @@ First, you must obtain the candidate's resume text.
 - If a 'candidateId' is provided, you **must** use the 'getResumeTextByCandidateId' tool to fetch the resume text. Do not guess or assume the resume content.
 - If 'resumeText' is provided directly, use that content for your analysis.
 
-If you cannot obtain the resume text for any reason (e.g., the tool returns an error), you must stop. Your reasoning should contain only that error message and nothing else. Set the match score to 0.
+If you cannot obtain the resume text for any reason (e.g., the tool returns an error or no input was provided), you must stop. Your reasoning should state the problem clearly (e.g., "Cannot obtain resume text. Neither 'candidateId' nor 'resumeText' was provided."). Set the match score to 0.
 
 Once you have the resume text, you must:
 1.  Calculate a "match score" out of 100 that represents how well the candidate's skills and experience align with the job requirements.
@@ -90,13 +90,8 @@ const matchResumeToJobFlow = ai.defineFlow(
     outputSchema: MatchResumeToJobOutputSchema,
   },
   async (input) => {
-    // This check was faulty and prevented the AI from using its tool.
-    // The prompt and tool are now solely responsible for fetching the resume.
-    
     const { output } = await matchResumeToJobPrompt(input);
     
-    // The prompt might return null if it can't generate valid output.
-    // It's better to throw an error here to make the failure explicit.
     if (!output) {
       throw new Error("The AI model failed to generate a valid analysis. Please check the inputs and try again.");
     }
