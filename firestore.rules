@@ -2,6 +2,7 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // --- USERS ---
     match /users/{userId} {
       allow get: if isSignedIn();
       allow list: if false;
@@ -10,15 +11,18 @@ service cloud.firestore {
       allow delete: if isOwner(userId);
     }
 
+    // --- JOBS ---
     match /jobs/{jobId} {
       allow get, list: if true;
       allow create, update, delete: if isAdmin();
     }
 
+    // --- CANDIDATES ---
     match /candidates/{candidateId} {
       allow get, list, create, update, delete: if isSignedIn();
     }
 
+    // --- ADMIN ROLES ---
     match /roles_admin/{userId} {
       allow get: if true;
       allow list: if false;
@@ -26,12 +30,8 @@ service cloud.firestore {
       allow update: if false;
     }
 
-    // ✅ FIXED INTERVIEWS RULE
-    match /interviews/{interviewId} {
-      allow read: if request.auth != null; // ✅ covers both get and list
-      allow create, update, delete: if isAdmin(); // only admin can modify
-    }
 
+    // --- Helper Functions ---
     function isSignedIn() {
       return request.auth != null;
     }
@@ -44,9 +44,20 @@ service cloud.firestore {
       return exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid))
         || request.auth.token.email == "anandkumar.shinnovationco@gmail.com";
     }
+    
+    function isHR() {
+      // (Optional) Replace with real HR check logic
+      return false;
+    }
+    
+    function isManager() {
+      // (Optional) Replace with real Manager check logic
+      return false;
+    }
   }
 }
 
+// --- STORAGE RULES ---
 service firebase.storage {
   match /b/{bucket}/o {
     match /resumes/{allPaths=**} {
@@ -57,4 +68,3 @@ service firebase.storage {
     }
   }
 }
-

@@ -2,27 +2,29 @@
 'use client';
 
 import { useDoc, useFirestore, useMemoFirebase, useFirebase, useUser, useCollection } from "@/firebase";
-import type { Candidate, Job, User, Interview, WithId } from "@/lib/types";
-import { notFound, useParams } from "next/navigation";
+import type { Candidate, Job, User, WithId } from "@/lib/types";
+import { notFound, useParams, useRouter } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, AtSign, Briefcase, Calendar, CheckCircle, Eye, FileText, Loader2, Phone, Clock, MapPin, Link as LinkIcon, Plus } from "lucide-react";
-import { format, parseISO } from "date-fns";
+import { format } from "date-fns";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import type { HiringStage } from "@/lib/types";
 import { doc, collection, query, where, orderBy } from 'firebase/firestore';
-import React, { useState, useEffect, useActionState } from 'react';
-import { ref, getDownloadURL, type Storage } from 'firebase/storage';
+import React, { useState, useEffect } from 'react';
+import { ref, getDownloadURL } from 'firebase/storage';
+import type { FirebaseStorage } from 'firebase/storage';
 import { scheduleInterview, type ScheduleInterviewState } from '@/lib/actions';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { useActionState } from 'react';
 
 const getInitials = (name: string) => {
     return name ? name.split(' ').map(n => n[0]).join('') : '';
@@ -31,12 +33,11 @@ const getInitials = (name: string) => {
 const statusColors: Record<HiringStage, string> = {
     Applied: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
     Shortlisted: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200',
-    Interviewed: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
     Hired: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
     Rejected: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
 };
 
-function ResumeSection({ resumeUrl, storage }: { resumeUrl?: string, storage: Storage | null }) {
+function ResumeSection({ resumeUrl, storage }: { resumeUrl?: string, storage: FirebaseStorage | null }) {
     const [downloadURL, setDownloadURL] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(true);
 
@@ -94,15 +95,27 @@ function InterviewSchedulingSection({ candidateId, candidateName, jobTitle }: { 
 
     // Fetch existing interviews for this candidate
     // Only query if user is admin and we have a valid candidateId
+    const isAdminUser = user?.email === 'anandkumar.shinnovationco@gmail.com';
     const interviewsQuery = useMemoFirebase(() => {
         if (!firestore || !candidateId || !candidateId.trim()) return null;
-        if (!isAdmin) return null; // Only admins can see interviews
+        if (!isAdminUser) return null; // Only admins can see interviews
         return query(
             collection(firestore, 'interviews'),
             where('candidateId', '==', candidateId),
             orderBy('scheduledAt', 'desc')
         );
-    }, [firestore, candidateId, isAdmin]);
+    }, [firestore, candidateId, isAdminUser]);
+
+    // Define Interview type locally since it was removed from types.ts
+    type Interview = {
+        id: string;
+        candidateId: string;
+        scheduledAt: any; // Can be Timestamp or Date
+        location?: string;
+        meetingLink?: string;
+        notes?: string;
+        status: 'Scheduled' | 'Completed' | 'Cancelled' | 'Rescheduled';
+    };
 
     const { data: interviews, isLoading: interviewsLoading } = useCollection<WithId<Interview>>(interviewsQuery);
 
@@ -116,9 +129,7 @@ function InterviewSchedulingSection({ candidateId, candidateName, jobTitle }: { 
         }
     };
 
-    const isAdmin = user?.email === 'anandkumar.shinnovationco@gmail.com';
-
-    if (!isAdmin) return null;
+    if (!isAdminUser) return null;
 
     useEffect(() => {
         if (state?.success) {
@@ -306,13 +317,14 @@ export default function CandidateDetailsPage() {
     const id = params.id as string;
     const { firestore, storage } = useFirebase();
     const { user } = useUser();
+    const router = useRouter();
 
     const candidateRef = useMemoFirebase(() => {
         if (!firestore || !id) return null;
         return doc(firestore, 'candidates', id);
     }, [firestore, id]);
 
-    const { data: candidate, isLoading: candidateLoading } = useDoc<Candidate>(candidateRef);
+    const { data: candidate, isLoading: candidateLoading, error: candidateError } = useDoc<Candidate>(candidateRef);
     
     const jobRef = useMemoFirebase(() => {
         if (!firestore || !candidate?.jobAppliedFor) return null;
@@ -335,16 +347,36 @@ export default function CandidateDetailsPage() {
     
     const isLoading = candidateLoading || (candidate && jobLoading);
 
+    useEffect(() => {
+        // If there's an error loading the candidate or candidate doesn't exist after loading
+        if (!isLoading && (!candidate || candidateError)) {
+            notFound();
+        }
+    }, [candidate, candidateError, isLoading]);
+
     if (isLoading) {
         return (
             <div className="flex h-full w-full items-center justify-center">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <span className="sr-only">Loading candidate details...</span>
             </div>
         );
     }
 
     if (!candidate) {
-        notFound();
+        return (
+            <div className="flex flex-col items-center justify-center h-[60vh] space-y-4">
+                <FileText className="h-16 w-16 text-muted-foreground" />
+                <h2 className="text-2xl font-semibold">Candidate Not Found</h2>
+                <p className="text-muted-foreground">The requested candidate could not be found.</p>
+                <Button asChild>
+                    <Link href="/candidates">
+                        <ArrowLeft className="mr-2 h-4 w-4" />
+                        Back to Candidates
+                    </Link>
+                </Button>
+            </div>
+        );
     }
 
     return (

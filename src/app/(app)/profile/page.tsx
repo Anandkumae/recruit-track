@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useUser, useFirebase, useDoc, useMemoFirebase } from '@/firebase';
@@ -13,6 +12,8 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { ProfileImageUpload } from '@/components/profile/ProfileImageUpload';
+import { updateProfileImage } from '@/lib/services/profileService';
 
 function ResumeSection({ resumeUrl, storage }: { resumeUrl?: string, storage: Storage | null }) {
     const [downloadURL, setDownloadURL] = useState<string | null>(null);
@@ -84,6 +85,7 @@ export default function ProfilePage() {
         name: '',
         phone: '',
         qualification: '',
+        avatarUrl: ''
     });
 
     useEffect(() => {
@@ -92,6 +94,7 @@ export default function ProfilePage() {
                 name: userProfile.name || '',
                 phone: userProfile.phone || '',
                 qualification: userProfile.qualification || '',
+                avatarUrl: userProfile.avatarUrl || ''
             });
         }
     }, [userProfile]);
@@ -102,29 +105,50 @@ export default function ProfilePage() {
     };
 
     const handleSave = async () => {
-        if (!user || !firestore) return;
-        setIsSaving(true);
+        if (!userProfileRef) return;
+        
         try {
-            const userDocRef = doc(firestore, 'users', user.uid);
-            await updateDoc(userDocRef, {
-                name: formData.name,
-                phone: formData.phone,
-                qualification: formData.qualification,
+            setIsSaving(true);
+            await updateDoc(userProfileRef, {
+                ...formData,
+                updatedAt: new Date().toISOString()
             });
+            
             toast({
-                title: 'Profile Updated',
-                description: 'Your changes have been saved successfully.',
+                title: "Profile updated",
+                description: "Your profile has been updated successfully.",
             });
+            
             setIsEditing(false);
         } catch (error) {
-            console.error("Save error:", error);
+            console.error("Error updating profile:", error);
             toast({
-                title: 'Update Failed',
-                description: 'There was an error saving your changes.',
-                variant: 'destructive',
+                title: "Error",
+                description: "Failed to update profile. Please try again.",
+                variant: "destructive",
             });
         } finally {
             setIsSaving(false);
+        }
+    };
+
+    const handleImageUploadSuccess = async (imageUrl: string) => {
+        if (!user?.uid) return;
+        
+        try {
+            await updateProfileImage(user.uid, imageUrl);
+            // Update local state to show the new image
+            setFormData(prev => ({
+                ...prev,
+                avatarUrl: imageUrl
+            }));
+        } catch (error) {
+            console.error('Error updating profile image:', error);
+            toast({
+                title: "Error",
+                description: "Failed to update profile image. Please try again.",
+                variant: "destructive",
+            });
         }
     };
     
@@ -197,7 +221,7 @@ export default function ProfilePage() {
              <Card>
                 <CardContent className="pt-6 flex flex-col items-center text-center">
                     <Avatar className="h-24 w-24 mb-4">
-                        <AvatarImage src={user?.photoURL || undefined} alt={userProfile.name} />
+                        <AvatarImage src={formData.avatarUrl || user?.photoURL || undefined} alt={userProfile.name} />
                         <AvatarFallback className="text-3xl">{getInitials(userProfile.name)}</AvatarFallback>
                     </Avatar>
                     <h2 className="text-xl font-semibold">{userProfile.name}</h2>
@@ -221,21 +245,45 @@ export default function ProfilePage() {
                 <CardContent className="space-y-4">
                     {isEditing ? (
                         <>
-                            <div className="space-y-2">
-                                <Label htmlFor="name">Full Name</Label>
-                                <Input id="name" name="name" value={formData.name} onChange={handleInputChange} disabled={isSaving} />
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="email">Email</Label>
-                                <Input id="email" value={userProfile.email} disabled />
-                            </div>
-                             <div className="space-y-2">
-                                <Label htmlFor="phone">Phone Number</Label>
-                                <Input id="phone" name="phone" value={formData.phone} onChange={handleInputChange} disabled={isSaving}/>
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="qualification">Highest Qualification</Label>
-                                <Input id="qualification" name="qualification" value={formData.qualification} onChange={handleInputChange} disabled={isSaving} />
+                            <div className="space-y-6">
+                                <div className="flex items-start justify-between">
+                                    <div className="flex items-center gap-4">
+                                        <ProfileImageUpload 
+                                            currentImageUrl={formData.avatarUrl}
+                                            onUploadSuccess={handleImageUploadSuccess}
+                                        />
+                                    </div>
+                                    
+                                    <div className="flex-1 pl-4">
+                                        <div className="space-y-4">
+                                            <div className="space-y-2">
+                                                <Label htmlFor="name">Full Name</Label>
+                                                <Input
+                                                    id="name"
+                                                    value={formData.name}
+                                                    onChange={handleInputChange}
+                                                    name="name"
+                                                />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label htmlFor="email">Email</Label>
+                                                <Input
+                                                    id="email"
+                                                    value={user?.email || ''}
+                                                    disabled
+                                                />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label htmlFor="phone">Phone Number</Label>
+                                                <Input id="phone" name="phone" value={formData.phone} onChange={handleInputChange} disabled={isSaving}/>
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label htmlFor="qualification">Highest Qualification</Label>
+                                                <Input id="qualification" name="qualification" value={formData.qualification} onChange={handleInputChange} disabled={isSaving} />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </>
                     ) : (
