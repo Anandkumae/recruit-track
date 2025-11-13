@@ -95,7 +95,7 @@ export async function applyForJob(
       matchScore: matchResult.matchScore,
       matchReasoning: matchResult.reasoning,
       skills: [], 
-      avatarUrl: `https://picsum.photos/seed/${userId}/100/100`,
+      avatarUrl: userData?.avatarUrl || `https://picsum.photos/seed/${userId}/100/100`,
     };
 
     if (resumeTextFromProfile) {

@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -16,8 +17,13 @@ import { useRouter } from 'next/navigation';
 import { SidebarTrigger } from '../ui/sidebar';
 import { Briefcase } from 'lucide-react';
 import { signOut } from 'firebase/auth';
+import type { User, WithId } from '@/lib/types';
 
-export function AppHeader() {
+interface AppHeaderProps {
+  userProfile: WithId<User> | null;
+}
+
+export function AppHeader({ userProfile }: AppHeaderProps) {
   const { user } = useUser();
   const auth = useAuth();
   const router = useRouter();
@@ -34,6 +40,10 @@ export function AppHeader() {
       .map((n) => n[0])
       .join('');
   };
+
+  const displayName = userProfile?.name || user?.displayName;
+  const displayEmail = userProfile?.email || user?.email;
+  const displayAvatar = userProfile?.avatarUrl || user?.photoURL;
 
   return (
     <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-card px-4 sm:static sm:h-auto sm:border-0 sm:bg-transparent sm:px-6">
@@ -52,17 +62,17 @@ export function AppHeader() {
               className="overflow-hidden rounded-full"
             >
               <Avatar>
-                <AvatarImage src={user?.photoURL || undefined} alt={user?.displayName || ''} />
-                <AvatarFallback>{getInitials(user?.displayName)}</AvatarFallback>
+                <AvatarImage src={displayAvatar || undefined} alt={displayName || ''} />
+                <AvatarFallback>{getInitials(displayName)}</AvatarFallback>
               </Avatar>
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuLabel>
               <div className="flex flex-col space-y-1">
-                <p className="text-sm font-medium leading-none">{user?.displayName || 'Anonymous User'}</p>
+                <p className="text-sm font-medium leading-none">{displayName || 'Anonymous User'}</p>
                 <p className="text-xs leading-none text-muted-foreground">
-                  {user?.email || 'No email'}
+                  {displayEmail || 'No email'}
                 </p>
               </div>
             </DropdownMenuLabel>

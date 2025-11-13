@@ -9,6 +9,7 @@ import { AppHeader } from '@/components/layout/app-header';
 import { Loader2 } from 'lucide-react';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import { doc } from 'firebase/firestore';
+import type { User, WithId } from '@/lib/types';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { user, isUserLoading } = useUser();
@@ -21,7 +22,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     return doc(firestore, 'users', user.uid);
   }, [firestore, user]);
 
-  const { data: userProfile, isLoading: isProfileLoading } = useDoc(userProfileRef);
+  const { data: userProfile, isLoading: isProfileLoading } = useDoc<WithId<User>>(userProfileRef);
 
   React.useEffect(() => {
     if (isUserLoading) {
@@ -83,7 +84,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <div className="flex min-h-screen w-full">
         <AppSidebar />
         <div className="flex flex-1 flex-col">
-          <AppHeader />
+          <AppHeader userProfile={userProfile}/>
           <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">
             {children}
           </main>
