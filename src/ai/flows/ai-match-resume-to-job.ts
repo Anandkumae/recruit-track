@@ -30,15 +30,20 @@ const getCandidateById = ai.defineTool(
       const { firestore } = getFirebaseAdmin();
       const doc = await firestore.collection('candidates').doc(candidateId).get();
       if (!doc.exists) {
-        throw new Error('Candidate not found');
+        // Return a structured error or empty state that the LLM can interpret
+        return { resumeText: `ERROR: Candidate with ID '${candidateId}' not found.` };
       }
       const candidateData = doc.data() as Candidate;
+      if (!candidateData.resumeText) {
+        return { resumeText: `ERROR: Candidate with ID '${candidateId}' has no resume text.` };
+      }
       return {
         resumeText: candidateData.resumeText,
       };
     } catch (error) {
         console.error("Tool 'getCandidateById' failed:", error);
-        throw new Error("Failed to retrieve candidate data from the database.");
+        // This makes the error visible to the LLM, so it can report a more specific failure.
+        return { resumeText: `ERROR: Failed to retrieve candidate data due to a database error.` };
     }
   }
 );
@@ -80,6 +85,8 @@ const matchResumeToJobPrompt = ai.definePrompt({
 First, you must obtain the candidate's resume. 
 - If the candidate's ID is provided ({{candidateId}}), use the 'getCandidateById' tool to fetch their resume text from the database.
 - If resume text is provided directly ({{resumeText}}), use that.
+
+If the tool returns an error message starting with 'ERROR:', you must stop and include that error message in your reasoning. Do not proceed with the analysis.
 
 Once you have the resume text, you must:
 1.  Calculate a "match score" out of 100 that represents how well the candidate's skills and experience align with the job requirements.
