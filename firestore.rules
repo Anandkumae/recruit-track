@@ -21,6 +21,11 @@ service cloud.firestore {
     match /candidates/{candidateId} {
       allow get, list, create, update, delete: if isSignedIn();
     }
+    
+    // --- INTERVIEWS ---
+    match /interviews/{interviewId} {
+      allow read, write: if isAdmin();
+    }
 
     // --- ADMIN ROLES ---
     match /roles_admin/{userId} {
