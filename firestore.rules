@@ -24,7 +24,14 @@ service cloud.firestore {
     
     // --- INTERVIEWS ---
     match /interviews/{interviewId} {
-      allow read, write: if isSignedIn();
+      // Allow Admin full read/write access
+      allow read, write: if isAdmin();
+      
+      // Allow candidates to read their own interview docs
+      allow read: if isSignedIn() && resource.data.candidateId == request.auth.uid;
+
+      // Allow HR/Manager roles to write if needed
+      allow write: if isHR() || isManager();
     }
 
     // --- ADMIN ROLES ---
@@ -46,8 +53,9 @@ service cloud.firestore {
     }
 
     function isAdmin() {
-      return exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid))
-        || request.auth.token.email == "anandkumar.shinnovationco@gmail.com";
+      return isSignedIn() &&
+        (exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid))
+        || request.auth.token.email == "anandkumar.shinnovationco@gmail.com");
     }
     
     function isHR() {
