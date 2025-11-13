@@ -1,14 +1,12 @@
 import { doc, updateDoc, getFirestore, getDoc } from 'firebase/firestore';
-import { getAuth } from 'firebase/auth';
-import app from '@/lib/firebase';
-import type { User } from '@/lib/types';
+import { initializeFirebase } from '@/firebase';
 
-const db = getFirestore(app);
-const auth = getAuth(app);
+const { firestore } = initializeFirebase();
+
 
 export const updateProfileImage = async (userId: string, imageUrl: string): Promise<boolean> => {
   try {
-    const userRef = doc(db, 'users', userId);
+    const userRef = doc(firestore, 'users', userId);
     await updateDoc(userRef, {
       avatarUrl: imageUrl,
       updatedAt: new Date().toISOString()
@@ -20,11 +18,10 @@ export const updateProfileImage = async (userId: string, imageUrl: string): Prom
   }
 };
 
-export const getCurrentUserProfile = async (): Promise<User | null> => {
-  const user = auth.currentUser;
-  if (!user) return null;
+export const getCurrentUserProfile = async (userId: string): Promise<User | null> => {
+  if (!userId) return null;
   
-  const userRef = doc(db, 'users', user.uid);
+  const userRef = doc(firestore, 'users', userId);
   const userDoc = await getDoc(userRef);
   
   if (userDoc.exists()) {

@@ -2,9 +2,8 @@
 'use client';
 
 import { useState, useRef, ChangeEvent } from 'react';
-import { useUser } from '@/firebase';
+import { useUser, useFirebase } from '@/firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { storage } from '@/lib/firebase';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Loader2, Upload, X } from 'lucide-react';
@@ -22,6 +21,7 @@ export function ProfileImageUpload({
   onUploadError 
 }: ProfileImageUploadProps) {
   const { user } = useUser();
+  const { storage } = useFirebase();
   const { toast } = useToast();
   const [isUploading, setIsUploading] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(currentImageUrl || null);
@@ -29,7 +29,7 @@ export function ProfileImageUpload({
 
   const handleFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || !user?.uid) return;
+    if (!file || !user?.uid || !storage) return;
 
     // Validate file type
     const validTypes = ['image/jpeg', 'image/png', 'image/webp'];
