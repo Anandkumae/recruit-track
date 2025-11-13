@@ -25,13 +25,10 @@ service cloud.firestore {
     // --- INTERVIEWS ---
     match /interviews/{interviewId} {
       // Allow Admin full read/write access
-      allow read, write: if isAdmin();
+      allow list, write: if isAdmin();
       
-      // Allow candidates to read their own interview docs
-      allow read: if isSignedIn() && resource.data.candidateId == request.auth.uid;
-
-      // Allow HR/Manager roles to write if needed
-      allow write: if isHR() || isManager();
+      // Allow candidates and admins to read specific interview docs
+      allow get: if (isSignedIn() && resource.data.candidateId == request.auth.uid) || isAdmin();
     }
 
     // --- ADMIN ROLES ---
