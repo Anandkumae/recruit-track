@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Search, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { Input } from '@/components/ui/input';
@@ -21,27 +21,8 @@ import { cn } from '@/lib/utils';
 import type { HiringStage, Candidate, Job, WithId } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { TableHead } from '@/components/ui/table';
-import { useCollection, useFirestore, useMemoFirebase, useDoc } from '@/firebase';
-import { collection, query, orderBy, doc } from 'firebase/firestore';
-
-
-function JobTitleLink({ jobId }: { jobId: string }) {
-  const firestore = useFirestore();
-  const jobRef = useMemoFirebase(() => {
-    if (!firestore || !jobId) return null;
-    return doc(firestore, 'jobs', jobId);
-  }, [firestore, jobId]);
-  const { data: job, isLoading } = useDoc<Job>(jobRef);
-
-  if (isLoading) return <Loader2 className="h-4 w-4 animate-spin" />;
-  if (!job) return <>Unknown Job</>;
-
-  return (
-    <Link href={`/jobs/${jobId}`} className="hover:underline">
-      {job.title}
-    </Link>
-  );
-}
+import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
+import { collection, query, orderBy } from 'firebase/firestore';
 
 
 const getInitials = (name: string) => {
@@ -66,7 +47,20 @@ export default function CandidatesPage() {
     return query(collection(firestore, 'candidates'), orderBy('appliedAt', 'desc'));
   }, [firestore]);
   
-  const { data: candidates, isLoading: candidatesLoading } = useCollection<Candidate>(candidatesQuery);
+  const { data: candidates, isLoading: candidatesLoading } = useCollection<WithId<Candidate>>(candidatesQuery);
+  
+  const jobsQuery = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return collection(firestore, 'jobs');
+  }, [firestore]);
+
+  const { data: jobs, isLoading: jobsLoading } = useCollection<WithId<Job>>(jobsQuery);
+
+  const jobsMap = useMemo(() => {
+    if (!jobs) return new Map<string, string>();
+    return new Map(jobs.map(job => [job.id, job.title]));
+  }, [jobs]);
+
 
   const filteredCandidates = candidates?.filter((candidate) =>
     candidate.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -85,6 +79,8 @@ export default function CandidatesPage() {
         return 'Invalid Date';
     }
   }
+
+  const isLoading = candidatesLoading || jobsLoading;
 
 
   return (
@@ -124,7 +120,7 @@ export default function CandidatesPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {candidatesLoading ? (
+              {isLoading ? (
                  <TableRow>
                     <TableCell colSpan={6} className="text-center h-24">
                        <Loader2 className="h-6 w-6 animate-spin mx-auto text-primary" />
@@ -143,7 +139,9 @@ export default function CandidatesPage() {
                         </Link>
                     </TableCell>
                     <TableCell>
-                      <JobTitleLink jobId={candidate.jobAppliedFor} />
+                      <Link href={`/jobs/${candidate.jobAppliedFor}`} className="hover:underline">
+                        {jobsMap.get(candidate.jobAppliedFor) || 'Unknown Job'}
+                      </Link>
                     </TableCell>
                     <TableCell>
                         <div className="flex items-center gap-2">
@@ -152,7 +150,7 @@ export default function CandidatesPage() {
                         </div>
                     </TableCell>
                     <TableCell>
-                        <Badge className={cn("border-transparent", statusColors[candidate.status])}>
+                        <Badge className={cn("border-transparent", statusColors[candidate.status as HiringStage])}>
                             {candidate.status}
                         </Badge>
                     </TableCell>
