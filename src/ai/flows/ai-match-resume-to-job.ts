@@ -8,8 +8,22 @@
  * - MatchResumeToJobOutput - The return type for the matchResumeToJob function.
  */
 
-import {ai} from '@/ai/genkit';
-import {z} from 'genkit';
+import { ai } from '@/ai/genkit';
+import { z } from 'genkit';
+import { getFirebaseAdmin } from '@/firebase/server-config';
+import { Readable } from 'stream';
+
+// Helper to convert a stream from Firebase Storage to a Base64 Data URI
+async function streamToDataURI(stream: Readable, contentType: string): Promise<string> {
+  const chunks: Buffer[] = [];
+  for await (const chunk of stream) {
+    chunks.push(chunk);
+  }
+  const buffer = Buffer.concat(chunks);
+  const base64 = buffer.toString('base64');
+  return `data:${contentType};base64,${base64}`;
+}
+
 
 const MatchResumeToJobInputSchema = z.object({
   resumeDataUri: z
@@ -23,6 +37,8 @@ const MatchResumeToJobInputSchema = z.object({
     .describe("The plain text content of the candidate's resume.")
     .optional(),
   jobDescription: z.string().describe('The description of the job posting.'),
+  // Adding resumeUrl to handle gs:// paths
+  resumeUrl: z.string().optional().describe('Path to the resume file in Firebase Storage (gs:// format).')
 });
 export type MatchResumeToJobInput = z.infer<typeof MatchResumeToJobInputSchema>;
 
@@ -44,8 +60,15 @@ export async function matchResumeToJob(input: MatchResumeToJobInput): Promise<Ma
 
 const matchResumeToJobPrompt = ai.definePrompt({
   name: 'matchResumeToJobPrompt',
-  input: {schema: MatchResumeToJobInputSchema},
-  output: {schema: MatchResumeToJobOutputSchema},
+  input: {
+    // Only pass data URI, text, and description to the prompt itself
+    schema: z.object({
+      resumeDataUri: MatchResumeToJobInputSchema.shape.resumeDataUri,
+      resumeText: MatchResumeToJobInputSchema.shape.resumeText,
+      jobDescription: MatchResumeToJobInputSchema.shape.jobDescription,
+    })
+  },
+  output: { schema: MatchResumeToJobOutputSchema },
   prompt: `You are an AI resume matcher. Your task is to analyze the provided candidate resume against the job description.
 
 You will be given either a resume file (like a PDF) or the plain text of a resume. Prioritize the file if both are provided.
@@ -70,11 +93,34 @@ const matchResumeToJobFlow = ai.defineFlow(
     inputSchema: MatchResumeToJobInputSchema,
     outputSchema: MatchResumeToJobOutputSchema,
   },
-  async input => {
-    if (!input.resumeDataUri && !input.resumeText) {
-      throw new Error("Either a resume file (resumeDataUri) or resume text (resumeText) must be provided.");
+  async (input) => {
+    // If we receive a resumeUrl (gs:// path), download it from storage
+    if (input.resumeUrl && !input.resumeDataUri) {
+      try {
+        const { adminApp } = getFirebaseAdmin();
+        const bucket = adminApp.storage().bucket();
+        // The resumeUrl from Firestore doesn't include the bucket name, so we just pass the path.
+        const file = bucket.file(input.resumeUrl);
+        const [metadata] = await file.getMetadata();
+        const stream = file.createReadStream();
+        input.resumeDataUri = await streamToDataURI(stream, metadata.contentType || 'application/octet-stream');
+      } catch (e) {
+        console.error("Failed to download resume from storage:", e);
+        throw new Error(`Failed to process resume file from path: ${input.resumeUrl}`);
+      }
     }
-    const {output} = await matchResumeToJobPrompt(input);
+
+    if (!input.resumeDataUri && !input.resumeText) {
+      throw new Error("Either a resume file (resumeDataUri/resumeUrl) or resume text (resumeText) must be provided.");
+    }
+    
+    // Pass only the relevant fields to the prompt
+    const { output } = await matchResumeToJobPrompt({
+      resumeDataUri: input.resumeDataUri,
+      resumeText: input.resumeText,
+      jobDescription: input.jobDescription,
+    });
+    
     return output!;
   }
 );

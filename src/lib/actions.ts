@@ -17,18 +17,6 @@ async function fileToDataURI(file: File): Promise<string> {
   return `data:${file.type};base64,${base64}`;
 }
 
-// Helper to convert a stream from Firebase Storage to a Base64 Data URI
-async function streamToDataURI(stream: Readable, contentType: string): Promise<string> {
-  const chunks: Buffer[] = [];
-  for await (const chunk of stream) {
-    chunks.push(chunk);
-  }
-  const buffer = Buffer.concat(chunks);
-  const base64 = buffer.toString('base64');
-  return `data:${contentType};base64,${base64}`;
-}
-
-
 const ApplySchema = z.object({
   name: z.string().min(1, 'Name is required.'),
   email: z.string().email('Invalid email address.'),
@@ -174,40 +162,31 @@ export async function getMatch(prevState: MatcherState, formData: FormData) {
   }
   
   const { candidateId, jobDescription } = validatedFields.data;
-  const { firestore, adminApp } = getFirebaseAdmin();
-
+  
+  // Note: We are no longer initializing Firebase Admin here.
+  // Instead, we pass IDs and URLs directly to the Genkit flow.
+  
   try {
+    const { firestore } = getFirebaseAdmin();
     const candidateDoc = await firestore.collection('candidates').doc(candidateId).get();
+    
     if (!candidateDoc.exists) {
         return { errors: { _form: ['Selected candidate not found.'] } };
     }
     const candidate = candidateDoc.data() as Candidate;
 
-    let resumeDataUri: string | undefined;
-    let resumeText: string | undefined;
-
-    if (candidate.resumeUrl) {
-      const bucket = adminApp.storage().bucket();
-      const file = bucket.file(candidate.resumeUrl);
-      const [metadata] = await file.getMetadata();
-      const stream = file.createReadStream();
-      resumeDataUri = await streamToDataURI(stream, metadata.contentType || 'application/octet-stream');
-    } else if (candidate.resumeText) {
-      resumeText = candidate.resumeText;
-    } else {
-       return { errors: { _form: ["This candidate doesn't have a resume on file."] } };
-    }
-
     const result = await matchResumeToJob({
-      resumeDataUri,
-      resumeText,
+      // Pass the resume URL (gs:// path) or text to the flow
+      resumeUrl: candidate.resumeUrl,
+      resumeText: candidate.resumeText,
       jobDescription,
     });
 
     return { message: 'Analysis complete', result };
   } catch (error) {
     console.error('AI Matcher Error:', error);
-    return { errors: { _form: ['The AI analysis failed. This could be due to an issue with the stored resume file.'] } };
+    // Provide a more generic error to the user
+    return { errors: { _form: ['The AI analysis failed. This could be due to a configuration issue or a problem with the resume file.'] } };
   }
 }
 
