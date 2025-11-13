@@ -407,3 +407,5 @@ declare global {
     get(name: 'candidateId'): string | null;
   }
 }
+
+    
