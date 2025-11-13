@@ -24,7 +24,7 @@ service cloud.firestore {
     
     // --- INTERVIEWS ---
     match /interviews/{interviewId} {
-      allow read, write: if isAdmin();
+      allow get, list, write: if isAdmin();
     }
 
     // --- ADMIN ROLES ---
