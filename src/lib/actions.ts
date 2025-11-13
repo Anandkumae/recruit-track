@@ -3,7 +3,7 @@
 
 import { z } from 'zod';
 import { matchResumeToJob } from '@/ai/flows/ai-match-resume-to-job';
-import { getFirebaseAdmin } from '@/firebase/server-config';
+import { firestore } from '@/firebase/server-config';
 import { FieldValue } from 'firebase-admin/firestore';
 import { revalidatePath } from 'next/cache';
 import type { Job, User, Interview, Candidate, HiringStage } from '@/lib/types';
@@ -44,7 +44,7 @@ export async function applyForJob(
   prevState: ApplicationState,
   formData: FormData
 ): Promise<ApplicationState> {
-  const { firestore } = getFirebaseAdmin();
+
   const { jobId, userId } = prevState;
   
   const validatedFields = ApplySchema.safeParse({
@@ -196,7 +196,6 @@ export async function getMatch(prevState: MatcherState, formData: FormData): Pro
  */
 export async function getCandidateResumeTextAction(candidateId: string): Promise<{ resumeText?: string; error?: string; }> {
     try {
-        const { firestore } = getFirebaseAdmin();
         const doc = await firestore.collection('candidates').doc(candidateId).get();
 
         if (!doc.exists) {
@@ -248,7 +247,6 @@ export async function scheduleInterview(
   prevState: ScheduleInterviewState,
   formData: FormData
 ): Promise<ScheduleInterviewState> {
-  const { firestore } = getFirebaseAdmin();
   const { candidateId } = prevState;
   
   const validatedFields = ScheduleInterviewSchema.safeParse({
@@ -346,7 +344,6 @@ export async function rerunAiMatch(
   prevState: RerunAiMatchState,
   formData: FormData
 ): Promise<RerunAiMatchState> {
-  const { firestore } = getFirebaseAdmin();
   const validatedFields = RerunAiMatchSchema.safeParse({
     candidateId: formData.get('candidateId'),
   });
@@ -423,7 +420,6 @@ export async function updateCandidateStatus(
   prevState: UpdateCandidateStatusState,
   formData: FormData
 ): Promise<UpdateCandidateStatusState> {
-  const { firestore } = getFirebaseAdmin();
   const validatedFields = UpdateCandidateStatusSchema.safeParse({
     candidateId: formData.get('candidateId'),
     status: formData.get('status'),
@@ -455,6 +451,3 @@ export async function updateCandidateStatus(
     return { errors: { _form: ['Failed to update candidate status.'] } };
   }
 }
-    
-
-    
