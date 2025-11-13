@@ -11,132 +11,33 @@ import type { Job, User, WithId } from '@/lib/types';
 import { useFirestore, useUser } from '@/firebase';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useRouter } from 'next/navigation';
-import {
-  addDoc,
-  collection,
-  doc,
-  serverTimestamp,
-  setDoc,
-} from 'firebase/firestore';
+import { useActionState } from 'react';
+import { applyForJob, type ApplicationState } from '@/lib/actions';
 
 export function ApplyForm({ job, userProfile }: { job: WithId<Job>, userProfile: WithId<User> | null }) {
   const { user } = useUser();
   const router = useRouter();
-  const firestore = useFirestore();
 
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState('');
   const [isClient, setIsClient] = useState(false);
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
-  const [formError, setFormError] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isSuccess, setIsSuccess] = useState(false);
+
+  const initialState: ApplicationState = {
+    jobId: job.id,
+    userId: user?.uid || '',
+  };
+
+  const [state, formAction] = useActionState(applyForJob, initialState);
 
   useEffect(() => {
     setIsClient(true);
-    if (userProfile) {
-      setName(userProfile.name || '');
-      setPhone(userProfile.phone || '');
-    }
-    if (user) {
-      setEmail(user.email || '');
-    }
-  }, [user, userProfile]);
+  }, []);
 
   useEffect(() => {
-    if (isSuccess) {
-        setTimeout(() => {
-            router.push('/dashboard');
-        }, 2000);
+    if (state?.success) {
+      setTimeout(() => {
+        router.push('/dashboard');
+      }, 2000);
     }
-  }, [isSuccess, router]);
-
-  const resumeDetails = useMemo(() => {
-    return {
-      resumeText:
-        typeof userProfile?.resumeText === 'string' ? userProfile.resumeText : '',
-      resumeUrl:
-        typeof userProfile?.resumeUrl === 'string' ? userProfile.resumeUrl : undefined,
-    };
-  }, [userProfile]);
-
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-
-    const errors: Record<string, string> = {};
-    if (!name.trim()) {
-      errors.name = 'Name is required.';
-    }
-    if (!phone.trim()) {
-      errors.phone = 'Phone number is required.';
-    }
-
-    if (Object.keys(errors).length > 0) {
-      setFieldErrors(errors);
-      return;
-    }
-
-    if (!user || !firestore) {
-      setFormError('You must be signed in to submit an application.');
-      return;
-    }
-
-    try {
-      setIsSubmitting(true);
-      setFieldErrors({});
-      setFormError(null);
-
-      const userDocRef = doc(firestore, 'users', user.uid);
-      const userUpdates: Record<string, unknown> = {
-        name,
-        phone,
-      };
-
-      if (resumeDetails.resumeText) {
-        userUpdates.resumeText = resumeDetails.resumeText;
-      }
-
-      if (resumeDetails.resumeUrl) {
-        userUpdates.resumeUrl = resumeDetails.resumeUrl;
-      }
-
-      await setDoc(userDocRef, userUpdates, { merge: true });
-
-      const candidateData: Record<string, unknown> = {
-        name,
-        email,
-        phone,
-        jobAppliedFor: job.id,
-        status: 'Applied',
-        appliedAt: serverTimestamp(),
-        userId: user.uid,
-        avatarUrl: `https://picsum.photos/seed/${user.uid}/100/100`,
-        matchScore: null,
-        matchReasoning: 'Resume analysis pending',
-        skills: [],
-      };
-
-      if (resumeDetails.resumeText) {
-        candidateData.resumeText = resumeDetails.resumeText;
-      }
-
-      if (resumeDetails.resumeUrl) {
-        candidateData.resumeUrl = resumeDetails.resumeUrl;
-      }
-
-      await addDoc(collection(firestore, 'candidates'), candidateData);
-
-      setIsSuccess(true);
-    } catch (error) {
-      console.error('Application submission failed:', error);
-      setFormError(
-        'We were unable to submit your application. Please try again or contact support.',
-      );
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+  }, [state?.success, router]);
 
   if (!isClient) {
     return (
@@ -146,7 +47,7 @@ export function ApplyForm({ job, userProfile }: { job: WithId<Job>, userProfile:
     );
   }
 
-  if (isSuccess) {
+  if (state.success) {
     return (
       <Card>
         <CardHeader className="items-center text-center">
@@ -176,19 +77,23 @@ export function ApplyForm({ job, userProfile }: { job: WithId<Job>, userProfile:
           </AlertDescription>
         </Alert>
 
-        <form className="space-y-4" onSubmit={handleSubmit}>
+        <form action={formAction} className="space-y-4 pt-4">
+          {/* Hidden fields to pass necessary data to the server action */}
+          <input type="hidden" name="resumeText" value={userProfile?.resumeText || ''} />
+          <input type="hidden" name="resumeUrl" value={userProfile?.resumeUrl || ''} />
+          <input type="hidden" name="avatarUrl" value={userProfile?.avatarUrl || ''} />
+
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="name">Full Name</Label>
               <Input
                 id="name"
                 name="name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
+                defaultValue={userProfile?.name || ''}
                 required
               />
-              {fieldErrors.name && (
-                <p className="text-sm text-destructive">{fieldErrors.name}</p>
+              {state.errors?.name && (
+                <p className="text-sm text-destructive">{state.errors.name[0]}</p>
               )}
             </div>
             <div className="space-y-2">
@@ -197,7 +102,7 @@ export function ApplyForm({ job, userProfile }: { job: WithId<Job>, userProfile:
                 id="email"
                 name="email"
                 type="email"
-                value={email}
+                defaultValue={user?.email || ''}
                 readOnly
                 disabled
               />
@@ -209,38 +114,28 @@ export function ApplyForm({ job, userProfile }: { job: WithId<Job>, userProfile:
               <Input
                 id="phone"
                 name="phone"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
+                defaultValue={userProfile?.phone || ''}
                 required
               />
-               {fieldErrors.phone && (
-                <p className="text-sm text-destructive">{fieldErrors.phone}</p>
+               {state.errors?.phone && (
+                <p className="text-sm text-destructive">{state.errors.phone[0]}</p>
               )}
             </div>
           
-          {formError && (
+          {state.errors?._form && (
             <Alert variant="destructive">
               <AlertTitle>Submission Error</AlertTitle>
-              <AlertDescription>{formError}</AlertDescription>
+              <AlertDescription>{state.errors._form[0]}</AlertDescription>
             </Alert>
           )}
           
           <Button
             type="submit"
             className="w-full"
-            disabled={isSubmitting}
+            disabled={state.success}
           >
-            {isSubmitting ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Submitting...
-              </>
-            ) : (
-              <>
-                <Send className="mr-2 h-4 w-4" /> Submit Application
-              </>
-            )}
+            <Send className="mr-2 h-4 w-4" /> Submit Application
           </Button>
-
         </form>
       </CardContent>
     </Card>
