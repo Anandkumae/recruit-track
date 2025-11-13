@@ -3,11 +3,55 @@
 
 import { z } from 'zod';
 import { matchResumeToJob } from '@/ai/flows/ai-match-resume-to-job';
-import { getFirestoreAdmin } from '@/firebase/server-config';
-import { FieldValue } from 'firebase-admin/firestore';
 import { revalidatePath } from 'next/cache';
 import type { Job, User, Interview, Candidate, HiringStage } from '@/lib/types';
 import { Readable } from 'stream';
+import * as admin from 'firebase-admin';
+
+// --- Firebase Admin SDK Initialization ---
+// This logic is now self-contained within the server actions file.
+
+let firestore: admin.firestore.Firestore;
+
+/**
+ * Initializes the Firebase Admin SDK and returns a Firestore instance.
+ * Ensures that initialization only happens once (singleton pattern).
+ */
+function getFirestoreAdmin() {
+  if (firestore) {
+    return firestore;
+  }
+
+  if (admin.apps.length === 0) {
+    try {
+      const serviceAccount = {
+        projectId: process.env.FIREBASE_PROJECT_ID,
+        clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+        // Crucially, replace the escaped newlines with actual newlines
+        privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+      };
+
+      if (!serviceAccount.projectId || !serviceAccount.clientEmail || !serviceAccount.privateKey) {
+        throw new Error('Firebase service account credentials are not fully set in environment variables.');
+      }
+
+      admin.initializeApp({
+        credential: admin.credential.cert(serviceAccount),
+        storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
+      });
+
+    } catch (error: any) {
+      console.error('Firebase Admin SDK initialization failed:', error);
+      throw new Error(
+        'Firebase Admin SDK could not be initialized. Check your service account credentials.'
+      );
+    }
+  }
+
+  firestore = admin.firestore();
+  return firestore;
+}
+
 
 // Helper to convert a file to a Base64 Data URI
 async function fileToDataURI(file: File): Promise<string> {
@@ -115,7 +159,7 @@ export async function applyForJob(
       phone,
       jobAppliedFor: jobId,
       status: 'Applied' as const,
-      appliedAt: FieldValue.serverTimestamp(),
+      appliedAt: admin.firestore.FieldValue.serverTimestamp(),
       userId,
       matchScore: matchResult.matchScore,
       matchReasoning: matchResult.reasoning,
