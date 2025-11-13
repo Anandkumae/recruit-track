@@ -466,35 +466,68 @@ export default function CandidateDetailsPage() {
         return doc(firestore, 'candidates', id);
     }, [firestore, id]);
 
-    const { data: candidate, isLoading: candidateLoading } = useDoc<WithId<Candidate>>(candidateRef);
+    const { data: candidate, isLoading: candidateLoading, error: candidateError } = useDoc<WithId<Candidate>>(candidateRef);
     
     const jobRef = useMemoFirebase(() => {
         if (!firestore || !candidate?.jobAppliedFor) return null;
         return doc(firestore, 'jobs', candidate.jobAppliedFor);
     }, [firestore, candidate?.jobAppliedFor]);
 
-    const { data: job, isLoading: jobLoading } = useDoc<WithId<Job>>(jobRef);
+    const { data: job, isLoading: jobLoading, error: jobError } = useDoc<WithId<Job>>(jobRef);
 
     // This is the main loading gate. It prevents rendering until the essential data is ready.
     const isLoading = candidateLoading || (candidate && !job && jobLoading);
-    if (isLoading) {
-        return (
-            <div className="flex h-full w-full items-center justify-center">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                <span className="sr-only">Loading candidate details...</span>
-            </div>
-        );
-    }
     
-    // If loading is finished and there's still no candidate, it means it wasn't found.
-    // This prevents the view from trying to render with null data.
-    if (!candidate) {
-         // This state can be reached on the client after loading finishes.
-        notFound();
-        return null; // Return null to prevent further rendering before notFound() takes effect.
-    }
+    // --- DEBUGGING OUTPUT ---
+    return (
+        <div style={{ fontFamily: 'monospace', padding: '2rem', whiteSpace: 'pre-wrap' }}>
+            <h1>Debugging CandidateDetailsPage</h1>
+            <hr />
+            <h2>URL Params:</h2>
+            <p>ID: {id || 'Not available'}</p>
+            
+            <hr />
+            <h2>Firebase State:</h2>
+            <p>Firestore available: {String(!!firestore)}</p>
 
-    return <CandidateDetailsView candidate={candidate} job={job || null} />;
+            <hr />
+            <h2>Candidate Data:</h2>
+            <p>Loading: {String(candidateLoading)}</p>
+            <p>Error: {candidateError ? JSON.stringify(candidateError, null, 2) : 'null'}</p>
+            <p>Data: {candidate ? JSON.stringify(candidate, null, 2) : 'null'}</p>
+
+            <hr />
+            <h2>Job Data:</h2>
+            <p>Job ID from candidate: {candidate?.jobAppliedFor || 'N/A'}</p>
+            <p>Loading: {String(jobLoading)}</p>
+            <p>Error: {jobError ? JSON.stringify(jobError, null, 2) : 'null'}</p>
+            <p>Data: {job ? JSON.stringify(job, null, 2) : 'null'}</p>
+            <hr />
+
+            <h2>Render Logic:</h2>
+            <p>Combined loading state (isLoading): {String(isLoading)}</p>
+            
+            {isLoading ? (
+                <div style={{ border: '2px dashed blue', padding: '1rem', marginTop: '1rem' }}>
+                    <h2>Rendering Loader...</h2>
+                    <div className="flex h-full w-full items-center justify-center">
+                        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                        <span className="sr-only">Loading candidate details...</span>
+                    </div>
+                </div>
+            ) : !candidate ? (
+                <div style={{ border: '2px dashed red', padding: '1rem', marginTop: '1rem' }}>
+                    <h2>Would render notFound()</h2>
+                    <p>Candidate data is null after loading is complete.</p>
+                </div>
+            ) : (
+                <div style={{ border: '2px dashed green', padding: '1rem', marginTop: '1rem' }}>
+                    <h2>Rendering CandidateDetailsView...</h2>
+                    <CandidateDetailsView candidate={candidate} job={job || null} />
+                </div>
+            )}
+        </div>
+    );
 }
 
     
