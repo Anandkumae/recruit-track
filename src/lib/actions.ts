@@ -155,7 +155,7 @@ const MatcherSchema = z.object({
     ),
   jobDescription: z
     .string()
-    .min(50, 'Job description must be at least 50 characters long.'),
+    .min(10, 'Job description must be at least 10 characters long.'),
 });
 
 export async function getMatch(prevState: MatcherState, formData: FormData) {
