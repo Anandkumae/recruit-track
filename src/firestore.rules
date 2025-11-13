@@ -1,0 +1,78 @@
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // --- USERS ---
+    match /users/{userId} {
+      allow get: if isSignedIn();
+      allow list: if false;
+      allow create: if isOwner(userId) && request.resource.data.id == userId;
+      allow update: if isOwner(userId) && request.resource.data.id.size() > 0;
+      allow delete: if isOwner(userId);
+    }
+
+    // --- JOBS ---
+    match /jobs/{jobId} {
+      allow get, list: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    // --- CANDIDATES ---
+    match /candidates/{candidateId} {
+      allow get, list, create, update, delete: if isSignedIn();
+    }
+    
+    // --- INTERVIEWS ---
+    match /interviews/{interviewId} {
+      allow get, write: if isAdmin() || (isSignedIn() && resource.data.candidateId == request.auth.uid);
+      allow list: if isAdmin();
+    }
+
+    // --- ADMIN ROLES ---
+    match /roles_admin/{userId} {
+      allow get: if true;
+      allow list: if false;
+      allow create, delete: if isAdmin();
+      allow update: if false;
+    }
+
+
+    // --- Helper Functions ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isSignedIn() &&
+        (exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid))
+        || request.auth.token.email == "anandkumar.shinnovationco@gmail.com");
+    }
+    
+    function isHR() {
+      // (Optional) Replace with real HR check logic
+      return false;
+    }
+    
+    function isManager() {
+      // (Optional) Replace with real Manager check logic
+      return false;
+    }
+  }
+}
+
+// --- STORAGE RULES ---
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /resumes/{allPaths=**} {
+      allow read, write: if request.auth != null;
+    }
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

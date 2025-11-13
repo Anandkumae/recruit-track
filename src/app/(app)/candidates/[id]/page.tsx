@@ -2,8 +2,8 @@
 'use client';
 
 import { useDoc, useFirestore, useMemoFirebase, useFirebase, useUser, useCollection } from "@/firebase";
-import type { Candidate, Job, User, WithId } from "@/lib/types";
-import { notFound, useParams, useRouter } from "next/navigation";
+import type { Candidate, Job, WithId } from "@/lib/types";
+import { notFound, useParams } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
@@ -94,12 +94,10 @@ function InterviewSchedulingSection({ candidateId, candidateName, jobTitle }: { 
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [state, formAction] = useActionState<ScheduleInterviewState, FormData>(scheduleInterview, { candidateId });
 
-    // Fetch existing interviews for this candidate
     // Only query if user is admin and we have a valid candidateId
     const isAdminUser = user?.email === 'anandkumar.shinnovationco@gmail.com';
     const interviewsQuery = useMemoFirebase(() => {
-        if (!firestore || !candidateId || !candidateId.trim()) return null;
-        if (!isAdminUser) return null; // Only admins can see interviews
+        if (!firestore || !candidateId || !isAdminUser) return null;
         return query(
             collection(firestore, 'interviews'),
             where('candidateId', '==', candidateId),
@@ -107,11 +105,10 @@ function InterviewSchedulingSection({ candidateId, candidateName, jobTitle }: { 
         );
     }, [firestore, candidateId, isAdminUser]);
 
-    // Define Interview type locally since it was removed from types.ts
     type Interview = {
         id: string;
         candidateId: string;
-        scheduledAt: any; // Can be Timestamp or Date
+        scheduledAt: any;
         location?: string;
         meetingLink?: string;
         notes?: string;
@@ -130,13 +127,13 @@ function InterviewSchedulingSection({ candidateId, candidateName, jobTitle }: { 
         }
     };
 
-    if (!isAdminUser) return null;
-
     useEffect(() => {
         if (state?.success) {
             setIsDialogOpen(false);
         }
     }, [state?.success]);
+    
+    if (!isAdminUser) return null;
 
     return (
         <Card>
@@ -409,7 +406,7 @@ function CandidateDetailsView({ candidate, job }: { candidate: WithId<Candidate>
                              )}
                         </CardContent>
                     </Card>
-
+                    
                     {user?.email === 'anandkumar.shinnovationco@gmail.com' && (
                         <InterviewSchedulingSection
                             candidateId={candidate.id}
@@ -438,7 +435,7 @@ function CandidateDetailsView({ candidate, job }: { candidate: WithId<Candidate>
                             </div>
                              <div className="flex items-center gap-2">
                                 <CheckCircle className="h-4 w-4 text-muted-foreground" />
-                                 <Badge className={cn("border-transparent", statusColors[candidate.status])}>
+                                 <Badge className={cn("border-transparent", statusColors[candidate.status as HiringStage])}>
                                     {candidate.status}
                                 </Badge>
                             </div>
@@ -475,59 +472,22 @@ export default function CandidateDetailsPage() {
 
     const { data: job, isLoading: jobLoading, error: jobError } = useDoc<WithId<Job>>(jobRef);
 
-    // This is the main loading gate. It prevents rendering until the essential data is ready.
     const isLoading = candidateLoading || (candidate && !job && jobLoading);
     
-    // --- DEBUGGING OUTPUT ---
+    if (isLoading) {
+        return (
+            <div className="flex h-full w-full items-center justify-center">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <span className="sr-only">Loading candidate details...</span>
+            </div>
+        );
+    }
+    
+    if (!candidate) {
+        notFound();
+    }
+
     return (
-        <div style={{ fontFamily: 'monospace', padding: '2rem', whiteSpace: 'pre-wrap' }}>
-            <h1>Debugging CandidateDetailsPage</h1>
-            <hr />
-            <h2>URL Params:</h2>
-            <p>ID: {id || 'Not available'}</p>
-            
-            <hr />
-            <h2>Firebase State:</h2>
-            <p>Firestore available: {String(!!firestore)}</p>
-
-            <hr />
-            <h2>Candidate Data:</h2>
-            <p>Loading: {String(candidateLoading)}</p>
-            <p>Error: {candidateError ? JSON.stringify(candidateError, null, 2) : 'null'}</p>
-            <p>Data: {candidate ? JSON.stringify(candidate, null, 2) : 'null'}</p>
-
-            <hr />
-            <h2>Job Data:</h2>
-            <p>Job ID from candidate: {candidate?.jobAppliedFor || 'N/A'}</p>
-            <p>Loading: {String(jobLoading)}</p>
-            <p>Error: {jobError ? JSON.stringify(jobError, null, 2) : 'null'}</p>
-            <p>Data: {job ? JSON.stringify(job, null, 2) : 'null'}</p>
-            <hr />
-
-            <h2>Render Logic:</h2>
-            <p>Combined loading state (isLoading): {String(isLoading)}</p>
-            
-            {isLoading ? (
-                <div style={{ border: '2px dashed blue', padding: '1rem', marginTop: '1rem' }}>
-                    <h2>Rendering Loader...</h2>
-                    <div className="flex h-full w-full items-center justify-center">
-                        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                        <span className="sr-only">Loading candidate details...</span>
-                    </div>
-                </div>
-            ) : !candidate ? (
-                <div style={{ border: '2px dashed red', padding: '1rem', marginTop: '1rem' }}>
-                    <h2>Would render notFound()</h2>
-                    <p>Candidate data is null after loading is complete.</p>
-                </div>
-            ) : (
-                <div style={{ border: '2px dashed green', padding: '1rem', marginTop: '1rem' }}>
-                    <h2>Rendering CandidateDetailsView...</h2>
-                    <CandidateDetailsView candidate={candidate} job={job || null} />
-                </div>
-            )}
-        </div>
+        <CandidateDetailsView candidate={candidate} job={job || null} />
     );
 }
-
-    
