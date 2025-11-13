@@ -346,14 +346,15 @@ export default function CandidateDetailsPage() {
         }
     }
     
+    // Refined loading state: waits for candidate to load, and if candidate exists, waits for job to load.
     const isLoading = candidateLoading || (candidate && jobLoading);
 
     useEffect(() => {
         // If there's an error loading the candidate or candidate doesn't exist after loading
-        if (!isLoading && (!candidate || candidateError)) {
+        if (!candidateLoading && !candidate) {
             notFound();
         }
-    }, [candidate, candidateError, isLoading]);
+    }, [candidate, candidateLoading]);
 
     if (isLoading) {
         return (
@@ -364,18 +365,13 @@ export default function CandidateDetailsPage() {
         );
     }
 
+    // Now we can be sure candidate is not null if we passed the loading check and the notFound() effect
     if (!candidate) {
+         // This is a fallback for the server-side, and for the brief moment before the useEffect runs on the client.
         return (
-            <div className="flex flex-col items-center justify-center h-[60vh] space-y-4">
-                <FileText className="h-16 w-16 text-muted-foreground" />
-                <h2 className="text-2xl font-semibold">Candidate Not Found</h2>
-                <p className="text-muted-foreground">The requested candidate could not be found.</p>
-                <Button asChild>
-                    <Link href="/candidates">
-                        <ArrowLeft className="mr-2 h-4 w-4" />
-                        Back to Candidates
-                    </Link>
-                </Button>
+            <div className="flex h-full w-full items-center justify-center">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <span className="sr-only">Loading candidate details...</span>
             </div>
         );
     }
@@ -509,5 +505,3 @@ export default function CandidateDetailsPage() {
         </div>
     )
 }
-
-    
