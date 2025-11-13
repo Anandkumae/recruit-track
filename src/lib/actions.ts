@@ -82,17 +82,15 @@ export async function applyForJob(
 
     let matchResult = { matchScore: 0, reasoning: 'AI analysis could not be performed.' };
     
-    // Resume text is now optional, as it might come from a file in other contexts.
     const resumeContent = resumeText; 
 
     if (
       resumeContent &&
-      resumeContent.length > 100 &&
-      jobDescription.length > 100
+      resumeContent.length > 10 &&
+      jobDescription.length > 10
     ) {
         try {
             matchResult = await matchResumeToJob({
-                resumeDataUri: '', // Not using file for this flow
                 resumeText: resumeContent,
                 jobDescription,
             });
@@ -176,7 +174,6 @@ export async function getMatch(prevState: MatcherState, formData: FormData) {
     const result = await matchResumeToJob({
       resumeDataUri,
       jobDescription: validatedFields.data.jobDescription,
-      resumeText: '', // Text is now extracted by the AI
     });
 
     return { message: 'Analysis complete', result };
@@ -293,4 +290,77 @@ export async function scheduleInterview(
   }
   
   return { ...prevState, success: true, errors: {} };
+}
+
+
+const RerunAiMatchSchema = z.object({
+  candidateId: z.string().min(1, 'Candidate ID is required'),
+});
+
+export type RerunAiMatchState = {
+  success?: boolean;
+  message?: string;
+  errors?: {
+    _form?: string[];
+  };
+};
+
+export async function rerunAiMatch(
+  prevState: RerunAiMatchState,
+  formData: FormData
+): Promise<RerunAiMatchState> {
+  const { firestore } = getFirebaseAdmin();
+  const validatedFields = RerunAiMatchSchema.safeParse({
+    candidateId: formData.get('candidateId'),
+  });
+
+  if (!validatedFields.success) {
+    return { errors: { _form: ['Invalid candidate ID.'] } };
+  }
+  
+  const { candidateId } = validatedFields.data;
+
+  try {
+    const candidateRef = firestore.collection('candidates').doc(candidateId);
+    const candidateDoc = await candidateRef.get();
+
+    if (!candidateDoc.exists) {
+      return { errors: { _form: ['Candidate not found.'] } };
+    }
+    
+    const candidate = candidateDoc.data() as Candidate;
+    
+    const jobRef = firestore.collection('jobs').doc(candidate.jobAppliedFor);
+    const jobDoc = await jobRef.get();
+    
+    if (!jobDoc.exists) {
+      return { errors: { _form: ['Associated job not found.'] } };
+    }
+    
+    const job = jobDoc.data() as Job;
+
+    const resumeContent = candidate.resumeText;
+    const jobDescription = job.description;
+
+    if (!resumeContent || resumeContent.length < 10 || !jobDescription || jobDescription.length < 10) {
+      return { errors: { _form: ['Not enough resume or job description text to perform analysis.'] } };
+    }
+    
+    const matchResult = await matchResumeToJob({
+      resumeText: resumeContent,
+      jobDescription,
+    });
+    
+    await candidateRef.update({
+      matchScore: matchResult.matchScore,
+      matchReasoning: matchResult.reasoning,
+    });
+    
+    revalidatePath(`/candidates/${candidateId}`);
+    return { success: true, message: 'AI analysis has been updated.' };
+
+  } catch (error) {
+    console.error('AI Re-match Error:', error);
+    return { errors: { _form: ['An unexpected error occurred while re-running the analysis.'] } };
+  }
 }

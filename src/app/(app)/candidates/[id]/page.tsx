@@ -25,6 +25,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useActionState } from 'react';
+import { RerunAnalysis } from '@/components/candidates/rerun-analysis';
 
 const getInitials = (name: string) => {
     return name ? name.split(' ').map(n => n[0]).join('') : '';
@@ -346,11 +347,16 @@ function CandidateDetailsView({ candidate, job }: { candidate: WithId<Candidate>
             <div className="grid gap-8 md:grid-cols-3">
                 <div className="md:col-span-2 space-y-6">
                      <Card>
-                        <CardHeader>
-                            <CardTitle>AI Match Analysis</CardTitle>
-                             <CardDescription>
-                                AI analysis of the candidate's resume against the job description.
-                            </CardDescription>
+                        <CardHeader className="flex flex-row items-center justify-between">
+                            <div>
+                                <CardTitle>AI Match Analysis</CardTitle>
+                                <CardDescription>
+                                    AI analysis of the candidate's resume against the job description.
+                                </CardDescription>
+                            </div>
+                            {user?.email === 'anandkumar.shinnovationco@gmail.com' && (
+                               <RerunAnalysis candidateId={candidate.id} />
+                            )}
                         </CardHeader>
                         <CardContent className="space-y-4">
                              <div>
