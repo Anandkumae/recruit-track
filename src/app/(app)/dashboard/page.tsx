@@ -1,17 +1,16 @@
+
 'use client';
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { StatCard } from '@/components/dashboard/stat-card';
 import { OverviewChart } from '@/components/dashboard/overview-chart';
 import { Briefcase, Users, UserCheck, FileText, Clock, CheckCircle, Loader2 } from 'lucide-react';
 import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase } from '@/firebase';
-import { collection, query, where } from 'firebase/firestore';
+import { collection, query, where, orderBy, limit } from 'firebase/firestore';
 import type { Role, WithId, Candidate, Job } from '@/lib/types';
 import { doc } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { format } from 'date-fns';
-import Link from 'next/link';
+import { RecentApplicantsTable } from '@/components/dashboard/recent-applicants-table';
 
 export default function DashboardPage() {
   const { user, isUserLoading } = useUser();
@@ -38,22 +37,34 @@ export default function DashboardPage() {
     if (!firestore || !isPrivilegedUser) return null;
     return collection(firestore, 'jobs');
   }, [firestore, isPrivilegedUser]);
-  const { data: jobs, isLoading: jobsLoading } = useCollection<Job>(jobsQuery);
+  const { data: jobs, isLoading: jobsLoading } = useCollection<WithId<Job>>(jobsQuery);
 
-  const candidatesQuery = useMemoFirebase(() => {
+  const allCandidatesQuery = useMemoFirebase(() => {
     if (!firestore || !isPrivilegedUser) return null;
     return collection(firestore, 'candidates');
   }, [firestore, isPrivilegedUser]);
-  const { data: candidates, isLoading: candidatesLoading } = useCollection<Candidate>(candidatesQuery);
+  const { data: allCandidates, isLoading: allCandidatesLoading } = useCollection<WithId<Candidate>>(allCandidatesQuery);
+
+  const recentCandidatesQuery = useMemoFirebase(() => {
+    if (!firestore || !isPrivilegedUser) return null;
+    return query(collection(firestore, 'candidates'), orderBy('appliedAt', 'desc'), limit(5));
+  }, [firestore, isPrivilegedUser]);
+  const { data: recentCandidates, isLoading: recentCandidatesLoading } = useCollection<WithId<Candidate>>(recentCandidatesQuery);
 
   // --- Data Fetching for Candidate ---
   const candidateApplicationsQuery = useMemoFirebase(() => {
     if (!firestore || !user || isPrivilegedUser) return null;
     return query(collection(firestore, 'candidates'), where('userId', '==', user.uid));
   }, [firestore, user, isPrivilegedUser]);
-  const { data: candidateApplications, isLoading: candidateAppsLoading } = useCollection<Candidate>(candidateApplicationsQuery);
+  const { data: candidateApplications, isLoading: candidateAppsLoading } = useCollection<WithId<Candidate>>(candidateApplicationsQuery);
 
-  const isLoading = isUserLoading || isProfileLoading || (isPrivilegedUser && (jobsLoading || candidatesLoading)) || (!isPrivilegedUser && candidateAppsLoading);
+  const jobsMap = useMemo(() => {
+    if (!jobs) return new Map<string, string>();
+    return new Map(jobs.map(job => [job.id, job.title]));
+  }, [jobs]);
+
+
+  const isLoading = isUserLoading || isProfileLoading || (isPrivilegedUser && (jobsLoading || allCandidatesLoading || recentCandidatesLoading)) || (!isPrivilegedUser && candidateAppsLoading);
 
   if (isLoading) {
     return (
@@ -65,9 +76,9 @@ export default function DashboardPage() {
 
   // --- Admin Dashboard Stats ---
   const totalJobs = jobs?.length || 0;
-  const totalCandidates = candidates?.length || 0;
-  const hiredCandidates = candidates?.filter(c => c.status === 'Hired').length || 0;
-  const shortlistedCandidates = candidates?.filter(c => c.status === 'Shortlisted').length || 0;
+  const totalCandidates = allCandidates?.length || 0;
+  const hiredCandidates = allCandidates?.filter(c => c.status === 'Hired').length || 0;
+  const shortlistedCandidates = allCandidates?.filter(c => c.status === 'Shortlisted').length || 0;
 
   // --- Candidate Dashboard Stats ---
   const applicationsSent = candidateApplications?.length || 0;
@@ -113,8 +124,21 @@ export default function DashboardPage() {
               description="Successful hires this cycle."
             />
           </div>
-          <div className="grid grid-cols-1 gap-8">
-            <OverviewChart candidates={candidates || []} />
+          <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
+             <div className="lg:col-span-2">
+                <OverviewChart candidates={allCandidates || []} />
+             </div>
+             <div className="lg:col-span-1">
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Recent Applicants</CardTitle>
+                        <CardDescription>The latest 5 candidates who applied.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                       <RecentApplicantsTable candidates={recentCandidates || []} jobsMap={jobsMap} />
+                    </CardContent>
+                </Card>
+             </div>
           </div>
         </div>
       ) : (

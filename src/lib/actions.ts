@@ -6,7 +6,7 @@ import { matchResumeToJob } from '@/ai/flows/ai-match-resume-to-job';
 import { getFirebaseAdmin } from '@/firebase/server-config';
 import { FieldValue } from 'firebase-admin/firestore';
 import { revalidatePath } from 'next/cache';
-import type { Job, User, Interview, Candidate } from '@/lib/types';
+import type { Job, User, Interview, Candidate, HiringStage } from '@/lib/types';
 import { Readable } from 'stream';
 
 // Helper to convert a file to a Base64 Data URI
@@ -377,18 +377,18 @@ export async function rerunAiMatch(
       return { errors: { _form: ['Not enough resume or job description text to perform analysis.'] } };
     }
     
-    const matchResult = await matchResumeToJob({
-        jobDescription,
-        photoDataUri: `data:text/plain;base64,${Buffer.from(resumeContent).toString('base64')}`
+    const result = await matchResumeToJob({
+      jobDescription,
+      photoDataUri: `data:image/png;base64,${Buffer.from(resumeContent).toString('base64')}`
     });
     
-    if(!matchResult) {
+    if(!result) {
         return { errors: { _form: ['AI analysis returned no result.'] } };
     }
     
     await candidateRef.update({
-      matchScore: matchResult.matchScore,
-      matchReasoning: matchResult.reasoning,
+      matchScore: result.matchScore,
+      matchReasoning: result.reasoning,
     });
     
     revalidatePath(`/candidates/${candidateId}`);
@@ -397,6 +397,56 @@ export async function rerunAiMatch(
   } catch (error) {
     console.error('AI Re-match Error:', error);
     return { errors: { _form: ['An unexpected error occurred while re-running the analysis.'] } };
+  }
+}
+
+const UpdateCandidateStatusSchema = z.object({
+  candidateId: z.string().min(1, 'Candidate ID is required.'),
+  status: z.enum(['Applied', 'Shortlisted', 'Interviewed', 'Hired', 'Rejected']),
+});
+
+export type UpdateCandidateStatusState = {
+  success?: boolean;
+  message?: string;
+  errors?: {
+    _form?: string[];
+  };
+};
+
+export async function updateCandidateStatus(
+  prevState: UpdateCandidateStatusState,
+  formData: FormData
+): Promise<UpdateCandidateStatusState> {
+  const { firestore } = getFirebaseAdmin();
+  const validatedFields = UpdateCandidateStatusSchema.safeParse({
+    candidateId: formData.get('candidateId'),
+    status: formData.get('status'),
+  });
+
+  if (!validatedFields.success) {
+    return { errors: { _form: ['Invalid data provided.'] } };
+  }
+
+  const { candidateId, status } = validatedFields.data;
+
+  try {
+    const candidateRef = firestore.collection('candidates').doc(candidateId);
+    const candidateDoc = await candidateRef.get();
+
+    if (!candidateDoc.exists) {
+      return { errors: { _form: ['Candidate not found.'] } };
+    }
+
+    await candidateRef.update({ status: status });
+
+    revalidatePath('/dashboard');
+    revalidatePath('/candidates');
+    revalidatePath(`/candidates/${candidateId}`);
+
+    return { success: true, message: `Candidate has been ${status.toLowerCase()}.` };
+  } catch (error) {
+    console.error('Update Candidate Status Error:', error);
+    return { errors: { _form: ['Failed to update candidate status.'] } };
   }
 }
     

@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from 'recharts';
@@ -8,15 +9,15 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import type { HiringStage, Candidate } from '@/lib/types';
+import type { HiringStage, Candidate, WithId } from '@/lib/types';
 
 const stageOrder: HiringStage[] = ['Applied', 'Shortlisted', 'Interviewed', 'Hired', 'Rejected'];
 
 interface OverviewChartProps {
-    candidates: Candidate[];
+    candidates: WithId<Candidate>[];
 }
 
-const getHiringStageData = (candidates: Candidate[]) => {
+const getHiringStageData = (candidates: WithId<Candidate>[]) => {
     const stageCounts = candidates.reduce((acc, candidate) => {
         const status = candidate.status || 'Applied';
         acc[status] = (acc[status] || 0) + 1;
@@ -34,7 +35,7 @@ export function OverviewChart({ candidates }: OverviewChartProps) {
     const data = getHiringStageData(candidates);
 
   return (
-    <Card>
+    <Card className="h-full">
       <CardHeader>
         <CardTitle>Candidate Pipeline</CardTitle>
         <CardDescription>
