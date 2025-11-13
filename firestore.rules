@@ -1,3 +1,4 @@
+
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -19,7 +20,8 @@ service cloud.firestore {
 
     // --- CANDIDATES ---
     match /candidates/{candidateId} {
-      allow get, list, create, update, delete: if isSignedIn();
+      allow get, list, create: if isSignedIn();
+      allow update, delete: if isAdmin();
     }
     
     // --- INTERVIEWS ---
