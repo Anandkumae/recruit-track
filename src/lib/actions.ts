@@ -5,54 +5,53 @@ import { z } from 'zod';
 import { matchResumeToJob } from '@/ai/flows/ai-match-resume-to-job';
 import { revalidatePath } from 'next/cache';
 import type { Job, User, Interview, Candidate, HiringStage } from '@/lib/types';
-import { Readable } from 'stream';
 import * as admin from 'firebase-admin';
 
-// --- Firebase Admin SDK Initialization ---
-// This logic is now self-contained and memoized within this server actions file.
+// --- Firebase Admin SDK Singleton ---
+// This ensures we only initialize the app once, and on the first demand.
 
 let adminDb: admin.firestore.Firestore;
 
 /**
- * Initializes the Firebase Admin SDK and returns a Firestore instance.
- * Ensures that initialization only happens once (singleton pattern).
+ * Initializes the Firebase Admin SDK if it hasn't been already and returns 
+ * the Firestore instance. This "lazy initialization" is the standard pattern
+ * for Next.js server environments to ensure credentials are ready.
  */
-function initializeAdminApp() {
-    if (admin.apps.length > 0) {
-        if (!adminDb) {
-            adminDb = admin.firestore();
-        }
-        return;
+function getDb(): admin.firestore.Firestore {
+    if (adminDb) {
+        return adminDb;
     }
 
-    try {
-        const serviceAccount = {
-            projectId: process.env.FIREBASE_PROJECT_ID,
-            clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-            privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-        };
+    if (admin.apps.length === 0) {
+        try {
+            const serviceAccount = {
+                projectId: process.env.FIREBASE_PROJECT_ID,
+                clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+                // Crucially, replace the escaped newlines with actual newlines
+                privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+            };
 
-        if (!serviceAccount.projectId || !serviceAccount.clientEmail || !serviceAccount.privateKey) {
-            throw new Error('Firebase service account credentials are not fully set in environment variables.');
+            if (!serviceAccount.projectId || !serviceAccount.clientEmail || !serviceAccount.privateKey) {
+                throw new Error('Firebase service account credentials are not fully set in environment variables.');
+            }
+            
+            admin.initializeApp({
+                credential: admin.credential.cert(serviceAccount),
+                storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
+            });
+
+        } catch (error: any) {
+            console.error('Firebase Admin SDK initialization failed:', error);
+            throw new Error(
+                'Firebase Admin SDK could not be initialized. Check your service account credentials.'
+            );
         }
-
-        admin.initializeApp({
-            credential: admin.credential.cert(serviceAccount),
-            storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
-        });
-
-        adminDb = admin.firestore();
-
-    } catch (error: any) {
-        console.error('Firebase Admin SDK initialization failed:', error);
-        throw new Error(
-            'Firebase Admin SDK could not be initialized. Check your service account credentials.'
-        );
     }
+
+    adminDb = admin.firestore();
+    return adminDb;
 }
 
-// Call initialization logic at the module level
-initializeAdminApp();
 
 // Helper to convert a file to a Base64 Data URI
 async function fileToDataURI(file: File): Promise<string> {
@@ -90,6 +89,7 @@ export async function applyForJob(
   formData: FormData
 ): Promise<ApplicationState> {
 
+  const db = getDb();
   const { jobId, userId } = prevState;
   
   const validatedFields = ApplySchema.safeParse({
@@ -113,7 +113,7 @@ export async function applyForJob(
   const { name, email, phone, resumeText, resumeUrl, avatarUrl } = validatedFields.data;
 
   try {
-    const jobDoc = await adminDb.collection('jobs').doc(jobId).get();
+    const jobDoc = await db.collection('jobs').doc(jobId).get();
     if (!jobDoc.exists) {
         return { ...prevState, errors: { _form: ['The job you are applying for no longer exists.'] } };
     }
@@ -121,7 +121,7 @@ export async function applyForJob(
     const jobDescription = jobData?.description || '';
 
     // Update user's contact information
-    const userDocRef = adminDb.collection('users').doc(userId);
+    const userDocRef = db.collection('users').doc(userId);
     await userDocRef.set({ phone }, { merge: true });
 
     let matchResult = { matchScore: 0, reasoning: 'AI analysis could not be performed.' };
@@ -169,7 +169,7 @@ export async function applyForJob(
       resumeUrl: resumeUrl || '',
     };
 
-    await adminDb.collection('candidates').add(candidateData);
+    await db.collection('candidates').add(candidateData);
     
     revalidatePath('/candidates');
     revalidatePath('/dashboard');
@@ -240,8 +240,9 @@ export async function getMatch(prevState: MatcherState, formData: FormData): Pro
  * It fetches the resume text for a given candidate.
  */
 export async function getCandidateResumeTextAction(candidateId: string): Promise<{ resumeText?: string; error?: string; }> {
+    const db = getDb();
     try {
-        const doc = await adminDb.collection('candidates').doc(candidateId).get();
+        const doc = await db.collection('candidates').doc(candidateId).get();
 
         if (!doc.exists) {
             return { error: `Candidate with ID '${candidateId}' not found.` };
@@ -292,6 +293,7 @@ export async function scheduleInterview(
   prevState: ScheduleInterviewState,
   formData: FormData
 ): Promise<ScheduleInterviewState> {
+  const db = getDb();
   const { candidateId } = prevState;
   
   const validatedFields = ScheduleInterviewSchema.safeParse({
@@ -315,14 +317,14 @@ export async function scheduleInterview(
 
   try {
     // Fetch candidate data
-    const candidateDoc = await adminDb.collection('candidates').doc(candidateId).get();
+    const candidateDoc = await db.collection('candidates').doc(candidateId).get();
     if (!candidateDoc.exists) {
       return { ...prevState, errors: { _form: ['Candidate not found.'] } };
     }
     const candidateData = candidateDoc.data() as Candidate;
     
     // Fetch job data
-    const jobDoc = await adminDb.collection('jobs').doc(candidateData.jobAppliedFor).get();
+    const jobDoc = await db.collection('jobs').doc(candidateData.jobAppliedFor).get();
     if (!jobDoc.exists) {
       return { ...prevState, errors: { _form: ['Job not found.'] } };
     }
@@ -351,11 +353,11 @@ export async function scheduleInterview(
       createdAt: new Date().toISOString(),
     };
 
-    await adminDb.collection('interviews').add(interviewData);
+    await db.collection('interviews').add(interviewData);
     
     // Update candidate status to 'Interviewed' if not already
     if (candidateData.status !== 'Interviewed' && candidateData.status !== 'Hired') {
-      await adminDb.collection('candidates').doc(candidateId).update({
+      await db.collection('candidates').doc(candidateId).update({
         status: 'Interviewed',
       });
     }
@@ -389,6 +391,7 @@ export async function rerunAiMatch(
   prevState: RerunAiMatchState,
   formData: FormData
 ): Promise<RerunAiMatchState> {
+  const db = getDb();
   const validatedFields = RerunAiMatchSchema.safeParse({
     candidateId: formData.get('candidateId'),
   });
@@ -400,7 +403,7 @@ export async function rerunAiMatch(
   const { candidateId } = validatedFields.data;
 
   try {
-    const candidateRef = adminDb.collection('candidates').doc(candidateId);
+    const candidateRef = db.collection('candidates').doc(candidateId);
     const candidateDoc = await candidateRef.get();
 
     if (!candidateDoc.exists) {
@@ -409,7 +412,7 @@ export async function rerunAiMatch(
     
     const candidate = candidateDoc.data() as Candidate;
     
-    const jobRef = adminDb.collection('jobs').doc(candidate.jobAppliedFor);
+    const jobRef = db.collection('jobs').doc(candidate.jobAppliedFor);
     const jobDoc = await jobRef.get();
     
     if (!jobDoc.exists) {
@@ -465,6 +468,7 @@ export async function updateCandidateStatus(
   prevState: UpdateCandidateStatusState,
   formData: FormData
 ): Promise<UpdateCandidateStatusState> {
+  const db = getDb();
   const validatedFields = UpdateCandidateStatusSchema.safeParse({
     candidateId: formData.get('candidateId'),
     status: formData.get('status'),
@@ -477,7 +481,7 @@ export async function updateCandidateStatus(
   const { candidateId, status } = validatedFields.data;
 
   try {
-    const candidateRef = adminDb.collection('candidates').doc(candidateId);
+    const candidateRef = db.collection('candidates').doc(candidateId);
     const candidateDoc = await candidateRef.get();
 
     if (!candidateDoc.exists) {
