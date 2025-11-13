@@ -313,69 +313,19 @@ function InterviewSchedulingSection({ candidateId, candidateName, jobTitle }: { 
     );
 }
 
-export default function CandidateDetailsPage() {
-    const params = useParams();
-    const id = params.id as string;
-    const { firestore, storage } = useFirebase();
-    const { user } = useUser();
-    const router = useRouter();
-
-    const candidateRef = useMemoFirebase(() => {
-        if (!firestore || !id) return null;
-        return doc(firestore, 'candidates', id);
-    }, [firestore, id]);
-
-    const { data: candidate, isLoading: candidateLoading, error: candidateError } = useDoc<Candidate>(candidateRef);
+function CandidateDetailsView({ candidate, job }: { candidate: WithId<Candidate>, job: WithId<Job> | null}) {
+    const { storage, user } = useFirebase();
     
-    const jobRef = useMemoFirebase(() => {
-        if (!firestore || !candidate?.jobAppliedFor) return null;
-        return doc(firestore, 'jobs', candidate.jobAppliedFor);
-    }, [firestore, candidate?.jobAppliedFor]);
-
-    const { data: job, isLoading: jobLoading } = useDoc<Job>(jobRef);
-
     const formatDate = (timestamp: any) => {
         if (!timestamp) return 'N/A';
-        if (timestamp.toDate) {
-            return format(timestamp.toDate(), 'MMM d, yyyy');
-        }
         try {
-            return format(new Date(timestamp), 'MMM d, yyyy');
+            const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+            return format(date, 'MMM d, yyyy');
         } catch {
             return 'Invalid Date';
         }
     }
     
-    // Refined loading state: waits for candidate to load, and if candidate exists, waits for job to load.
-    const isLoading = candidateLoading || (candidate && jobLoading);
-
-    useEffect(() => {
-        // If there's an error loading the candidate or candidate doesn't exist after loading
-        if (!candidateLoading && !candidate) {
-            notFound();
-        }
-    }, [candidate, candidateLoading]);
-
-    if (isLoading) {
-        return (
-            <div className="flex h-full w-full items-center justify-center">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                <span className="sr-only">Loading candidate details...</span>
-            </div>
-        );
-    }
-
-    // Now we can be sure candidate is not null if we passed the loading check and the notFound() effect
-    if (!candidate) {
-         // This is a fallback for the server-side, and for the brief moment before the useEffect runs on the client.
-        return (
-            <div className="flex h-full w-full items-center justify-center">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                <span className="sr-only">Loading candidate details...</span>
-            </div>
-        );
-    }
-
     return (
         <div className="space-y-8">
             <div className="flex items-center gap-4">
@@ -462,7 +412,7 @@ export default function CandidateDetailsPage() {
 
                     {user?.email === 'anandkumar.shinnovationco@gmail.com' && (
                         <InterviewSchedulingSection
-                            candidateId={id}
+                            candidateId={candidate.id}
                             candidateName={candidate.name}
                             jobTitle={job?.title || 'Unknown Job'}
                         />
@@ -503,5 +453,56 @@ export default function CandidateDetailsPage() {
                 </div>
             </div>
         </div>
-    )
+    );
 }
+
+export default function CandidateDetailsPage() {
+    const params = useParams();
+    const id = params.id as string;
+    const { firestore } = useFirebase();
+
+    const candidateRef = useMemoFirebase(() => {
+        if (!firestore || !id) return null;
+        return doc(firestore, 'candidates', id);
+    }, [firestore, id]);
+
+    const { data: candidate, isLoading: candidateLoading, error: candidateError } = useDoc<WithId<Candidate>>(candidateRef);
+    
+    const jobRef = useMemoFirebase(() => {
+        if (!firestore || !candidate?.jobAppliedFor) return null;
+        return doc(firestore, 'jobs', candidate.jobAppliedFor);
+    }, [firestore, candidate?.jobAppliedFor]);
+
+    const { data: job, isLoading: jobLoading } = useDoc<WithId<Job>>(jobRef);
+
+    useEffect(() => {
+        // This effect redirects if the candidate doesn't exist after loading.
+        // It's a client-side check. The server-side crash is prevented by the return logic below.
+        if (!candidateLoading && !candidate) {
+            notFound();
+        }
+    }, [candidate, candidateLoading]);
+
+    // This is the main loading gate. It prevents rendering until the essential data is ready.
+    const isLoading = candidateLoading || (candidate && jobLoading);
+    if (isLoading) {
+        return (
+            <div className="flex h-full w-full items-center justify-center">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <span className="sr-only">Loading candidate details...</span>
+            </div>
+        );
+    }
+    
+    // If loading is finished and there's still no candidate, it means it wasn't found.
+    // This prevents the view from trying to render with null data.
+    if (!candidate) {
+         // This state can be reached on the client after loading finishes.
+        notFound();
+        return null; // Return null to prevent further rendering before notFound() takes effect.
+    }
+
+    return <CandidateDetailsView candidate={candidate} job={job || null} />;
+}
+
+    
