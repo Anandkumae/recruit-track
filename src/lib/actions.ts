@@ -7,6 +7,16 @@ import { getFirebaseAdmin } from '@/firebase/server-config';
 import { FieldValue } from 'firebase-admin/firestore';
 import { revalidatePath } from 'next/cache';
 import type { Job, User, Interview, Candidate } from '@/lib/types';
+import { Readable } from 'stream';
+
+// Helper to convert a file to a Base64 Data URI
+async function fileToDataURI(file: File): Promise<string> {
+  const arrayBuffer = await file.arrayBuffer();
+  const buffer = Buffer.from(arrayBuffer);
+  const base64 = buffer.toString('base64');
+  return `data:${file.type};base64,${base64}`;
+}
+
 
 const ApplySchema = z.object({
   name: z.string().min(1, 'Name is required.'),
@@ -71,14 +81,19 @@ export async function applyForJob(
     await userDocRef.set({ phone }, { merge: true });
 
     let matchResult = { matchScore: 0, reasoning: 'AI analysis could not be performed.' };
+    
+    // Resume text is now optional, as it might come from a file in other contexts.
+    const resumeContent = resumeText; 
+
     if (
-      resumeText &&
-      resumeText.length > 100 &&
+      resumeContent &&
+      resumeContent.length > 100 &&
       jobDescription.length > 100
     ) {
         try {
             matchResult = await matchResumeToJob({
-                resumeText: resumeText,
+                resumeDataUri: '', // Not using file for this flow
+                resumeText: resumeContent,
                 jobDescription,
             });
         } catch (aiError) {
@@ -131,7 +146,13 @@ export type MatcherState = {
 };
 
 const MatcherSchema = z.object({
-  resume: z.string().min(50, 'Resume must be at least 50 characters long.'),
+  resume: z
+    .instanceof(File, { message: 'Resume is required.' })
+    .refine((file) => file.size > 0, 'Resume file cannot be empty.')
+    .refine(
+      (file) => file.type === 'application/pdf',
+      'Only PDF files are allowed.'
+    ),
   jobDescription: z
     .string()
     .min(50, 'Job description must be at least 50 characters long.'),
@@ -150,9 +171,12 @@ export async function getMatch(prevState: MatcherState, formData: FormData) {
   }
 
   try {
+    const resumeDataUri = await fileToDataURI(validatedFields.data.resume);
+
     const result = await matchResumeToJob({
-      resumeText: validatedFields.data.resume,
+      resumeDataUri,
       jobDescription: validatedFields.data.jobDescription,
+      resumeText: '', // Text is now extracted by the AI
     });
 
     return { message: 'Analysis complete', result };
