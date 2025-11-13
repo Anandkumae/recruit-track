@@ -14,8 +14,8 @@ function initializeAdminApp() {
   }
 
   try {
-    // In the Firebase Studio environment, initializing with the project ID
-    // is sufficient as the credentials are handled by the environment.
+    // Attempt to initialize using default credentials which should be
+    // available in the Firebase/Google Cloud managed environment.
     adminApp = admin.initializeApp({
       projectId: firebaseConfig.projectId,
       storageBucket: firebaseConfig.storageBucket,
