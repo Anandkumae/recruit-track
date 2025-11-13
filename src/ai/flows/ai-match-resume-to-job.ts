@@ -10,41 +10,28 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
-import { getFirebaseAdmin } from '@/firebase/server-config';
-import type { Candidate } from '@/lib/types';
+import { getCandidateResumeText } from '@/lib/actions';
 
 
-const getCandidateById = ai.defineTool(
+const getResumeTextByCandidateId = ai.defineTool(
   {
-    name: 'getCandidateById',
-    description: "Retrieves a candidate's profile from the database using their ID.",
+    name: 'getResumeTextByCandidateId',
+    description: "Retrieves the plain text of a candidate's resume from the database using their ID.",
     inputSchema: z.object({
-      candidateId: z.string().describe('The unique ID of the candidate to retrieve.'),
+      candidateId: z.string().describe('The unique ID of the candidate whose resume text should be retrieved.'),
     }),
     outputSchema: z.object({
-        resumeText: z.string().optional().describe("The text content of the candidate's resume."),
+        resumeText: z.string().describe("The text content of the candidate's resume, or an error message if it could not be retrieved."),
     }),
   },
   async ({ candidateId }) => {
-    try {
-      const { firestore } = getFirebaseAdmin();
-      const doc = await firestore.collection('candidates').doc(candidateId).get();
-      if (!doc.exists) {
-        // Return a structured error or empty state that the LLM can interpret
-        return { resumeText: `ERROR: Candidate with ID '${candidateId}' not found.` };
-      }
-      const candidateData = doc.data() as Candidate;
-      if (!candidateData.resumeText) {
-        return { resumeText: `ERROR: Candidate with ID '${candidateId}' has no resume text.` };
-      }
-      return {
-        resumeText: candidateData.resumeText,
-      };
-    } catch (error) {
-        console.error("Tool 'getCandidateById' failed:", error);
-        // This makes the error visible to the LLM, so it can report a more specific failure.
-        return { resumeText: `ERROR: Failed to retrieve candidate data due to a database error.` };
+    // This tool calls a Next.js server action.
+    // The server action is responsible for securely accessing the database.
+    const result = await getCandidateResumeText(candidateId);
+    if (result.error) {
+        return { resumeText: `ERROR: ${result.error}` };
     }
+    return { resumeText: result.resumeText || '' };
   }
 );
 
@@ -76,17 +63,17 @@ const matchResumeToJobPrompt = ai.definePrompt({
   name: 'matchResumeToJobPrompt',
   input: { schema: MatchResumeToJobInputSchema },
   output: { schema: MatchResumeToJobOutputSchema },
-  tools: [getCandidateById],
+  tools: [getResumeTextByCandidateId],
   prompt: `You are an AI resume matcher. Your task is to analyze a candidate's resume against the provided job description.
 
 - **Job Description:**
 {{jobDescription}}
 
-First, you must obtain the candidate's resume. 
-- If the candidate's ID is provided ({{candidateId}}), use the 'getCandidateById' tool to fetch their resume text from the database.
-- If resume text is provided directly ({{resumeText}}), use that.
+First, you must obtain the candidate's resume text. 
+- If a 'candidateId' is provided, you **must** use the 'getResumeTextByCandidateId' tool to fetch the resume text. Do not guess or assume the resume content.
+- If 'resumeText' is provided directly, use that content for your analysis.
 
-If the tool returns an error message starting with 'ERROR:', you must stop and include that error message in your reasoning. Do not proceed with the analysis.
+If the tool returns a resumeText that starts with 'ERROR:', you must stop. Your reasoning should contain only that error message and nothing else. Set the match score to 0.
 
 Once you have the resume text, you must:
 1.  Calculate a "match score" out of 100 that represents how well the candidate's skills and experience align with the job requirements.

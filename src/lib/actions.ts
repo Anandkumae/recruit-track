@@ -167,8 +167,6 @@ export async function getMatch(prevState: MatcherState, formData: FormData): Pro
   const { candidateId, jobDescription } = validatedFields.data;
   
   try {
-    // The server action's only job is to validate and pass IDs.
-    // The Genkit flow will handle the data fetching using its own credentials.
     const result = await matchResumeToJob({
       candidateId,
       jobDescription,
@@ -177,12 +175,44 @@ export async function getMatch(prevState: MatcherState, formData: FormData): Pro
     if (!result) {
         return { errors: { _form: ['AI analysis returned no result.'] } };
     }
+    
+    // Check if the AI returned an error message in the reasoning
+    if (result.reasoning.startsWith('ERROR:')) {
+        return { errors: { _form: [result.reasoning] } };
+    }
 
     return { message: 'Analysis complete', result };
   } catch (error) {
     console.error('AI Matcher Error:', error);
     return { errors: { _form: ['The AI analysis failed. This could be due to a configuration issue or a problem with the resume file.'] } };
   }
+}
+
+/**
+ * Server action designed to be called securely by a Genkit tool.
+ * It fetches the resume text for a given candidate.
+ */
+export async function getCandidateResumeText(candidateId: string): Promise<{ resumeText?: string; error?: string; }> {
+    try {
+        const { firestore } = getFirebaseAdmin();
+        const doc = await firestore.collection('candidates').doc(candidateId).get();
+
+        if (!doc.exists) {
+            return { error: `Candidate with ID '${candidateId}' not found.` };
+        }
+
+        const candidateData = doc.data() as Candidate;
+
+        if (!candidateData.resumeText) {
+            return { error: `Candidate with ID '${candidateId}' has no resume text.` };
+        }
+
+        return { resumeText: candidateData.resumeText };
+
+    } catch (error) {
+        console.error("Server Action 'getCandidateResumeText' failed:", error);
+        return { error: 'Failed to retrieve candidate data due to a database error.' };
+    }
 }
 
 
