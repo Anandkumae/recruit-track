@@ -89,10 +89,13 @@ export async function applyForJob(
       jobDescription.length > 10
     ) {
         try {
-            matchResult = await matchResumeToJob({
-                resumeText: resumeContent,
+            const result = await matchResumeToJob({
                 jobDescription,
+                resumeText: resumeContent
             });
+            if (result) {
+                matchResult = result;
+            }
         } catch (aiError) {
             console.error('AI Matching Error:', aiError);
             matchResult.reasoning = 'AI analysis failed. Please try again later.';
@@ -149,7 +152,7 @@ const MatcherSchema = z.object({
     .min(10, 'Job description must be at least 10 characters long.'),
 });
 
-export async function getMatch(prevState: MatcherState, formData: FormData) {
+export async function getMatch(prevState: MatcherState, formData: FormData): Promise<MatcherState> {
   const validatedFields = MatcherSchema.safeParse({
     candidateId: formData.get('candidateId'),
     jobDescription: formData.get('jobDescription'),
@@ -164,22 +167,16 @@ export async function getMatch(prevState: MatcherState, formData: FormData) {
   const { candidateId, jobDescription } = validatedFields.data;
   
   try {
-    const { firestore } = getFirebaseAdmin();
-    const candidateDoc = await firestore.collection('candidates').doc(candidateId).get();
-    
-    if (!candidateDoc.exists) {
-        return { errors: { _form: ['Selected candidate not found.'] } };
-    }
-    const candidate = candidateDoc.data() as Candidate;
-
-    if (!candidate.resumeText) {
-       return { errors: { _form: ['The selected candidate does not have resume text available for analysis.'] } };
-    }
-
+    // The server action's only job is to validate and pass IDs.
+    // The Genkit flow will handle the data fetching using its own credentials.
     const result = await matchResumeToJob({
-      resumeText: candidate.resumeText,
+      candidateId,
       jobDescription,
     });
+
+    if (!result) {
+        return { errors: { _form: ['AI analysis returned no result.'] } };
+    }
 
     return { message: 'Analysis complete', result };
   } catch (error) {
@@ -187,6 +184,7 @@ export async function getMatch(prevState: MatcherState, formData: FormData) {
     return { errors: { _form: ['The AI analysis failed. This could be due to a configuration issue or a problem with the resume file.'] } };
   }
 }
+
 
 const ScheduleInterviewSchema = z.object({
   candidateId: z.string().min(1, 'Candidate ID is required.'),
@@ -355,6 +353,10 @@ export async function rerunAiMatch(
       resumeText: resumeContent,
       jobDescription,
     });
+    
+    if(!matchResult) {
+        return { errors: { _form: ['AI analysis returned no result.'] } };
+    }
     
     await candidateRef.update({
       matchScore: matchResult.matchScore,
