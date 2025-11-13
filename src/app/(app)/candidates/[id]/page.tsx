@@ -56,7 +56,6 @@ function ResumeSection({ resumeUrl, storage }: { resumeUrl?: string, storage: Fi
                 .finally(() => setIsLoading(false));
         } else {
             setIsLoading(false);
-            setDownloadURL(null);
         }
     }, [resumeUrl, storage]);
 
@@ -462,7 +461,7 @@ function CandidateDetailsView({ candidate, job }: { candidate: WithId<Candidate>
 export default function CandidateDetailsPage() {
     const params = useParams();
     const id = params.id as string;
-    const { firestore } = useFirebase();
+    const { firestore, user } = useFirebase();
 
     const candidateRef = useMemoFirebase(() => {
         if (!firestore || !id) return null;
@@ -477,7 +476,10 @@ export default function CandidateDetailsPage() {
     }, [firestore, candidate?.jobAppliedFor]);
 
     const { data: job, isLoading: jobLoading, error: jobError } = useDoc<WithId<Job>>(jobRef);
-
+    
+    const isAdmin = user?.email === 'anandkumar.shinnovationco@gmail.com';
+    const isOwner = user?.uid === candidate?.userId;
+    
     const isLoading = candidateLoading || (candidate && !job && jobLoading);
     
     if (isLoading) {
@@ -489,7 +491,8 @@ export default function CandidateDetailsPage() {
         );
     }
     
-    if (!candidate) {
+    // Let admins see any profile, and users see their own application
+    if (!candidate || (!isAdmin && !isOwner)) {
         notFound();
     }
 
@@ -497,3 +500,5 @@ export default function CandidateDetailsPage() {
         <CandidateDetailsView candidate={candidate} job={job || null} />
     );
 }
+
+    
