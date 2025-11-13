@@ -17,7 +17,7 @@ export type User = {
   resumeText?: string;
 };
 
-export type HiringStage = 'Applied' | 'Shortlisted' | 'Hired' | 'Rejected';
+export type HiringStage = 'Applied' | 'Shortlisted' | 'Interviewed' | 'Hired' | 'Rejected';
 
 export type Job = {
   id?: string; // Optional because it's added after fetching
@@ -31,6 +31,7 @@ export type Job = {
 };
 
 export type Candidate = {
+  id: string;
   name: string;
   email: string;
   phone: string;
@@ -55,3 +56,20 @@ export type NavItem = {
 };
 
 export type WithId<T> = T & { id: string };
+
+export interface Interview {
+    id: string;
+    candidateId: string;
+    candidateName: string;
+    candidateEmail: string;
+    jobId: string;
+    jobTitle: string;
+    scheduledAt: string; // ISO 8601 string
+    scheduledBy: string; // User ID
+    scheduledByName?: string;
+    location?: string;
+    meetingLink?: string;
+    notes?: string;
+    status: 'Scheduled' | 'Completed' | 'Cancelled' | 'Rescheduled';
+    createdAt: string; // ISO 8601 string
+}

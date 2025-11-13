@@ -48,7 +48,7 @@ const matchResumeToJobPrompt = ai.definePrompt({
   output: {schema: MatchResumeToJobOutputSchema},
   prompt: `You are an AI resume matcher. Your task is to analyze the provided candidate resume against the job description.
 
-You will be given either the full text of a resume or a file (like a PDF). Use the information from whichever is provided.
+You will be given either a resume file (like a PDF) or the plain text of a resume. Prioritize the file if both are provided.
 
 - **Resume (File):** {{#if resumeDataUri}}{{media url=resumeDataUri}}{{/if}}
 - **Resume (Text):** {{#if resumeText}}{{resumeText}}{{/if}}
@@ -71,6 +71,9 @@ const matchResumeToJobFlow = ai.defineFlow(
     outputSchema: MatchResumeToJobOutputSchema,
   },
   async input => {
+    if (!input.resumeDataUri && !input.resumeText) {
+      throw new Error("Either a resume file (resumeDataUri) or resume text (resumeText) must be provided.");
+    }
     const {output} = await matchResumeToJobPrompt(input);
     return output!;
   }

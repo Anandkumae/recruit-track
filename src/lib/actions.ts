@@ -17,6 +17,17 @@ async function fileToDataURI(file: File): Promise<string> {
   return `data:${file.type};base64,${base64}`;
 }
 
+// Helper to convert a stream from Firebase Storage to a Base64 Data URI
+async function streamToDataURI(stream: Readable, contentType: string): Promise<string> {
+  const chunks: Buffer[] = [];
+  for await (const chunk of stream) {
+    chunks.push(chunk);
+  }
+  const buffer = Buffer.concat(chunks);
+  const base64 = buffer.toString('base64');
+  return `data:${contentType};base64,${base64}`;
+}
+
 
 const ApplySchema = z.object({
   name: z.string().min(1, 'Name is required.'),
@@ -137,20 +148,14 @@ export type MatcherState = {
   message?: string | null;
   result?: { matchScore: number; reasoning: string };
   errors?: {
-    resume?: string[];
+    candidateId?: string[];
     jobDescription?: string[];
     _form?: string[];
   };
 };
 
 const MatcherSchema = z.object({
-  resume: z
-    .instanceof(File, { message: 'Resume is required.' })
-    .refine((file) => file.size > 0, 'Resume file cannot be empty.')
-    .refine(
-      (file) => file.type === 'application/pdf',
-      'Only PDF files are allowed.'
-    ),
+  candidateId: z.string().min(1, 'Please select a candidate.'),
   jobDescription: z
     .string()
     .min(10, 'Job description must be at least 10 characters long.'),
@@ -158,7 +163,7 @@ const MatcherSchema = z.object({
 
 export async function getMatch(prevState: MatcherState, formData: FormData) {
   const validatedFields = MatcherSchema.safeParse({
-    resume: formData.get('resume'),
+    candidateId: formData.get('candidateId'),
     jobDescription: formData.get('jobDescription'),
   });
 
@@ -167,19 +172,42 @@ export async function getMatch(prevState: MatcherState, formData: FormData) {
       errors: validatedFields.error.flatten().fieldErrors,
     };
   }
+  
+  const { candidateId, jobDescription } = validatedFields.data;
+  const { firestore, adminApp } = getFirebaseAdmin();
 
   try {
-    const resumeDataUri = await fileToDataURI(validatedFields.data.resume);
+    const candidateDoc = await firestore.collection('candidates').doc(candidateId).get();
+    if (!candidateDoc.exists) {
+        return { errors: { _form: ['Selected candidate not found.'] } };
+    }
+    const candidate = candidateDoc.data() as Candidate;
+
+    let resumeDataUri: string | undefined;
+    let resumeText: string | undefined;
+
+    if (candidate.resumeUrl) {
+      const bucket = adminApp.storage().bucket();
+      const file = bucket.file(candidate.resumeUrl);
+      const [metadata] = await file.getMetadata();
+      const stream = file.createReadStream();
+      resumeDataUri = await streamToDataURI(stream, metadata.contentType || 'application/octet-stream');
+    } else if (candidate.resumeText) {
+      resumeText = candidate.resumeText;
+    } else {
+       return { errors: { _form: ["This candidate doesn't have a resume on file."] } };
+    }
 
     const result = await matchResumeToJob({
       resumeDataUri,
-      jobDescription: validatedFields.data.jobDescription,
+      resumeText,
+      jobDescription,
     });
 
     return { message: 'Analysis complete', result };
   } catch (error) {
     console.error('AI Matcher Error:', error);
-    return { errors: { _form: ['The AI analysis failed. Please try again.'] } };
+    return { errors: { _form: ['The AI analysis failed. This could be due to an issue with the stored resume file.'] } };
   }
 }
 
@@ -362,5 +390,11 @@ export async function rerunAiMatch(
   } catch (error) {
     console.error('AI Re-match Error:', error);
     return { errors: { _form: ['An unexpected error occurred while re-running the analysis.'] } };
+  }
+}
+
+declare global {
+  interface FormData {
+    get(name: 'candidateId'): string | null;
   }
 }

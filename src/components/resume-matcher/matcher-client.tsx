@@ -8,12 +8,15 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
-import { Loader2, Wand2, FileUp } from 'lucide-react';
+import { Loader2, Wand2, Users, User } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useToast } from '@/hooks/use-toast';
-import { Input } from '../ui/input';
+import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
+import type { Candidate, WithId } from '@/lib/types';
+import { collection, query, orderBy } from 'firebase/firestore';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 function SubmitButton() {
   const { pending } = useFormStatus();
@@ -36,8 +39,15 @@ export function MatcherClient() {
   const initialState: MatcherState = {};
   const [state, dispatch] = useActionState(getMatch, initialState);
   const { toast } = useToast();
-  const [fileName, setFileName] = useState('');
-  
+  const firestore = useFirestore();
+
+  const candidatesQuery = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return query(collection(firestore, 'candidates'), orderBy('name', 'asc'));
+  }, [firestore]);
+
+  const { data: candidates, isLoading: candidatesLoading } = useCollection<WithId<Candidate>>(candidatesQuery);
+
   useEffect(() => {
     if(state.message && state.result) {
         toast({
@@ -59,7 +69,7 @@ export function MatcherClient() {
         <CardHeader>
           <CardTitle>Input Details</CardTitle>
           <CardDescription>
-            Provide the job description and the candidate's resume PDF.
+            Select a candidate and provide the job description to analyze.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -75,27 +85,34 @@ export function MatcherClient() {
                {state.errors?.jobDescription && <p className="text-sm font-medium text-destructive">{state.errors.jobDescription[0]}</p>}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="resume">Candidate's Resume (PDF)</Label>
-               <div className="flex items-center gap-2">
-                 <Input
-                    id="resume"
-                    name="resume"
-                    type="file"
-                    accept="application/pdf"
-                    onChange={(e) => setFileName(e.target.files?.[0]?.name || '')}
-                    className="hidden"
-                  />
-                  <Button type="button" variant="outline" asChild>
-                    <Label htmlFor="resume" className="cursor-pointer">
-                      <FileUp className="mr-2" />
-                      Choose PDF
-                    </Label>
-                  </Button>
-                  {fileName && (
-                    <span className="text-sm text-muted-foreground truncate">{fileName}</span>
+              <Label htmlFor="candidateId">Select Candidate</Label>
+              <Select name="candidateId">
+                <SelectTrigger>
+                  <SelectValue placeholder={
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <Users className="h-4 w-4"/>
+                      <span>Select a candidate...</span>
+                    </div>
+                  } />
+                </SelectTrigger>
+                <SelectContent>
+                  {candidatesLoading ? (
+                    <div className="flex items-center justify-center p-4">
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                    </div>
+                  ) : (
+                    candidates?.map((candidate) => (
+                      <SelectItem key={candidate.id} value={candidate.id}>
+                        <div className="flex items-center gap-2">
+                          <User className="h-4 w-4" />
+                          <span>{candidate.name}</span>
+                        </div>
+                      </SelectItem>
+                    ))
                   )}
-               </div>
-              {state.errors?.resume && <p className="text-sm font-medium text-destructive">{state.errors.resume[0]}</p>}
+                </SelectContent>
+              </Select>
+              {state.errors?.candidateId && <p className="text-sm font-medium text-destructive">{state.errors.candidateId[0]}</p>}
             </div>
             <SubmitButton />
           </form>
