@@ -8,15 +8,11 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
-import { Loader2, Wand2, Users, User } from 'lucide-react';
+import { Loader2, Wand2, FileUp } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { useEffect, useMemo } from 'react';
 import { useToast } from '@/hooks/use-toast';
-import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
-import type { Candidate, WithId } from '@/lib/types';
-import { collection, query, orderBy } from 'firebase/firestore';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useEffect } from 'react';
+import { Input } from '../ui/input';
 
 function SubmitButton() {
   const { pending } = useFormStatus();
@@ -39,14 +35,6 @@ export function MatcherClient() {
   const initialState: MatcherState = {};
   const [state, dispatch] = useActionState(getMatch, initialState);
   const { toast } = useToast();
-  const firestore = useFirestore();
-
-  const candidatesQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
-    return query(collection(firestore, 'candidates'), orderBy('name', 'asc'));
-  }, [firestore]);
-
-  const { data: candidates, isLoading: candidatesLoading } = useCollection<WithId<Candidate>>(candidatesQuery);
 
   useEffect(() => {
     if(state.message && state.result) {
@@ -69,7 +57,7 @@ export function MatcherClient() {
         <CardHeader>
           <CardTitle>Input Details</CardTitle>
           <CardDescription>
-            Select a candidate and provide the job description to analyze.
+            Upload a resume and provide the job description to analyze.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -81,38 +69,25 @@ export function MatcherClient() {
                 name="jobDescription"
                 placeholder="Paste the full job description here..."
                 rows={8}
+                required
               />
                {state.errors?.jobDescription && <p className="text-sm font-medium text-destructive">{state.errors.jobDescription[0]}</p>}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="candidateId">Select Candidate</Label>
-              <Select name="candidateId">
-                <SelectTrigger>
-                  <SelectValue placeholder={
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <Users className="h-4 w-4"/>
-                      <span>Select a candidate...</span>
-                    </div>
-                  } />
-                </SelectTrigger>
-                <SelectContent>
-                  {candidatesLoading ? (
-                    <div className="flex items-center justify-center p-4">
-                      <Loader2 className="h-5 w-5 animate-spin" />
-                    </div>
-                  ) : (
-                    candidates?.map((candidate) => (
-                      <SelectItem key={candidate.id} value={candidate.id}>
-                        <div className="flex items-center gap-2">
-                          <User className="h-4 w-4" />
-                          <span>{candidate.name}</span>
-                        </div>
-                      </SelectItem>
-                    ))
-                  )}
-                </SelectContent>
-              </Select>
-              {state.errors?.candidateId && <p className="text-sm font-medium text-destructive">{state.errors.candidateId[0]}</p>}
+              <Label htmlFor="resumeFile">Upload Resume</Label>
+               <div className="flex items-center gap-2 rounded-md border border-input px-3 py-2">
+                  <FileUp className="h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="resumeFile"
+                    name="resumeFile"
+                    type="file"
+                    className="flex-1 border-0 p-0 h-auto file:border-0 file:bg-transparent file:text-sm file:font-medium focus-visible:ring-0 focus-visible:ring-offset-0"
+                    accept=".pdf,.png,.jpg,.jpeg,.webp"
+                    required
+                  />
+               </div>
+              <p className="text-xs text-muted-foreground">Supported formats: PDF, PNG, JPG, WebP. Max 5MB.</p>
+              {state.errors?.resumeFile && <p className="text-sm font-medium text-destructive">{state.errors.resumeFile[0]}</p>}
             </div>
             <SubmitButton />
           </form>

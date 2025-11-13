@@ -10,36 +10,15 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
-import { getCandidateResumeText as getCandidateResumeTextAction } from '@/lib/actions';
-
-
-const getResumeTextByCandidateIdTool = ai.defineTool(
-  {
-    name: 'getResumeTextByCandidateId',
-    description: "Retrieves the plain text of a candidate's resume from the database using their ID. This is the only way to get the resume if only a candidateId is provided.",
-    inputSchema: z.object({
-      candidateId: z.string().describe('The unique ID of the candidate whose resume text should be retrieved.'),
-    }),
-    outputSchema: z.object({
-        resumeText: z.string().describe("The text content of the candidate's resume, or an error message if it could not be retrieved."),
-    }),
-  },
-  async ({ candidateId }) => {
-    // This tool calls a Next.js server action.
-    // The server action is responsible for securely accessing the database.
-    const result = await getCandidateResumeTextAction(candidateId);
-    if (result.error) {
-        return { resumeText: `ERROR: ${result.error}` };
-    }
-    return { resumeText: result.resumeText || '' };
-  }
-);
 
 
 const MatchResumeToJobInputSchema = z.object({
   jobDescription: z.string().describe('The description of the job posting.'),
-  candidateId: z.string().optional().describe("The ID of the candidate whose resume should be analyzed."),
-  resumeText: z.string().optional().describe("The plain text content of the candidate's resume. Use this if candidateId is not provided."),
+  photoDataUri: z
+    .string()
+    .describe(
+      "A photo of a resume, as a data URI that must include a MIME type and use Base64 encoding. Expected format: 'data:<mimetype>;base64,<encoded_data>'."
+    ),
 });
 export type MatchResumeToJobInput = z.infer<typeof MatchResumeToJobInputSchema>;
 
@@ -63,21 +42,21 @@ const matchResumeToJobPrompt = ai.definePrompt({
   name: 'matchResumeToJobPrompt',
   input: { schema: MatchResumeToJobInputSchema },
   output: { schema: MatchResumeToJobOutputSchema },
-  tools: [getResumeTextByCandidateIdTool],
-  prompt: `You are an AI resume matcher. Your task is to analyze a candidate's resume against the provided job description.
+  prompt: `You are an AI resume matcher. Your task is to analyze a candidate's resume, provided as an image, against the provided job description.
 
 - **Job Description:**
 {{jobDescription}}
 
-First, you must obtain the candidate's resume text. 
-- If a 'candidateId' is provided, you **must** use the 'getResumeTextByCandidateId' tool to fetch the resume text. Do not guess or assume the resume content.
-- If 'resumeText' is provided directly, use that content for your analysis.
+- **Resume Image:**
+{{media url=photoDataUri}}
 
-If you cannot obtain the resume text for any reason (e.g., the tool returns an error or no input was provided), you must stop. Your reasoning should state the problem clearly (e.g., "Cannot obtain resume text. Neither 'candidateId' nor 'resumeText' was provided."). Set the match score to 0.
+First, you must accurately extract the text from the provided resume image.
 
 Once you have the resume text, you must:
 1.  Calculate a "match score" out of 100 that represents how well the candidate's skills and experience align with the job requirements.
 2.  Provide a concise "reasoning" that explains your score. Highlight specific skills, experiences, or keywords from the resume that are relevant to the job description.
+
+If you cannot extract text from the image, your reasoning should state that the image was unreadable or not a valid resume, and you should set the match score to 0.
 
 Return the response as a valid JSON object matching the output schema.
 `,

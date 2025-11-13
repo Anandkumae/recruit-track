@@ -91,7 +91,7 @@ export async function applyForJob(
         try {
             const result = await matchResumeToJob({
                 jobDescription,
-                resumeText: resumeContent
+                photoDataUri: `data:text/plain;base64,${Buffer.from(resumeContent).toString('base64')}`
             });
             if (result) {
                 matchResult = result;
@@ -139,23 +139,24 @@ export type MatcherState = {
   message?: string | null;
   result?: { matchScore: number; reasoning: string };
   errors?: {
-    candidateId?: string[];
+    resumeFile?: string[];
     jobDescription?: string[];
     _form?: string[];
   };
 };
 
 const MatcherSchema = z.object({
-  candidateId: z.string().min(1, 'Please select a candidate.'),
-  jobDescription: z
-    .string()
-    .min(10, 'Job description must be at least 10 characters long.'),
+  jobDescription: z.string().min(10, 'Job description must be at least 10 characters long.'),
+  resumeFile: z
+    .instanceof(File, { message: 'Please upload a resume file.' })
+    .refine((file) => file.size > 0, 'The resume file cannot be empty.')
+    .refine((file) => file.size < 5 * 1024 * 1024, 'File size must be less than 5MB.')
 });
 
 export async function getMatch(prevState: MatcherState, formData: FormData): Promise<MatcherState> {
   const validatedFields = MatcherSchema.safeParse({
-    candidateId: formData.get('candidateId'),
     jobDescription: formData.get('jobDescription'),
+    resumeFile: formData.get('resumeFile'),
   });
 
   if (!validatedFields.success) {
@@ -164,27 +165,24 @@ export async function getMatch(prevState: MatcherState, formData: FormData): Pro
     };
   }
   
-  const { candidateId, jobDescription } = validatedFields.data;
+  const { jobDescription, resumeFile } = validatedFields.data;
   
   try {
+    const photoDataUri = await fileToDataURI(resumeFile);
+    
     const result = await matchResumeToJob({
-      candidateId,
       jobDescription,
+      photoDataUri,
     });
 
     if (!result) {
         return { errors: { _form: ['AI analysis returned no result.'] } };
     }
-    
-    // Check if the AI returned an error message in the reasoning
-    if (result.reasoning.startsWith('ERROR:')) {
-        return { errors: { _form: [result.reasoning] } };
-    }
 
     return { message: 'Analysis complete', result };
   } catch (error) {
     console.error('AI Matcher Error:', error);
-    return { errors: { _form: ['The AI analysis failed. This could be due to a configuration issue or a problem with the resume file.'] } };
+    return { errors: { _form: ['The AI analysis failed. This could be due to an unsupported file type or a problem with the AI service.'] } };
   }
 }
 
@@ -192,7 +190,7 @@ export async function getMatch(prevState: MatcherState, formData: FormData): Pro
  * Server action designed to be called securely by a Genkit tool.
  * It fetches the resume text for a given candidate.
  */
-export async function getCandidateResumeText(candidateId: string): Promise<{ resumeText?: string; error?: string; }> {
+export async function getCandidateResumeTextAction(candidateId: string): Promise<{ resumeText?: string; error?: string; }> {
     try {
         const { firestore } = getFirebaseAdmin();
         const doc = await firestore.collection('candidates').doc(candidateId).get();
@@ -380,8 +378,8 @@ export async function rerunAiMatch(
     }
     
     const matchResult = await matchResumeToJob({
-      resumeText: resumeContent,
-      jobDescription,
+        jobDescription,
+        photoDataUri: `data:text/plain;base64,${Buffer.from(resumeContent).toString('base64')}`
     });
     
     if(!matchResult) {
