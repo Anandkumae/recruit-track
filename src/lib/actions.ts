@@ -5,54 +5,8 @@ import { z } from 'zod';
 import { matchResumeToJob } from '@/ai/flows/ai-match-resume-to-job';
 import { revalidatePath } from 'next/cache';
 import type { Job, User, Interview, Candidate, HiringStage } from '@/lib/types';
-import * as admin from 'firebase-admin';
-
-// --- Firebase Admin SDK Singleton ---
-// This ensures we only initialize the app once, and on the first demand.
-
-let adminDb: admin.firestore.Firestore;
-
-/**
- * Initializes the Firebase Admin SDK if it hasn't been already and returns 
- * the Firestore instance. This "lazy initialization" is the standard pattern
- * for Next.js server environments to ensure credentials are ready.
- */
-function getDb(): admin.firestore.Firestore {
-    if (adminDb) {
-        return adminDb;
-    }
-
-    const projectId = process.env.FIREBASE_PROJECT_ID;
-    const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
-    const privateKey = process.env.FIREBASE_PRIVATE_KEY;
-
-    if (!projectId || !clientEmail || !privateKey) {
-        throw new Error('Firebase service account credentials are not fully set in environment variables.');
-    }
-
-    if (admin.apps.length === 0) {
-        try {
-            admin.initializeApp({
-                credential: admin.credential.cert({
-                    projectId,
-                    clientEmail,
-                    // Crucially, replace the escaped newlines with actual newlines
-                    privateKey: privateKey.replace(/\\n/g, '\n'),
-                }),
-                storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
-            });
-
-        } catch (error: any) {
-            console.error('Firebase Admin SDK initialization failed:', error);
-            throw new Error(
-                'Firebase Admin SDK could not be initialized. Check your service account credentials.'
-            );
-        }
-    }
-
-    adminDb = admin.firestore();
-    return adminDb;
-}
+import { adminDb } from './firebaseAdmin';
+import { FieldValue } from 'firebase-admin/firestore';
 
 
 // Helper to convert a file to a Base64 Data URI
@@ -91,7 +45,7 @@ export async function applyForJob(
   formData: FormData
 ): Promise<ApplicationState> {
 
-  const db = getDb();
+  const db = adminDb;
   const { jobId, userId } = prevState;
   
   const validatedFields = ApplySchema.safeParse({
@@ -161,7 +115,7 @@ export async function applyForJob(
       phone,
       jobAppliedFor: jobId,
       status: 'Applied' as const,
-      appliedAt: admin.firestore.FieldValue.serverTimestamp(),
+      appliedAt: FieldValue.serverTimestamp(),
       userId,
       matchScore: matchResult.matchScore,
       matchReasoning: matchResult.reasoning,
@@ -242,7 +196,7 @@ export async function getMatch(prevState: MatcherState, formData: FormData): Pro
  * It fetches the resume text for a given candidate.
  */
 export async function getCandidateResumeTextAction(candidateId: string): Promise<{ resumeText?: string; error?: string; }> {
-    const db = getDb();
+    const db = adminDb;
     try {
         const doc = await db.collection('candidates').doc(candidateId).get();
 
@@ -295,7 +249,7 @@ export async function scheduleInterview(
   prevState: ScheduleInterviewState,
   formData: FormData
 ): Promise<ScheduleInterviewState> {
-  const db = getDb();
+  const db = adminDb;
   const { candidateId } = prevState;
   
   const validatedFields = ScheduleInterviewSchema.safeParse({
@@ -393,7 +347,7 @@ export async function rerunAiMatch(
   prevState: RerunAiMatchState,
   formData: FormData
 ): Promise<RerunAiMatchState> {
-  const db = getDb();
+  const db = adminDb;
   const validatedFields = RerunAiMatchSchema.safeParse({
     candidateId: formData.get('candidateId'),
   });
@@ -470,7 +424,7 @@ export async function updateCandidateStatus(
   prevState: UpdateCandidateStatusState,
   formData: FormData
 ): Promise<UpdateCandidateStatusState> {
-  const db = getDb();
+  const db = adminDb;
   const validatedFields = UpdateCandidateStatusSchema.safeParse({
     candidateId: formData.get('candidateId'),
     status: formData.get('status'),
@@ -502,5 +456,3 @@ export async function updateCandidateStatus(
     return { errors: { _form: ['Failed to update candidate status.'] } };
   }
 }
-
-    
