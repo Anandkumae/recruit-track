@@ -5,41 +5,8 @@ import { z } from 'zod';
 import { matchResumeToJob } from '@/ai/flows/ai-match-resume-to-job';
 import { revalidatePath } from 'next/cache';
 import type { Job, User, Interview, Candidate, HiringStage } from '@/lib/types';
-import * as admin from 'firebase-admin';
-import { FieldValue, Firestore } from 'firebase-admin/firestore';
-
-let adminDb: Firestore | null = null;
-
-function getAdminDb() {
-    if (adminDb) {
-        return adminDb;
-    }
-
-    if (admin.apps.length === 0) {
-        const { FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY } = process.env;
-
-        if (!FIREBASE_PROJECT_ID || !FIREBASE_CLIENT_EMAIL || !FIREBASE_PRIVATE_KEY) {
-            throw new Error('Firebase Admin environment variables are not set.');
-        }
-
-        try {
-            admin.initializeApp({
-                credential: admin.credential.cert({
-                    projectId: FIREBASE_PROJECT_ID,
-                    clientEmail: FIREBASE_CLIENT_EMAIL,
-                    privateKey: FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
-                }),
-                storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-            });
-        } catch (err: any) {
-            console.error('Firebase Admin SDK initialization failed:', err);
-            throw new Error('Firebase Admin SDK failed to initialize. The credentials may be malformed. Original error: ' + err.message);
-        }
-    }
-
-    adminDb = admin.firestore();
-    return adminDb;
-}
+import { adminDb } from '@/lib/firebaseAdmin';
+import { FieldValue } from 'firebase-admin/firestore';
 
 
 // Helper to convert a file to a Base64 Data URI
@@ -78,7 +45,7 @@ export async function applyForJob(
   formData: FormData
 ): Promise<ApplicationState> {
 
-  const db = getAdminDb();
+  const db = adminDb;
   const { jobId, userId } = prevState;
   
   const validatedFields = ApplySchema.safeParse({
@@ -229,7 +196,7 @@ export async function getMatch(prevState: MatcherState, formData: FormData): Pro
  * It fetches the resume text for a given candidate.
  */
 export async function getCandidateResumeTextAction(candidateId: string): Promise<{ resumeText?: string; error?: string; }> {
-    const db = getAdminDb();
+    const db = adminDb;
     try {
         const doc = await db.collection('candidates').doc(candidateId).get();
 
@@ -282,7 +249,7 @@ export async function scheduleInterview(
   prevState: ScheduleInterviewState,
   formData: FormData
 ): Promise<ScheduleInterviewState> {
-  const db = getAdminDb();
+  const db = adminDb;
   const { candidateId } = prevState;
   
   const validatedFields = ScheduleInterviewSchema.safeParse({
@@ -380,7 +347,7 @@ export async function rerunAiMatch(
   prevState: RerunAiMatchState,
   formData: FormData
 ): Promise<RerunAiMatchState> {
-  const db = getAdminDb();
+  const db = adminDb;
   const validatedFields = RerunAiMatchSchema.safeParse({
     candidateId: formData.get('candidateId'),
   });
@@ -457,7 +424,7 @@ export async function updateCandidateStatus(
   prevState: UpdateCandidateStatusState,
   formData: FormData
 ): Promise<UpdateCandidateStatusState> {
-  const db = getAdminDb();
+  const db = adminDb;
   const validatedFields = UpdateCandidateStatusSchema.safeParse({
     candidateId: formData.get('candidateId'),
     status: formData.get('status'),
