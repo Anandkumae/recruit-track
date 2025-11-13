@@ -401,11 +401,4 @@ export async function rerunAiMatch(
     return { errors: { _form: ['An unexpected error occurred while re-running the analysis.'] } };
   }
 }
-
-declare global {
-  interface FormData {
-    get(name: 'candidateId'): string | null;
-  }
-}
-
     
