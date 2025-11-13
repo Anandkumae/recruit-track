@@ -1,30 +1,36 @@
 
+'use server';
+
 import * as admin from 'firebase-admin';
 
-// Check if the app is already initialized to prevent re-initialization.
 if (!admin.apps.length) {
+  const projectId = process.env.FIREBASE_PROJECT_ID;
+  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
+  const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n');
+  const storageBucket = process.env.FIREBASE_STORAGE_BUCKET;
+
+  if (!projectId || !clientEmail || !privateKey || !storageBucket) {
+    let missingVars = [];
+    if (!projectId) missingVars.push('FIREBASE_PROJECT_ID');
+    if (!clientEmail) missingVars.push('FIREBASE_CLIENT_EMAIL');
+    if (!privateKey) missingVars.push('FIREBASE_PRIVATE_KEY');
+    if (!storageBucket) missingVars.push('FIREBASE_STORAGE_BUCKET');
+    
+    throw new Error(`Firebase Admin SDK initialization failed. The following environment variables are missing: ${missingVars.join(', ')}. Please check your .env file.`);
+  }
+
   try {
-    // This will use the GOOGLE_APPLICATION_CREDENTIALS environment variable
-    // if it's set in a managed environment (like App Hosting).
-    // As a fallback for local/workstation development, it uses the explicit env vars.
     admin.initializeApp({
       credential: admin.credential.cert({
-        projectId: process.env.FIREBASE_PROJECT_ID,
-        clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-        // Replace escaped newlines for .env variables
-        privateKey: (process.env.FIREBASE_PRIVATE_KEY || '').replace(/\\n/g, '\n'),
+        projectId,
+        clientEmail,
+        privateKey,
       }),
-      storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
+      storageBucket,
     });
-  } catch (error) {
-    console.error("Firebase Admin initialization error:", error);
-    // Provide a more specific error if credentials are not set
-    if (!process.env.FIREBASE_PROJECT_ID || !process.env.FIREBASE_CLIENT_EMAIL || !process.env.FIREBASE_PRIVATE_KEY) {
-        throw new Error(
-          'Firebase Admin SDK credentials are not configured. Please set FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, and FIREBASE_PRIVATE_KEY in your .env file.'
-        );
-    }
-    throw new Error('Firebase Admin SDK could not be initialized. Check your service account credentials.');
+  } catch (error: any) {
+    console.error("Firebase Admin initialization error after variables checked:", error);
+    throw new Error(`Firebase Admin SDK could not be initialized even with environment variables. The service account credentials may be invalid. Please verify them in your Firebase project settings. Original error: ${error.message}`);
   }
 }
 
