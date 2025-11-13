@@ -81,6 +81,7 @@ export async function applyForJob(
 
     let matchResult = { matchScore: 0, reasoning: 'AI analysis could not be performed.' };
     
+    // We will use resumeText if available for AI matching
     const resumeContent = resumeText; 
 
     if (
@@ -88,6 +89,8 @@ export async function applyForJob(
       resumeContent.length > 10 &&
       jobDescription.length > 10
     ) {
+        // Since resumeText is just text, we need to wrap it in a format the AI flow expects.
+        // The flow expects a data URI, so we'll base64 encode the text.
         try {
             const result = await matchResumeToJob({
                 jobDescription,
@@ -98,6 +101,7 @@ export async function applyForJob(
             }
         } catch (aiError) {
             console.error('AI Matching Error:', aiError);
+            // Don't block application if AI fails, just use default score.
             matchResult.reasoning = 'AI analysis failed. Please try again later.';
         }
     } else {
@@ -114,8 +118,8 @@ export async function applyForJob(
       userId,
       matchScore: matchResult.matchScore,
       matchReasoning: matchResult.reasoning,
-      skills: [], 
-      avatarUrl: avatarUrl || `https://picsum.photos/seed/${userId}/100/100`,
+      skills: [], // Default to empty array, can be populated later
+      avatarUrl: avatarUrl || `https://picsum.photos/seed/${userId}/100/100`, // Placeholder image
       resumeText: resumeText || '',
       resumeUrl: resumeUrl || '',
     };
@@ -201,6 +205,7 @@ export async function getCandidateResumeTextAction(candidateId: string): Promise
 
         const candidateData = doc.data() as Candidate;
 
+        // Check for resumeText field specifically
         if (!candidateData.resumeText) {
             return { error: `Candidate with ID '${candidateId}' has no resume text.` };
         }
@@ -209,6 +214,7 @@ export async function getCandidateResumeTextAction(candidateId: string): Promise
 
     } catch (error) {
         console.error("Server Action 'getCandidateResumeText' failed:", error);
+        // It's better to return a generic error to the client/tool
         return { error: 'Failed to retrieve candidate data due to a database error.' };
     }
 }
@@ -449,4 +455,6 @@ export async function updateCandidateStatus(
     return { errors: { _form: ['Failed to update candidate status.'] } };
   }
 }
+    
+
     

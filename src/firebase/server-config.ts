@@ -1,12 +1,11 @@
 
 import * as admin from 'firebase-admin';
-import { firebaseConfig } from './config';
 
-// Singleton pattern to ensure we only initialize the admin app once.
 let adminApp: admin.app.App;
 let adminFirestore: admin.firestore.Firestore;
 
 function initializeAdminApp() {
+  // Check if the app is already initialized to prevent re-initialization.
   if (admin.apps.length > 0) {
     adminApp = admin.app();
     adminFirestore = admin.firestore();
@@ -14,15 +13,12 @@ function initializeAdminApp() {
   }
 
   try {
-    // Attempt to initialize using default credentials which should be
-    // available in the Firebase/Google Cloud managed environment.
-    adminApp = admin.initializeApp({
-      projectId: firebaseConfig.projectId,
-      storageBucket: firebaseConfig.storageBucket,
-    });
+    // This will use the GOOGLE_APPLICATION_CREDENTIALS environment variable
+    // if it's set, or default credentials in a managed environment.
+    adminApp = admin.initializeApp();
   } catch (e) {
     console.error('Firebase Admin initialization failed:', e);
-    // If initialization fails, provide guidance.
+    // Provide a clear error message.
     throw new Error(
       `Firebase Admin SDK could not be initialized. This might be a temporary environment issue. Please try again.`
     );
@@ -41,3 +37,5 @@ export function getFirebaseAdmin() {
   }
   return { adminApp, firestore: adminFirestore };
 }
+
+    
