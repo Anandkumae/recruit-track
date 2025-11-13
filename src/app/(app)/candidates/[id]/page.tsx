@@ -466,7 +466,7 @@ export default function CandidateDetailsPage() {
         return doc(firestore, 'candidates', id);
     }, [firestore, id]);
 
-    const { data: candidate, isLoading: candidateLoading, error: candidateError } = useDoc<WithId<Candidate>>(candidateRef);
+    const { data: candidate, isLoading: candidateLoading } = useDoc<WithId<Candidate>>(candidateRef);
     
     const jobRef = useMemoFirebase(() => {
         if (!firestore || !candidate?.jobAppliedFor) return null;
@@ -475,16 +475,8 @@ export default function CandidateDetailsPage() {
 
     const { data: job, isLoading: jobLoading } = useDoc<WithId<Job>>(jobRef);
 
-    useEffect(() => {
-        // This effect redirects if the candidate doesn't exist after loading.
-        // It's a client-side check. The server-side crash is prevented by the return logic below.
-        if (!candidateLoading && !candidate) {
-            notFound();
-        }
-    }, [candidate, candidateLoading]);
-
     // This is the main loading gate. It prevents rendering until the essential data is ready.
-    const isLoading = candidateLoading || (candidate && jobLoading);
+    const isLoading = candidateLoading || (candidate && !job && jobLoading);
     if (isLoading) {
         return (
             <div className="flex h-full w-full items-center justify-center">
