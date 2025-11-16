@@ -6,6 +6,7 @@ import { revalidatePath } from 'next/cache';
 import type { Job, User, Interview, Candidate, HiringStage } from '@/lib/types';
 import { getFirebaseAdmin } from '@/utils/getFirebaseAdmin';
 import { FieldValue } from 'firebase-admin/firestore';
+import { logActivity } from './activity-logger';
 
 
 // Helper to convert a file to a Base64 Data URI
@@ -314,6 +315,23 @@ export async function scheduleInterview(
       await db.collection('candidates').doc(candidateId).update({
         status: 'Interviewed',
       });
+      
+      // Log the interview scheduling activity
+      await logActivity(
+        'interview_scheduled',
+        candidateId,
+        candidateData.name,
+        candidateData.jobAppliedFor,
+        jobData.title,
+        scheduledBy,
+        scheduledByName || 'Admin',
+        {
+          scheduledAt: scheduledDate,
+          location: location || undefined,
+          meetingLink: meetingLink || undefined,
+          notes: notes || undefined
+        }
+      );
     }
     
     revalidatePath('/candidates');
@@ -442,7 +460,37 @@ export async function updateCandidateStatus(
       return { errors: { _form: ['Candidate not found.'] } };
     }
 
+    const candidateData = candidateDoc.data() as Candidate;
+    const jobDoc = await db.collection('jobs').doc(candidateData.jobAppliedFor).get();
+    const jobTitle = jobDoc.exists ? (jobDoc.data() as Job).title : 'Unknown Job';
+    
+    // Get admin user info (simplified - in a real app, you'd get this from the session)
+    const adminUserDoc = await db.collection('users').doc('admin').get();
+    const adminName = adminUserDoc.exists ? (adminUserDoc.data() as User).name : 'Admin';
+
+    // Update candidate status
     await candidateRef.update({ status: status });
+
+    // Log the activity
+    let activityType: 'shortlisted' | 'hired' | 'rejected' | 'interview_scheduled' = 'shortlisted';
+    
+    if (status === 'Hired') {
+      activityType = 'hired';
+    } else if (status === 'Rejected') {
+      activityType = 'rejected';
+    } else if (status === 'Interviewed') {
+      activityType = 'interview_scheduled';
+    }
+
+    await logActivity(
+      activityType,
+      candidateId,
+      candidateData.name,
+      candidateData.jobAppliedFor,
+      jobTitle,
+      'admin', // admin user ID
+      adminName
+    );
 
     revalidatePath('/dashboard');
     revalidatePath('/candidates');

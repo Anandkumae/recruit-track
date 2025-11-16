@@ -11,6 +11,7 @@ import type { Role, WithId, Candidate, Job } from '@/lib/types';
 import { doc } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { RecentApplicantsTable } from '@/components/dashboard/recent-applicants-table';
+import { CandidateActivityFeed } from '@/components/dashboard/candidate-activity-feed';
 
 export default function DashboardPage() {
   const { user, isUserLoading } = useUser();
@@ -57,6 +58,9 @@ export default function DashboardPage() {
     return query(collection(firestore, 'candidates'), where('userId', '==', user.uid));
   }, [firestore, user, isPrivilegedUser]);
   const { data: candidateApplications, isLoading: candidateAppsLoading } = useCollection<WithId<Candidate>>(candidateApplicationsQuery);
+
+  // First (and usually only) candidate doc for this user
+  const currentCandidateId = candidateApplications?.[0]?.id;
 
   const jobsMap = useMemo(() => {
     if (!jobs) return new Map<string, string>();
@@ -143,7 +147,7 @@ export default function DashboardPage() {
         </div>
       ) : (
         <div className="space-y-8">
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-2">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-2 mb-8">
             <StatCard
               title="Applications Sent"
               value={applicationsSent}
@@ -157,6 +161,16 @@ export default function DashboardPage() {
               description="Applications currently under review."
             />
           </div>
+          
+          <Card>
+            <CardHeader>
+              <CardTitle>Your Activity Feed</CardTitle>
+              <CardDescription>Updates on your job applications</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <CandidateActivityFeed userId={currentCandidateId || ''} />
+            </CardContent>
+          </Card>
         </div>
       )}
     </div>
