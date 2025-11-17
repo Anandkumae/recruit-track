@@ -10,6 +10,7 @@ import { Loader2 } from 'lucide-react';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import { doc } from 'firebase/firestore';
 import type { User, WithId } from '@/lib/types';
+import { ChatbotWidget } from '@/components/chatbot/chatbot-widget';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { user, isUserLoading } = useUser();
@@ -89,6 +90,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             {children}
           </main>
         </div>
+        <ChatbotWidget userProfile={userProfile} />
       </div>
     </SidebarProvider>
   );
