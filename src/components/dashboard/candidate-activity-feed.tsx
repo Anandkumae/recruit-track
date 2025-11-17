@@ -1,11 +1,11 @@
+
 'use client';
 
-import { useFirestore } from '@/firebase';
+import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, orderBy, limit, Timestamp } from 'firebase/firestore';
-import { useCollection } from 'react-firebase-hooks/firestore';
 import { Loader2, CheckCircle, UserCheck, Calendar, XCircle, Mail, Clock } from 'lucide-react';
 import { format } from 'date-fns';
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState } from 'react';
 
 type ActivityType = 'shortlisted' | 'interview_scheduled' | 'hired' | 'rejected' | 'application_received';
 
@@ -71,59 +71,24 @@ const getActivityMessage = (activity: Activity) => {
 
 export function CandidateActivityFeed({ userId }: { userId: string }) {
   const firestore = useFirestore();
-  const [activities, setActivities] = useState<Activity[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
-  const activitiesQuery = useMemo(() => {
+  const activitiesQuery = useMemoFirebase(() => {
     if (!firestore || !userId) return null;
-    try {
-      return query(
+    return query(
         collection(firestore, 'users', userId, 'notifications'),
         orderBy('timestamp', 'desc'),
         limit(10)
       );
-    } catch (err) {
-      console.error('Error creating query:', err);
-      setError('Failed to create query. Please try again.');
-      return null;
-    }
   }, [firestore, userId]);
 
-  const [snapshot, loading, queryError] = useCollection(activitiesQuery, {
-    snapshotListenOptions: { includeMetadataChanges: true },
-  });
+  const { data: snapshot, isLoading, error } = useCollection<Activity>(activitiesQuery);
 
-  useEffect(() => {
-    if (queryError) {
-      console.error('Firestore query error:', queryError);
-      setError('Failed to load activities. Please refresh the page.');
-      setIsLoading(false);
-      return;
-    }
+  const activities = snapshot?.map(doc => ({
+      ...doc,
+      timestamp: doc.timestamp instanceof Date ? doc.timestamp : (doc.timestamp as Timestamp).toDate(),
+  }));
 
-    if (snapshot) {
-      try {
-        const activitiesData = snapshot.docs.map(doc => {
-          const data = doc.data() as any;
-          const timestamp = data.timestamp?.toDate ? data.timestamp.toDate() : new Date();
-          return {
-            id: doc.id,
-            ...data,
-            timestamp,
-          } as Activity;
-        });
-        setActivities(activitiesData);
-        setError(null);
-      } catch (err) {
-        console.error('Error processing activities:', err);
-        setError('Failed to process activities data.');
-      }
-      setIsLoading(false);
-    }
-  }, [snapshot, queryError, loading, firestore, userId]);
-
-  if (isLoading || loading) {
+  if (isLoading) {
     return (
       <div className="flex justify-center items-center h-32">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -133,20 +98,15 @@ export function CandidateActivityFeed({ userId }: { userId: string }) {
   }
 
   if (error) {
+    console.error('Firestore query error:', error);
     return (
       <div className="text-center text-red-500 p-4">
-        <p>{error}</p>
-        <button 
-          onClick={() => window.location.reload()}
-          className="mt-2 text-sm text-blue-500 hover:underline"
-        >
-          Try Again
-        </button>
+        <p>Failed to load activities. Please refresh the page.</p>
       </div>
     );
   }
 
-  if (activities.length === 0) {
+  if (!activities || activities.length === 0) {
     return (
       <div className="text-center text-muted-foreground p-8">
         <p>No activities found.</p>
@@ -158,9 +118,7 @@ export function CandidateActivityFeed({ userId }: { userId: string }) {
   return (
     <div className="space-y-4">
       {activities.map((activity) => {
-        const activityDate = activity.timestamp instanceof Date 
-          ? activity.timestamp 
-          : (activity.timestamp as Timestamp).toDate();
+        const activityDate = activity.timestamp;
           
         return (
           <div key={activity.id} className="flex items-start gap-3 p-3 rounded-lg border">
