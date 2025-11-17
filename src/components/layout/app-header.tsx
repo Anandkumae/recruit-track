@@ -18,6 +18,7 @@ import { SidebarTrigger } from '../ui/sidebar';
 import { Briefcase } from 'lucide-react';
 import { signOut } from 'firebase/auth';
 import type { User, WithId } from '@/lib/types';
+import { ThemeToggle } from './theme-toggle';
 
 interface AppHeaderProps {
   userProfile: WithId<User> | null;
@@ -54,6 +55,7 @@ export function AppHeader({ userProfile }: AppHeaderProps) {
          </Link>
        </div>
       <div className="ml-auto flex items-center gap-4">
+        <ThemeToggle />
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
