@@ -172,8 +172,6 @@ export function AppSidebar() {
 
   if (user.email === 'anandkumar.shinnovationco@gmail.com') {
     userRole = 'Admin';
-  } else if (userProfile?.role && ['Admin', 'HR', 'Manager'].includes(userProfile.role)) {
-    userRole = userProfile.role;
   } else if (userProfile?.role) {
     userRole = userProfile.role;
   }
