@@ -8,13 +8,28 @@ import { getFirebaseAdmin } from '@/utils/getFirebaseAdmin';
 import { FieldValue } from 'firebase-admin/firestore';
 import { logActivity } from './activity-logger';
 
+type FileLike = Blob & { name?: string };
+
+const isFileLike = (value: unknown): value is FileLike => {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+
+  const candidate = value as Partial<FileLike>;
+  return (
+    typeof candidate.size === 'number' &&
+    typeof candidate.type === 'string' &&
+    typeof (candidate as Blob).arrayBuffer === 'function'
+  );
+};
 
 // Helper to convert a file to a Base64 Data URI
-async function fileToDataURI(file: File): Promise<string> {
+async function fileToDataURI(file: FileLike): Promise<string> {
   const arrayBuffer = await file.arrayBuffer();
   const buffer = Buffer.from(arrayBuffer);
   const base64 = buffer.toString('base64');
-  return `data:${file.type};base64,${base64}`;
+  const mimeType = file.type || 'application/octet-stream';
+  return `data:${mimeType};base64,${base64}`;
 }
 
 const ApplySchema = z.object({
@@ -152,7 +167,9 @@ export type MatcherState = {
 const MatcherSchema = z.object({
   jobDescription: z.string().min(10, 'Job description must be at least 10 characters long.'),
   resumeFile: z
-    .instanceof(File, { message: 'Please upload a resume file.' })
+    .custom<FileLike>((file) => isFileLike(file), {
+      message: 'Please upload a resume file.',
+    })
     .refine((file) => file.size > 0, 'The resume file cannot be empty.')
     .refine((file) => file.size < 5 * 1024 * 1024, 'File size must be less than 5MB.')
 });

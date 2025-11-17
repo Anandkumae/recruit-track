@@ -1,4 +1,4 @@
-import * as admin from 'firebase-admin';
+import { FieldValue } from 'firebase-admin/firestore';
 import { adminDb } from './firebaseAdmin.server';
 
 type ActivityType = 'shortlisted' | 'interview_scheduled' | 'hired' | 'rejected' | 'application_received';
@@ -22,6 +22,7 @@ export async function logActivity(
   candidateUserId?: string
 ) {
   try {
+    const timestamp = FieldValue.serverTimestamp();
     const activityData = {
       type,
       candidateId,
@@ -31,7 +32,7 @@ export async function logActivity(
       createdBy,
       createdByName,
       ...(candidateUserId && { candidateUserId }),
-      timestamp: admin.firestore.FieldValue.serverTimestamp(),
+      timestamp,
       ...(metadata && { metadata: {
         ...(metadata.scheduledAt && { scheduledAt: metadata.scheduledAt }),
         ...(metadata.location && { location: metadata.location }),
@@ -40,8 +41,25 @@ export async function logActivity(
       }})
     };
 
-    const newActivityRef = await adminDb.collection('activities').add(activityData);
-    return { success: true, id: newActivityRef.id };
+    const batch = adminDb.batch();
+    const activityRef = adminDb.collection('activities').doc();
+    batch.set(activityRef, activityData);
+
+    if (candidateUserId) {
+      const candidateNotificationRef = adminDb
+        .collection('users')
+        .doc(candidateUserId)
+        .collection('notifications')
+        .doc(activityRef.id);
+
+      batch.set(candidateNotificationRef, {
+        ...activityData,
+        globalActivityId: activityRef.id,
+      });
+    }
+
+    await batch.commit();
+    return { success: true, id: activityRef.id };
   } catch (error) {
     console.error('Error logging activity:', error);
     return { success: false, error };

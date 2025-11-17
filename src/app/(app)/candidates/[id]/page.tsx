@@ -2,7 +2,7 @@
 'use client';
 
 import { useDoc, useFirestore, useMemoFirebase, useFirebase, useUser, useCollection } from "@/firebase";
-import type { Candidate, Job, WithId } from "@/lib/types";
+import type { Candidate, Job, WithId, Role, User } from "@/lib/types";
 import { notFound, useParams } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -461,7 +461,9 @@ function CandidateDetailsView({ candidate, job }: { candidate: WithId<Candidate>
 export default function CandidateDetailsPage() {
     const params = useParams();
     const id = params.id as string;
-    const { firestore, user } = useFirebase();
+    const { firestore } = useFirebase();
+    const { user, isUserLoading } = useUser();
+    const privilegedRoles: Role[] = ["Admin", "HR", "Manager"];
 
     const candidateRef = useMemoFirebase(() => {
         if (!firestore || !id) return null;
@@ -476,11 +478,37 @@ export default function CandidateDetailsPage() {
     }, [firestore, candidate?.jobAppliedFor]);
 
     const { data: job, isLoading: jobLoading, error: jobError } = useDoc<WithId<Job>>(jobRef);
+
+    const userProfileRef = useMemoFirebase(() => {
+        if (!firestore || !user) return null;
+        return doc(firestore, 'users', user.uid);
+    }, [firestore, user]);
+
+    const { data: userProfile, isLoading: userProfileLoading } = useDoc<WithId<User>>(userProfileRef);
+
+    const userRole: Role =
+        user?.email === 'anandkumar.shinnovationco@gmail.com'
+            ? 'Admin'
+            : userProfile?.role || 'Candidate';
+
+    const rolesAdminDocRef = useMemoFirebase(() => {
+        if (!firestore || !user) return null;
+        return doc(firestore, 'roles_admin', user.uid);
+    }, [firestore, user]);
+
+    const { data: rolesAdminDoc, isLoading: rolesAdminLoading } = useDoc<WithId<Record<string, unknown>>>(rolesAdminDocRef);
+
+    const isListedAdmin = Boolean(rolesAdminDoc);
+    const isPrivilegedUser = isListedAdmin || privilegedRoles.includes(userRole);
     
-    const isAdmin = user?.email === 'anandkumar.shinnovationco@gmail.com';
     const isOwner = user?.uid === candidate?.userId;
     
-    const isLoading = candidateLoading || (candidate && !job && jobLoading);
+    const isLoading =
+        isUserLoading ||
+        candidateLoading ||
+        userProfileLoading ||
+        rolesAdminLoading ||
+        (candidate && !job && jobLoading);
     
     if (isLoading) {
         return (
@@ -491,8 +519,8 @@ export default function CandidateDetailsPage() {
         );
     }
     
-    // Let admins see any profile, and users see their own application
-    if (!candidate || (!isAdmin && !isOwner)) {
+    // Let privileged roles see any profile, and users see their own application
+    if (!candidate || (!isPrivilegedUser && !isOwner)) {
         notFound();
     }
 

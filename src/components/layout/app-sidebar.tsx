@@ -18,7 +18,7 @@ import {
   SidebarTrigger,
   useSidebar
 } from '@/components/ui/sidebar';
-import { doc, collection, query, where, orderBy, limit, type Timestamp } from 'firebase/firestore';
+import { doc, collection, query, orderBy, limit, type Timestamp } from 'firebase/firestore';
 import { Loader2 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -73,8 +73,7 @@ function SidebarNotifications({ userRole, userId }: { userRole: Role; userId: st
   const notificationsQuery = useMemoFirebase(() => {
     if (!firestore || userRole !== 'Candidate') return null;
     return query(
-      collection(firestore, 'activities'),
-      where('candidateUserId', '==', userId),
+      collection(firestore, 'users', userId, 'notifications'),
       orderBy('timestamp', 'desc'),
       limit(5)
     );

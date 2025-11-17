@@ -1,5 +1,5 @@
-
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
 
@@ -10,7 +10,14 @@ service cloud.firestore {
       allow create: if isOwner(userId) && request.resource.data.id == userId;
       allow update: if isOwner(userId) && request.resource.data.id.size() > 0;
       allow delete: if isOwner(userId);
+
+      // User Notifications
+      match /notifications/{notificationId} {
+        allow get, list: if isOwner(userId);
+        allow create, update, delete: if isAdmin();
+      }
     }
+
 
     // --- JOBS ---
     match /jobs/{jobId} {
@@ -18,20 +25,22 @@ service cloud.firestore {
       allow create, update, delete: if isAdmin();
     }
 
+
     // --- CANDIDATES ---
     match /candidates/{candidateId} {
       allow read, create: if isSignedIn();
       allow update, delete: if isAdmin();
     }
-    
+
+
     // --- INTERVIEWS ---
     match /interviews/{interviewId} {
-      // Allow Admin full read/write access
-      allow list, write: if isAdmin();
-      
-      // Allow candidates and admins to read specific interview docs
-      allow get: if (isSignedIn() && resource.data.candidateId == request.auth.uid) || isAdmin();
+      allow list: if isAdmin() || hasPrivilegedRole();
+      allow get: if isAdmin() || hasPrivilegedRole()
+        || (isSignedIn() && resource.data.candidateId == request.auth.uid);
+      allow create, update, delete: if isAdmin() || hasPrivilegedRole();
     }
+
 
     // --- ACTIVITIES ---
     match /activities/{activityId} {
@@ -43,16 +52,18 @@ service cloud.firestore {
             (
               resource.data.candidateUserId == null &&
               resource.data.candidateId != null &&
-              get(/databases/$(database)/documents/candidates/$(resource.data.candidateId)).data.userId == request.auth.uid
+              get(/databases/$(database)/documents/candidates/$(resource.data.candidateId)).data.userId
+              == request.auth.uid
             )
           ));
-      
-      // Allow admins to create activities
+
+      // Admin create
       allow create: if isAdmin();
-      
-      // Only admins can update/delete activities
+
+      // Admin update/delete
       allow update, delete: if isAdmin();
     }
+
 
     // --- ADMIN ROLES ---
     match /roles_admin/{userId} {
@@ -74,30 +85,37 @@ service cloud.firestore {
 
     function isAdmin() {
       return isSignedIn() &&
-        (exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid))
-        || request.auth.token.email == "anandkumar.shinnovationco@gmail.com");
+        (
+          exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid))
+          || request.auth.token.email == "anandkumar.shinnovationco@gmail.com"
+        );
     }
-    
-    function isHR() {
-      // (Optional) Replace with real HR check logic
-      return false;
-    }
-    
-    function isManager() {
-      // (Optional) Replace with real Manager check logic
-      return false;
+
+    function hasPrivilegedRole() {
+      let userDocPath = /databases/$(database)/documents/users/$(request.auth.uid);
+
+      return isSignedIn() &&
+        (exists(userDocPath)
+          ? get(userDocPath).data.role in ['Admin', 'HR', 'Manager']
+          : false);
     }
   }
 }
 
+
 // --- STORAGE RULES ---
 service firebase.storage {
   match /b/{bucket}/o {
+
+    // Allow users to upload resumes only if signed in
     match /resumes/{allPaths=**} {
       allow read, write: if request.auth != null;
     }
+
+    // Block everything else
     match /{allPaths=**} {
       allow read, write: if false;
     }
   }
 }
+

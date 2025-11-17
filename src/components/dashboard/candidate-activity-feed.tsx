@@ -1,7 +1,7 @@
 'use client';
 
 import { useFirestore } from '@/firebase';
-import { collection, query, where, orderBy, limit, Timestamp } from 'firebase/firestore';
+import { collection, query, orderBy, limit, Timestamp } from 'firebase/firestore';
 import { useCollection } from 'react-firebase-hooks/firestore';
 import { Loader2, CheckCircle, UserCheck, Calendar, XCircle, Mail, Clock } from 'lucide-react';
 import { format } from 'date-fns';
@@ -78,14 +78,11 @@ export function CandidateActivityFeed({ userId }: { userId: string }) {
   const activitiesQuery = useMemo(() => {
     if (!firestore || !userId) return null;
     try {
-      const q = query(
-        collection(firestore, 'activities'),
-        where('candidateUserId', '==', userId),
+      return query(
+        collection(firestore, 'users', userId, 'notifications'),
         orderBy('timestamp', 'desc'),
         limit(10)
       );
-      console.log('[ActivityFeed] Built query for userId', userId);
-      return q;
     } catch (err) {
       console.error('Error creating query:', err);
       setError('Failed to create query. Please try again.');
@@ -98,10 +95,6 @@ export function CandidateActivityFeed({ userId }: { userId: string }) {
   });
 
   useEffect(() => {
-    console.log('[ActivityFeed] Firestore instance:', !!firestore);
-    console.log('[ActivityFeed] userId:', userId);
-    console.log('[ActivityFeed] loading:', loading, 'queryError:', queryError);
-
     if (queryError) {
       console.error('Firestore query error:', queryError);
       setError('Failed to load activities. Please refresh the page.');
@@ -111,7 +104,6 @@ export function CandidateActivityFeed({ userId }: { userId: string }) {
 
     if (snapshot) {
       try {
-        console.log('[ActivityFeed] snapshot size:', snapshot.size);
         const activitiesData = snapshot.docs.map(doc => {
           const data = doc.data() as any;
           const timestamp = data.timestamp?.toDate ? data.timestamp.toDate() : new Date();
@@ -121,7 +113,6 @@ export function CandidateActivityFeed({ userId }: { userId: string }) {
             timestamp,
           } as Activity;
         });
-        console.log('[ActivityFeed] mapped activities:', activitiesData);
         setActivities(activitiesData);
         setError(null);
       } catch (err) {
