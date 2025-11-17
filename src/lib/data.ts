@@ -65,7 +65,7 @@ export const navItems: NavItem[] = [
         href: '/resume-matcher',
         label: 'AI Resume Matcher',
         icon: FileText,
-        roles: ['Admin', 'HR', 'Manager'],
+        roles: ['Admin', 'HR', 'Manager', 'Candidate'],
     },
     {
         href: '/profile',
