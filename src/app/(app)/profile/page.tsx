@@ -1,19 +1,22 @@
 'use client';
 
 import { useUser, useFirebase, useDoc, useMemoFirebase } from '@/firebase';
-import { doc, updateDoc } from 'firebase/firestore';
+import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { ref, getDownloadURL, uploadBytes, type Storage } from 'firebase/storage';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Loader2, Upload, User as UserIcon, Mail, Phone, Book, Pencil, Save, Eye, FileText } from "lucide-react";
+import { Loader2, Upload, User as UserIcon, Mail, Phone, Book, Pencil, Save, Eye, FileText, Wand2 } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { ProfileImageUpload } from '@/components/profile/ProfileImageUpload';
 import { updateProfileImage } from '@/lib/services/profileService';
+import { parseResumeAction } from '@/lib/actions';
+import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 function ResumeSection({ resumeUrl, storage }: { resumeUrl?: string, storage: Storage | null }) {
     const [downloadURL, setDownloadURL] = useState<string | null>(null);
@@ -85,7 +88,8 @@ export default function ProfilePage() {
         name: '',
         phone: '',
         qualification: '',
-        avatarUrl: ''
+        avatarUrl: '',
+        skills: [] as string[],
     });
 
     useEffect(() => {
@@ -94,7 +98,8 @@ export default function ProfilePage() {
                 name: userProfile.name || '',
                 phone: userProfile.phone || '',
                 qualification: userProfile.qualification || '',
-                avatarUrl: userProfile.avatarUrl || ''
+                avatarUrl: userProfile.avatarUrl || '',
+                skills: userProfile.skills || [],
             });
         }
     }, [userProfile]);
@@ -111,7 +116,7 @@ export default function ProfilePage() {
             setIsSaving(true);
             await updateDoc(userProfileRef, {
                 ...formData,
-                updatedAt: new Date().toISOString()
+                updatedAt: serverTimestamp()
             });
             
             toast({
@@ -137,11 +142,7 @@ export default function ProfilePage() {
         
         try {
             await updateProfileImage(user.uid, imageUrl);
-            // Update local state to show the new image
-            setFormData(prev => ({
-                ...prev,
-                avatarUrl: imageUrl
-            }));
+            setFormData(prev => ({ ...prev, avatarUrl: imageUrl }));
         } catch (error) {
             console.error('Error updating profile image:', error);
             toast({
@@ -152,38 +153,67 @@ export default function ProfilePage() {
         }
     };
     
-     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files[0]) {
             setSelectedFile(e.target.files[0]);
         }
     };
 
-    const handleUpload = async () => {
+    const handleUploadAndParse = async () => {
         if (!selectedFile || !user || !storage || !firestore) {
             toast({ title: 'Upload Failed', description: 'Please select a file first.', variant: 'destructive' });
             return;
         }
 
         setIsUploading(true);
-        const storageRef = ref(storage, `resumes/${user.uid}/${selectedFile.name}`);
+        const storageRef = ref(storage, `resumes/${user.uid}/${Date.now()}-${selectedFile.name}`);
 
         try {
+            // 1. Upload the file
             await uploadBytes(storageRef, selectedFile);
             const userDocRef = doc(firestore, 'users', user.uid);
             await updateDoc(userDocRef, {
                 resumeUrl: storageRef.fullPath,
             });
 
-            toast({
-                title: 'Upload Successful',
-                description: 'Your resume has been uploaded.',
-            });
-            setSelectedFile(null); // Clear the file input
+            toast({ title: 'Upload Successful', description: 'Your resume has been uploaded.' });
+
+            // 2. Parse the file
+            const parseFormData = new FormData();
+            parseFormData.append('resumeFile', selectedFile);
+            
+            const result = await parseResumeAction({}, parseFormData);
+
+            if (result.success && result.parsedData) {
+                const { name, phone, qualification, skills } = result.parsedData;
+                setFormData(prev => ({
+                    ...prev,
+                    ...(name && { name }),
+                    ...(phone && { phone }),
+                    ...(qualification && { qualification }),
+                    ...(skills && { skills }),
+                }));
+                
+                await updateDoc(userDocRef, {
+                    skills, // also save skills to Firestore
+                });
+                
+                toast({
+                    title: 'Resume Parsed!',
+                    description: 'Your profile details have been auto-filled. Please review and save.',
+                });
+                setIsEditing(true); // Switch to edit mode to show the new data
+            } else {
+                const errorMsg = result.errors?._form?.[0] || 'Could not parse resume.';
+                toast({ title: 'Parsing Failed', description: errorMsg, variant: 'destructive' });
+            }
+
+            setSelectedFile(null);
         } catch (error: any) {
-             console.error("Upload error:", error);
+             console.error("Upload/Parse error:", error);
             toast({
-                title: 'Upload Failed',
-                description: error.message || 'There was an error uploading your resume.',
+                title: 'Operation Failed',
+                description: error.message || 'There was an error during the upload and parsing process.',
                 variant: 'destructive',
             });
         } finally {
@@ -321,7 +351,7 @@ export default function ProfilePage() {
             <Card>
                 <CardHeader>
                     <CardTitle>My Resume</CardTitle>
-                    <CardDescription>Upload and manage your resume file.</CardDescription>
+                    <CardDescription>Upload a resume to auto-fill your profile information.</CardDescription>
                 </CardHeader>
                  <CardContent className="space-y-4">
                      <ResumeSection resumeUrl={userProfile.resumeUrl} storage={storage} />
@@ -329,14 +359,36 @@ export default function ProfilePage() {
                     <div className="space-y-2">
                         <Label htmlFor="resume-upload">Upload New Resume</Label>
                         <div className="flex gap-2">
-                            <Input id="resume-upload" type="file" onChange={handleFileChange} className="flex-grow" accept=".pdf,.doc,.docx,.txt" />
-                            <Button onClick={handleUpload} disabled={!selectedFile || isUploading}>
-                                {isUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-                                Upload
+                            <Input id="resume-upload" type="file" onChange={handleFileChange} className="flex-grow" accept=".pdf,.doc,.docx,.txt,.png,.jpg" />
+                            <Button onClick={handleUploadAndParse} disabled={!selectedFile || isUploading}>
+                                {isUploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wand2 className="mr-2 h-4 w-4" />}
+                                Upload & Parse
                             </Button>
                         </div>
                          {selectedFile && <p className="text-xs text-muted-foreground">Selected: {selectedFile.name}</p>}
+                         <Alert className="mt-4 border-blue-500/50 bg-blue-500/5 text-blue-800 dark:text-blue-300">
+                           <AlertDescription>
+                                Uploading a new resume will automatically extract your name, phone, qualifications, and skills to populate your profile.
+                           </AlertDescription>
+                         </Alert>
                     </div>
+                </CardContent>
+            </Card>
+             <Card>
+                <CardHeader>
+                    <CardTitle>My Skills</CardTitle>
+                    <CardDescription>Skills extracted from your resume.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    {formData.skills && formData.skills.length > 0 ? (
+                        <div className="flex flex-wrap gap-2">
+                            {formData.skills.map((skill, index) => (
+                                <Badge key={index} variant="secondary">{skill}</Badge>
+                            ))}
+                        </div>
+                    ) : (
+                        <p className="text-sm text-muted-foreground">No skills found. Upload a resume to populate this section.</p>
+                    )}
                 </CardContent>
             </Card>
         </div>
@@ -344,5 +396,3 @@ export default function ProfilePage() {
     </div>
   );
 }
-
-    

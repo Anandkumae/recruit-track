@@ -3,6 +3,7 @@
 import { z } from 'zod';
 import { matchResumeToJob } from '@/ai/flows/ai-match-resume-to-job';
 import { generateInterviewQuestions } from '@/ai/flows/generate-interview-questions';
+import { parseResume } from '@/ai/flows/parse-resume';
 import { revalidatePath } from 'next/cache';
 import type { Job, User, Interview, Candidate, HiringStage } from '@/lib/types';
 import { getFirebaseAdmin } from '@/utils/getFirebaseAdmin';
@@ -561,4 +562,53 @@ export async function getInterviewQuestions(prevState: InterviewQuestionState, f
         console.error('AI Interview Question Error:', error);
         return { errors: { _form: ['The AI analysis failed. Please try again.'] } };
     }
+}
+
+export type ResumeParserState = {
+  success?: boolean;
+  parsedData?: {
+    name: string;
+    phone: string;
+    skills: string[];
+    qualification: string;
+  };
+  errors?: {
+    resumeFile?: string[];
+    _form?: string[];
+  };
+};
+
+const ResumeParserSchema = z.object({
+  resumeFile: z
+    .custom<FileLike>((file) => isFileLike(file), {
+      message: 'Please upload a resume file.',
+    })
+    .refine((file) => file.size > 0, 'The resume file cannot be empty.')
+    .refine((file) => file.size < 5 * 1024 * 1024, 'File size must be less than 5MB.'),
+});
+
+export async function parseResumeAction(prevState: ResumeParserState, formData: FormData): Promise<ResumeParserState> {
+  const validatedFields = ResumeParserSchema.safeParse({
+    resumeFile: formData.get('resumeFile'),
+  });
+
+  if (!validatedFields.success) {
+    return { errors: validatedFields.error.flatten().fieldErrors };
+  }
+
+  const { resumeFile } = validatedFields.data;
+
+  try {
+    const photoDataUri = await fileToDataURI(resumeFile);
+    const result = await parseResume({ photoDataUri });
+
+    if (!result) {
+      return { errors: { _form: ['AI failed to parse the resume.'] } };
+    }
+
+    return { success: true, parsedData: result };
+  } catch (error) {
+    console.error('Resume Parser Action Error:', error);
+    return { errors: { _form: ['An error occurred during resume parsing.'] } };
+  }
 }

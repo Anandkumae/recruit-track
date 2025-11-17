@@ -15,6 +15,7 @@ export type User = {
   department?: string;
   resumeUrl?: string; 
   resumeText?: string;
+  skills?: string[];
 };
 
 export type HiringStage = 'Applied' | 'Shortlisted' | 'Interviewed' | 'Hired' | 'Rejected';
