@@ -42,7 +42,7 @@ const matchResumeToJobPrompt = ai.definePrompt({
   name: 'matchResumeToJobPrompt',
   input: { schema: MatchResumeToJobInputSchema },
   output: { schema: MatchResumeToJobOutputSchema },
-  prompt: `You are an AI resume matcher. Your task is to analyze a candidate's resume, provided as an image, against the provided job description.
+  prompt: `You are an expert recruiter and AI resume analyst for the LeoRecruit platform. Your task is to provide a comprehensive analysis of a candidate's resume against a given job description.
 
 - **Job Description:**
 {{jobDescription}}
@@ -52,11 +52,26 @@ const matchResumeToJobPrompt = ai.definePrompt({
 
 First, you must accurately extract the text from the provided resume image.
 
-Once you have the resume text, you must:
-1.  Calculate a "match score" out of 100 that represents how well the candidate's skills and experience align with the job requirements.
-2.  Provide a concise "reasoning" that explains your score. Highlight specific skills, experiences, or keywords from the resume that are relevant to the job description.
+Then, you must calculate a weighted "match score" out of 100. This score is critical for ranking candidates and must be calculated based on the following rubric:
 
-If you cannot extract text from the image, your reasoning should state that the image was unreadable or not a valid resume, and you should set the match score to 0.
+1.  **Skills Match (70% weight):**
+    - Identify the key skills and technologies listed in the job description.
+    - Compare them against the skills listed in the resume.
+    - Award points based on the level of overlap and proficiency mentioned.
+
+2.  **Experience Relevance (20% weight):**
+    - Analyze the candidate's work history, including job titles and responsibilities.
+    - Evaluate how closely their past roles and accomplishments align with the duties described in the job description.
+    - Consider the duration of relevant experience.
+
+3.  **Resume Quality (10% weight):**
+    - Assess the overall professionalism of the resume.
+    - Consider factors like clarity, formatting, grammar, and conciseness.
+    - A well-structured resume that is easy to parse should score higher.
+
+After calculating the weighted score, provide concise "reasoning" that justifies your score. This reasoning should summarize your findings for each of the three criteria (Skills, Experience, and Quality).
+
+If you cannot extract text from the image, your reasoning should state that the image was unreadable or not a valid resume, and you must set the match score to 0.
 
 Return the response as a valid JSON object matching the output schema.
 `,
