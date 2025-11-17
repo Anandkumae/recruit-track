@@ -2,6 +2,7 @@
 
 import { z } from 'zod';
 import { matchResumeToJob } from '@/ai/flows/ai-match-resume-to-job';
+import { generateInterviewQuestions } from '@/ai/flows/generate-interview-questions';
 import { revalidatePath } from 'next/cache';
 import type { Job, User, Interview, Candidate, HiringStage } from '@/lib/types';
 import { getFirebaseAdmin } from '@/utils/getFirebaseAdmin';
@@ -521,4 +522,43 @@ export async function updateCandidateStatus(
     console.error('Update Candidate Status Error:', error);
     return { errors: { _form: ['Failed to update candidate status.'] } };
   }
+}
+
+
+export type InterviewQuestionState = {
+    questions?: string[];
+    errors?: {
+        jobTitle?: string[];
+        _form?: string[];
+    };
+};
+
+const InterviewQuestionSchema = z.object({
+  jobTitle: z.string().min(2, 'Please enter a job title.'),
+});
+
+
+export async function getInterviewQuestions(prevState: InterviewQuestionState, formData: FormData): Promise<InterviewQuestionState> {
+    const validatedFields = InterviewQuestionSchema.safeParse({
+        jobTitle: formData.get('jobTitle'),
+    });
+
+    if (!validatedFields.success) {
+        return {
+            errors: validatedFields.error.flatten().fieldErrors,
+        };
+    }
+
+    const { jobTitle } = validatedFields.data;
+
+    try {
+        const result = await generateInterviewQuestions({ jobTitle });
+        if (!result || !result.questions) {
+            return { errors: { _form: ['AI analysis returned no questions.'] } };
+        }
+        return { questions: result.questions };
+    } catch (error) {
+        console.error('AI Interview Question Error:', error);
+        return { errors: { _form: ['The AI analysis failed. Please try again.'] } };
+    }
 }

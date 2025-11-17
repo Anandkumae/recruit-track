@@ -7,8 +7,8 @@ import {
   AccordionTrigger,
 } from '@/components/ui/accordion';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Bot, Lightbulb, ListChecks } from 'lucide-react';
+import { AiInterviewQuestions } from './ai-interview-questions';
 
 const commonQuestions = [
     "Tell me about yourself.",
@@ -86,16 +86,14 @@ export function InterviewPrepSection() {
             <AccordionTrigger>
                 <div className="flex items-center gap-3">
                     <Bot className="h-5 w-5 text-primary" />
-                    <span>AI Mock Interview</span>
+                    <span>AI-Generated Questions</span>
                 </div>
             </AccordionTrigger>
             <AccordionContent className="space-y-3 pt-4">
               <p className="text-sm text-muted-foreground">
-                Practice your interviewing skills with our AI. Get instant feedback on your answers and delivery. (This is a conceptual feature).
+                Enter a job title to get AI-generated interview questions tailored to that role.
               </p>
-              <Button disabled>
-                Start Mock Interview (Coming Soon)
-              </Button>
+              <AiInterviewQuestions />
             </AccordionContent>
           </AccordionItem>
         </Accordion>
