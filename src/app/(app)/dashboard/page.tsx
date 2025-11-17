@@ -168,7 +168,7 @@ export default function DashboardPage() {
               <CardDescription>Updates on your job applications</CardDescription>
             </CardHeader>
             <CardContent>
-              <CandidateActivityFeed userId={currentCandidateId || ''} />
+              <CandidateActivityFeed userId={user?.uid || ''} />
             </CardContent>
           </Card>
         </div>

@@ -20,13 +20,35 @@ service cloud.firestore {
 
     // --- CANDIDATES ---
     match /candidates/{candidateId} {
-      allow get, list, create, update, delete: if isSignedIn();
+      allow read, create: if isSignedIn();
+      allow update, delete: if isAdmin();
     }
     
     // --- INTERVIEWS ---
     match /interviews/{interviewId} {
       allow get, write: if isAdmin() || (isSignedIn() && resource.data.candidateId == request.auth.uid);
       allow list: if isAdmin();
+    }
+
+    // --- ACTIVITIES ---
+    match /activities/{activityId} {
+      allow read: if isAdmin() ||
+        (isSignedIn() &&
+          (
+            (resource.data.candidateUserId != null &&
+              resource.data.candidateUserId == request.auth.uid) ||
+            (
+              resource.data.candidateUserId == null &&
+              resource.data.candidateId != null &&
+              get(/databases/$(database)/documents/candidates/$(resource.data.candidateId)).data.userId == request.auth.uid
+            )
+          ));
+      
+      // Allow admins to create activities
+      allow create: if isAdmin();
+      
+      // Only admins can update/delete activities
+      allow update, delete: if isAdmin();
     }
 
     // --- ADMIN ROLES ---

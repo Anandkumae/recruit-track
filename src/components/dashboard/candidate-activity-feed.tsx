@@ -76,11 +76,11 @@ export function CandidateActivityFeed({ userId }: { userId: string }) {
   const [error, setError] = useState<string | null>(null);
 
   const activitiesQuery = useMemo(() => {
-    if (!firestore) return null;
+    if (!firestore || !userId) return null;
     try {
       const q = query(
         collection(firestore, 'activities'),
-        where('candidateId', '==', userId),
+        where('candidateUserId', '==', userId),
         orderBy('timestamp', 'desc'),
         limit(10)
       );

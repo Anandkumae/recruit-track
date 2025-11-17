@@ -330,7 +330,8 @@ export async function scheduleInterview(
           location: location || undefined,
           meetingLink: meetingLink || undefined,
           notes: notes || undefined
-        }
+        },
+        candidateData.userId
       );
     }
     
@@ -489,7 +490,9 @@ export async function updateCandidateStatus(
       candidateData.jobAppliedFor,
       jobTitle,
       'admin', // admin user ID
-      adminName
+      adminName,
+      undefined,
+      candidateData.userId
     );
 
     revalidatePath('/dashboard');

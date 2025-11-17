@@ -1,7 +1,5 @@
-import { doc, setDoc, collection, serverTimestamp } from 'firebase/firestore';
-import { initializeFirebase } from '@/firebase';
-
-const { firestore } = initializeFirebase();
+import * as admin from 'firebase-admin';
+import { adminDb } from './firebaseAdmin.server';
 
 type ActivityType = 'shortlisted' | 'interview_scheduled' | 'hired' | 'rejected' | 'application_received';
 
@@ -20,12 +18,10 @@ export async function logActivity(
   jobTitle: string,
   createdBy: string,
   createdByName: string,
-  metadata?: ActivityMetadata
+  metadata?: ActivityMetadata,
+  candidateUserId?: string
 ) {
   try {
-    const activitiesRef = collection(firestore, 'activities');
-    const newActivityRef = doc(activitiesRef);
-    
     const activityData = {
       type,
       candidateId,
@@ -34,7 +30,8 @@ export async function logActivity(
       jobTitle,
       createdBy,
       createdByName,
-      timestamp: serverTimestamp(),
+      ...(candidateUserId && { candidateUserId }),
+      timestamp: admin.firestore.FieldValue.serverTimestamp(),
       ...(metadata && { metadata: {
         ...(metadata.scheduledAt && { scheduledAt: metadata.scheduledAt }),
         ...(metadata.location && { location: metadata.location }),
@@ -43,7 +40,7 @@ export async function logActivity(
       }})
     };
 
-    await setDoc(newActivityRef, activityData);
+    const newActivityRef = await adminDb.collection('activities').add(activityData);
     return { success: true, id: newActivityRef.id };
   } catch (error) {
     console.error('Error logging activity:', error);
