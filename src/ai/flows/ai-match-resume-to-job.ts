@@ -31,6 +31,7 @@ const MatchResumeToJobOutputSchema = z.object({
   reasoning: z
     .string()
     .describe('The reasoning behind the match score, highlighting key skills and experiences.'),
+  suggestedSkills: z.array(z.string()).describe('A list of 3-5 key skills from the job description that are missing from the resume and would improve the match.'),
 });
 export type MatchResumeToJobOutput = z.infer<typeof MatchResumeToJobOutputSchema>;
 
@@ -71,7 +72,9 @@ Then, you must calculate a weighted "match score" out of 100. This score is crit
 
 After calculating the weighted score, provide concise "reasoning" that justifies your score. This reasoning should summarize your findings for each of the three criteria (Skills, Experience, and Quality).
 
-If you cannot extract text from the image, your reasoning should state that the image was unreadable or not a valid resume, and you must set the match score to 0.
+Finally, identify 3-5 important skills or keywords that are present in the job description but are missing from the resume. List these in the 'suggestedSkills' field. These suggestions should be actionable items the candidate could add to their resume (if applicable) to better align with the job posting.
+
+If you cannot extract text from the image, your reasoning should state that the image was unreadable or not a valid resume, you must set the match score to 0, and the suggested skills array must be empty.
 
 Return the response as a valid JSON object matching the output schema.
 `,

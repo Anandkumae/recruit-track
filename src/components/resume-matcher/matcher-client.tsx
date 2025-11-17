@@ -8,11 +8,12 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
-import { Loader2, Wand2, FileUp } from 'lucide-react';
+import { Loader2, Wand2, FileUp, Sparkles } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
 import { useEffect } from 'react';
 import { Input } from '../ui/input';
+import { Badge } from '../ui/badge';
 
 function SubmitButton() {
   const { pending } = useFormStatus();
@@ -103,7 +104,7 @@ export function MatcherClient() {
         </CardHeader>
         <CardContent>
           {state.result ? (
-            <div className="space-y-4">
+            <div className="space-y-6">
               <div>
                 <div className="flex items-baseline justify-between">
                   <Label>Match Score</Label>
@@ -120,6 +121,22 @@ export function MatcherClient() {
                   {state.result.reasoning}
                 </p>
               </div>
+              {state.result.suggestedSkills && state.result.suggestedSkills.length > 0 && (
+                 <div>
+                    <Label className="flex items-center gap-2">
+                      <Sparkles className="h-4 w-4 text-yellow-500" />
+                      Suggested Skills to Add
+                    </Label>
+                    <p className="text-xs text-muted-foreground mb-2">Consider adding these skills from the job description to your resume.</p>
+                    <div className="flex flex-wrap gap-2 mt-2">
+                        {state.result.suggestedSkills.map((skill, index) => (
+                            <Badge key={index} variant="outline" className="border-green-500/50 bg-green-500/10 text-green-800 dark:text-green-300">
+                                {skill}
+                            </Badge>
+                        ))}
+                    </div>
+                </div>
+              )}
             </div>
           ) : (
             <div className="flex h-64 items-center justify-center rounded-lg border-2 border-dashed">

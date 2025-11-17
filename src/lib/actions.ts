@@ -96,7 +96,7 @@ export async function applyForJob(
     const userDocRef = db.collection('users').doc(userId);
     await userDocRef.set({ phone }, { merge: true });
 
-    let matchResult = { matchScore: 0, reasoning: 'AI analysis could not be performed.' };
+    let matchResult = { matchScore: 0, reasoning: 'AI analysis could not be performed.', suggestedSkills: [] };
     
     // We will use resumeText if available for AI matching
     const resumeContent = resumeText; 
@@ -158,7 +158,7 @@ export async function applyForJob(
 
 export type MatcherState = {
   message?: string | null;
-  result?: { matchScore: number; reasoning: string };
+  result?: { matchScore: number; reasoning: string; suggestedSkills: string[] };
   errors?: {
     resumeFile?: string[];
     jobDescription?: string[];
