@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, { useMemo } from 'react';
+import React from 'react';
 import { StatCard } from '@/components/dashboard/stat-card';
 import { OverviewChart } from '@/components/dashboard/overview-chart';
 import { Briefcase, Users, UserCheck, FileText, Clock, CheckCircle, Loader2 } from 'lucide-react';
@@ -10,8 +10,8 @@ import { collection, query, where, orderBy, limit } from 'firebase/firestore';
 import type { Role, WithId, Candidate, Job } from '@/lib/types';
 import { doc } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { RecentApplicantsTable } from '@/components/dashboard/recent-applicants-table';
 import { CandidateActivityFeed } from '@/components/dashboard/candidate-activity-feed';
+import { InterviewPrepSection } from '@/components/dashboard/interview-prep-section';
 
 export default function DashboardPage() {
   const { user, isUserLoading } = useUser();
@@ -31,7 +31,8 @@ export default function DashboardPage() {
   } else if (userProfile?.role) {
     userRole = userProfile.role;
   }
-  const isPrivilegedUser = userRole === 'Admin' || userRole === 'HR' || userRole === 'Manager';
+  const isPrivilegedUser = userRole === 'Admin';
+
 
   // --- Data Fetching for Admin ---
   const jobsQuery = useMemoFirebase(() => {
@@ -40,18 +41,6 @@ export default function DashboardPage() {
   }, [firestore, isPrivilegedUser]);
   const { data: jobs, isLoading: jobsLoading } = useCollection<WithId<Job>>(jobsQuery);
 
-  const allCandidatesQuery = useMemoFirebase(() => {
-    if (!firestore || !isPrivilegedUser) return null;
-    return collection(firestore, 'candidates');
-  }, [firestore, isPrivilegedUser]);
-  const { data: allCandidates, isLoading: allCandidatesLoading } = useCollection<WithId<Candidate>>(allCandidatesQuery);
-
-  const recentCandidatesQuery = useMemoFirebase(() => {
-    if (!firestore || !isPrivilegedUser) return null;
-    return query(collection(firestore, 'candidates'), orderBy('appliedAt', 'desc'), limit(5));
-  }, [firestore, isPrivilegedUser]);
-  const { data: recentCandidates, isLoading: recentCandidatesLoading } = useCollection<WithId<Candidate>>(recentCandidatesQuery);
-
   // --- Data Fetching for Candidate ---
   const candidateApplicationsQuery = useMemoFirebase(() => {
     if (!firestore || !user || isPrivilegedUser) return null;
@@ -59,16 +48,7 @@ export default function DashboardPage() {
   }, [firestore, user, isPrivilegedUser]);
   const { data: candidateApplications, isLoading: candidateAppsLoading } = useCollection<WithId<Candidate>>(candidateApplicationsQuery);
 
-  // First (and usually only) candidate doc for this user
-  const currentCandidateId = candidateApplications?.[0]?.id;
-
-  const jobsMap = useMemo(() => {
-    if (!jobs) return new Map<string, string>();
-    return new Map(jobs.map(job => [job.id, job.title]));
-  }, [jobs]);
-
-
-  const isLoading = isUserLoading || isProfileLoading || (isPrivilegedUser && (jobsLoading || allCandidatesLoading || recentCandidatesLoading)) || (!isPrivilegedUser && candidateAppsLoading);
+  const isLoading = isUserLoading || isProfileLoading || (isPrivilegedUser && jobsLoading) || (!isPrivilegedUser && candidateAppsLoading);
 
   if (isLoading) {
     return (
@@ -80,10 +60,7 @@ export default function DashboardPage() {
 
   // --- Admin Dashboard Stats ---
   const totalJobs = jobs?.length || 0;
-  const totalCandidates = allCandidates?.length || 0;
-  const hiredCandidates = allCandidates?.filter(c => c.status === 'Hired').length || 0;
-  const shortlistedCandidates = allCandidates?.filter(c => c.status === 'Shortlisted').length || 0;
-
+  
   // --- Candidate Dashboard Stats ---
   const applicationsSent = candidateApplications?.length || 0;
   const activeApplications = candidateApplications?.filter(c => c.status !== 'Hired' && c.status !== 'Rejected').length || 0;
@@ -109,39 +86,28 @@ export default function DashboardPage() {
               icon={Briefcase}
               description="Number of open and closed positions."
             />
-            <StatCard
+             <StatCard
               title="Total Candidates"
-              value={totalCandidates}
+              value={"Metric disabled"}
               icon={Users}
-              description="Total number of applicants in the system."
+              description="This metric is temporarily disabled."
             />
             <StatCard
               title="Shortlisted"
-              value={shortlistedCandidates}
+              value={"Metric disabled"}
               icon={UserCheck}
-              description="Candidates moved to the next stage."
+              description="This metric is temporarily disabled."
             />
             <StatCard
               title="Hired"
-              value={hiredCandidates}
+              value={"Metric disabled"}
               icon={CheckCircle}
-              description="Successful hires this cycle."
+              description="This metric is temporarily disabled."
             />
           </div>
           <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
-             <div className="lg:col-span-2">
-                <OverviewChart candidates={allCandidates || []} />
-             </div>
-             <div className="lg:col-span-1">
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Recent Applicants</CardTitle>
-                        <CardDescription>The latest 5 candidates who applied.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                       <RecentApplicantsTable candidates={recentCandidates || []} jobsMap={jobsMap} />
-                    </CardContent>
-                </Card>
+             <div className="lg:col-span-3">
+                <OverviewChart candidates={[]} />
              </div>
           </div>
         </div>
@@ -161,6 +127,8 @@ export default function DashboardPage() {
               description="Applications currently under review."
             />
           </div>
+
+          <InterviewPrepSection />
           
           <Card>
             <CardHeader>
