@@ -13,6 +13,8 @@ import {
   Loader2,
   Linkedin,
   Instagram,
+  Handshake,
+  Goal,
 } from 'lucide-react';
 import Image from 'next/image';
 import { useUser } from '@/firebase';
@@ -26,6 +28,63 @@ import type { WithId, Job } from '@/lib/types';
 import { format } from 'date-fns';
 import { useMemoFirebase, useFirestore, useCollection } from '@/firebase';
 import { collection, query, limit, where } from 'firebase/firestore';
+
+const staticJobs: WithId<Job>[] = [
+  {
+    id: 'job-4',
+    title: 'Cloud Infrastructure Engineer',
+    department: 'Platform Engineering',
+    description:
+      'As a Cloud Infrastructure Engineer, you will be responsible for designing, building, and maintaining our scalable and reliable cloud infrastructure on Google Cloud Platform (GCP). You will work with technologies like Kubernetes, Terraform, and Docker to automate our infrastructure and deployment pipelines, ensuring our services are secure, available, and performant.',
+    requirements: [
+      '4+ years of experience in a DevOps or Infrastructure Engineering role.',
+      'Hands-on experience with Google Cloud Platform (GCP) or another major cloud provider (AWS, Azure).',
+      'Proficiency with Infrastructure as Code (IaC) tools, particularly Terraform.',
+      'Strong knowledge of containerization and orchestration (Docker, Kubernetes).',
+      'Experience with CI/CD pipelines (e.g., Jenkins, GitLab CI, GitHub Actions).',
+      'Familiarity with monitoring and logging tools like Prometheus, Grafana, or the ELK stack.',
+    ],
+    status: 'Open',
+    postedBy: 'user-3',
+    createdAt: '2024-05-25T12:00:00Z',
+  },
+  {
+    id: 'job-1',
+    title: 'Senior Frontend Engineer (React)',
+    department: 'Engineering',
+    description:
+      'We are seeking a highly skilled Senior Frontend Engineer to lead the development of our next-generation user interfaces. You will be responsible for building, testing, and deploying complex, scalable, and performant web applications using React and the latest frontend technologies. The ideal candidate has a passion for creating beautiful, intuitive user experiences and a strong understanding of modern web development principles.',
+    requirements: [
+      '5+ years of professional experience in frontend development.',
+      'Expert-level proficiency in JavaScript, React, and TypeScript.',
+      'Deep understanding of state management libraries like Redux or Zustand.',
+      'Experience with Next.js and server-side rendering (SSR).',
+      'Proficient in writing clean, maintainable code and unit tests with Jest/RTL.',
+      'Strong knowledge of HTML5, CSS3, and responsive design principles.',
+    ],
+    status: 'Open',
+    postedBy: 'user-2',
+    createdAt: '2024-05-20T10:00:00Z',
+  },
+  {
+    id: 'job-2',
+    title: 'AI Prompt Engineer',
+    department: 'Innovation',
+    description:
+      'As an AI Prompt Engineer, you will be at the forefront of our generative AI initiatives. You will specialize in designing, refining, and optimizing prompts for large language models (LLMs) to generate high-quality, accurate, and contextually relevant content. This role requires a unique blend of creativity, linguistic precision, and technical understanding of AI systems.',
+    requirements: [
+      'Proven experience in prompt engineering or working extensively with LLMs (e.g., Gemini, GPT-4).',
+      'Excellent command of the English language with a talent for creative and technical writing.',
+      'Basic understanding of machine learning concepts and how LLMs work.',
+      'Ability to analyze AI-generated content and provide feedback for model tuning.',
+      'Experience with scripting languages like Python for automation is a plus.',
+      'A portfolio of sophisticated prompts and their outputs is highly desirable.',
+    ],
+    status: 'Open',
+    postedBy: 'user-1',
+    createdAt: '2024-05-18T14:30:00Z',
+  },
+];
 
 const features = [
   {
@@ -83,20 +142,6 @@ const faqs = [
 ];
 
 function RecentJobsSection() {
-  const firestore = useFirestore();
-
-  const jobsQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
-    // Query for open jobs, ordered by creation date, limited to 3
-    return query(
-      collection(firestore, 'jobs'),
-      where('status', '==', 'Open'),
-      limit(3)
-    );
-  }, [firestore]);
-
-  const { data: jobs, isLoading } = useCollection<WithId<Job>>(jobsQuery);
-
   const formatDate = (timestamp: any) => {
     if (!timestamp) return '';
     if (timestamp.toDate) {
@@ -105,40 +150,9 @@ function RecentJobsSection() {
     return format(new Date(timestamp), 'MMM d, yyyy');
   };
 
-  if (isLoading) {
-    return (
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {[...Array(3)].map((_, i) => (
-          <Card key={i} className="flex flex-col">
-            <CardHeader>
-              <div className="h-6 w-3/4 animate-pulse rounded bg-muted"></div>
-              <div className="mt-2 h-4 w-1/2 animate-pulse rounded bg-muted"></div>
-            </CardHeader>
-            <CardContent className="flex-grow space-y-2">
-              <div className="h-4 w-full animate-pulse rounded bg-muted"></div>
-              <div className="h-4 w-full animate-pulse rounded bg-muted"></div>
-              <div className="h-4 w-5/6 animate-pulse rounded bg-muted"></div>
-            </CardContent>
-            <div className="p-6 pt-0">
-              <div className="h-10 w-full animate-pulse rounded bg-muted"></div>
-            </div>
-          </Card>
-        ))}
-      </div>
-    );
-  }
-
-  if (!jobs || jobs.length === 0) {
-    return (
-      <p className="text-center text-muted-foreground">
-        No open jobs at the moment. Please check back later.
-      </p>
-    );
-  }
-
   return (
     <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-      {jobs.map((job) => (
+      {staticJobs.map((job) => (
         <Card
           key={job.id}
           className="flex flex-col transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
@@ -227,7 +241,7 @@ export default function LandingPage() {
                 </div>
               </div>
               <Image
-                src="https://placehold.co/600x400/34495E/FFFFFF/png?text=LeoRecruit&font=raleway"
+                src="https://placehold.co/600x400/2563EB/FFFFFF/png?text=3D+Illustration&font=raleway"
                 alt="Hero Illustration"
                 width={600}
                 height={400}
@@ -294,8 +308,33 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* FAQ Section */}
+        {/* Mobile App Promo Section */}
         <section className="w-full bg-gray-50 py-20 dark:bg-gray-900/50 md:py-32">
+          <div className="container grid items-center justify-center gap-8 px-4 text-center md:px-6 lg:grid-cols-2 lg:text-left">
+            <div className="space-y-4">
+              <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl md:text-5xl">
+                Hiring on the Go
+              </h2>
+              <p className="mx-auto max-w-[700px] text-muted-foreground md:text-xl/relaxed lg:mx-0">
+                Manage your entire recruitment pipeline from anywhere with the LeoRecruit mobile app. Coming soon to iOS and Android.
+              </p>
+              <Button size="lg" disabled>
+                📱 Download LeoRecruit App
+              </Button>
+            </div>
+            <Image
+              src="https://placehold.co/600x600/2563EB/FFFFFF/png?text=App+Mockup&font=raleway"
+              width="400"
+              height="400"
+              alt="Mobile App Mockup"
+              className="mx-auto overflow-hidden rounded-2xl object-cover object-center transition-transform duration-300 hover:scale-105"
+              data-ai-hint="mobile app interface"
+            />
+          </div>
+        </section>
+
+        {/* FAQ Section */}
+        <section className="w-full py-20 md:py-32">
           <div className="container px-4 md:px-6">
             <div className="flex flex-col items-center justify-center space-y-4 text-center">
               <div className="space-y-2">
