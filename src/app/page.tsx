@@ -13,6 +13,7 @@ import {
   Loader2,
   Linkedin,
   Instagram,
+  BookOpen,
 } from 'lucide-react';
 import Image from 'next/image';
 import { useUser } from '@/firebase';
@@ -79,6 +80,33 @@ const faqs = [
   },
 ];
 
+const resources = [
+  {
+    category: 'Hiring Tips',
+    title: '10 Strategies to Attract Top Talent',
+    description: 'In a competitive market, finding the right people is crucial. Explore our top 10 strategies to attract and retain the best candidates.',
+    link: '#',
+  },
+  {
+    category: 'Resume Guides',
+    title: 'Crafting a Resume That Stands Out',
+    description: 'Learn how to build a resume that not only looks great but also passes through applicant tracking systems and catches the eye of recruiters.',
+    link: '#',
+  },
+  {
+    category: 'Interview Prep',
+    title: 'Acing Your Next Behavioral Interview',
+    description: 'Behavioral questions are a staple of modern interviews. We break down the STAR method and provide examples to help you prepare.',
+    link: '#',
+  },
+  {
+    category: 'HR Trends',
+    title: 'The Rise of Internal Mobility Platforms',
+    description: 'Discover why more companies are investing in internal hiring and how it can boost retention and employee satisfaction.',
+    link: '#',
+  },
+];
+
 function RecentJobsSection() {
     const jobs = [
         {
@@ -121,32 +149,32 @@ function RecentJobsSection() {
     }
 
     return (
-        <div className="grid grid-cols-1 justify-center gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {jobs.map((job) => (
-                <Card
-                    key={job.id}
-                    className="flex flex-col transition-all duration-300 hover:-translate-y-1 hover:shadow-xl w-full"
-                >
-                    <CardHeader>
-                        <CardTitle className="text-xl">{job.title}</CardTitle>
-                        <div className="flex items-center justify-between text-sm text-muted-foreground">
-                            <span>{job.department}</span>
-                            <span>{formatDate(job.createdAt)}</span>
-                        </div>
-                    </CardHeader>
-                    <CardContent className="flex-grow">
-                        <p className="line-clamp-3 text-sm text-muted-foreground">
-                            {job.description}
-                        </p>
-                    </CardContent>
-                    <div className="p-6 pt-0">
-                        <Button asChild className="w-full">
-                            <Link href={`/jobs/${job.id}`}>View Job</Link>
-                        </Button>
-                    </div>
-                </Card>
-            ))}
-        </div>
+      <div className="grid grid-cols-1 justify-center gap-6 md:grid-cols-2 lg:grid-cols-3">
+        {jobs.map((job) => (
+          <Card
+            key={job.id}
+            className="flex flex-col transition-all duration-300 hover:-translate-y-1 hover:shadow-xl w-full"
+          >
+            <CardHeader>
+              <CardTitle className="text-xl">{job.title}</CardTitle>
+              <div className="flex items-center justify-between text-sm text-muted-foreground">
+                <span>{job.department}</span>
+                <span>{formatDate(job.createdAt)}</span>
+              </div>
+            </CardHeader>
+            <CardContent className="flex-grow">
+              <p className="line-clamp-3 text-sm text-muted-foreground">
+                {job.description}
+              </p>
+            </CardContent>
+            <div className="p-6 pt-0">
+              <Button asChild className="w-full">
+                <Link href={`/jobs/${job.id}`}>View Job</Link>
+              </Button>
+            </div>
+          </Card>
+        ))}
+      </div>
     );
 }
 
@@ -333,6 +361,43 @@ export default function LandingPage() {
                   </AccordionItem>
                 ))}
               </Accordion>
+            </div>
+          </div>
+        </section>
+
+        {/* Blog/Resources Section */}
+        <section className="w-full bg-gray-50 py-20 dark:bg-gray-900/50 md:py-32">
+          <div className="container px-4 md:px-6">
+            <div className="flex flex-col items-center justify-center space-y-4 text-center">
+              <div className="space-y-2">
+                 <div className="inline-block rounded-lg bg-secondary px-3 py-1 text-sm">
+                  Resources
+                </div>
+                <h2 className="text-3xl font-bold tracking-tighter sm:text-5xl">
+                  Insights & Resources
+                </h2>
+                <p className="max-w-[900px] text-muted-foreground md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed">
+                  Explore our collection of articles on hiring, career growth, and industry trends.
+                </p>
+              </div>
+            </div>
+             <div className="mx-auto mt-12 grid max-w-5xl gap-8 sm:grid-cols-2 lg:max-w-none lg:grid-cols-4">
+              {resources.map((post) => (
+                <Card key={post.title} className="flex flex-col overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-xl">
+                  <CardHeader>
+                    <p className="text-sm font-medium text-primary">{post.category}</p>
+                    <CardTitle className="text-lg">{post.title}</CardTitle>
+                  </CardHeader>
+                  <CardContent className="flex-grow">
+                    <p className="text-sm text-muted-foreground line-clamp-3">{post.description}</p>
+                  </CardContent>
+                  <div className="p-6 pt-0">
+                    <Button variant="link" asChild className="p-0">
+                      <Link href={post.link}>Read More <ArrowRight className="ml-2 h-4 w-4" /></Link>
+                    </Button>
+                  </div>
+                </Card>
+              ))}
             </div>
           </div>
         </section>
