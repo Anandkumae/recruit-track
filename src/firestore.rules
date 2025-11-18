@@ -13,9 +13,13 @@ service cloud.firestore {
     }
 
     // --- JOBS ---
+    // Allow anyone to list jobs (for public job board)
+    match /jobs {
+      allow list: if true;
+    }
+    
     match /jobs/{jobId} {
-      allow get: if true;
-      allow list: if true; // Allow anyone to list jobs
+      allow get: if true; // Allow anyone to view a single job
       allow create, update, delete: if isAdmin();
     }
 
