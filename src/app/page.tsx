@@ -41,6 +41,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { collection, query, where, orderBy, limit } from 'firebase/firestore';
 import type { Job, WithId } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
+import Markdown from 'react-markdown';
 
 const features = [
   {
@@ -732,7 +733,7 @@ export default function LandingPage() {
                     </DialogHeader>
                     <ScrollArea className="max-h-[60vh] pr-4">
                       <div className="prose prose-sm dark:prose-invert max-w-full">
-                        {post.content}
+                        <Markdown>{post.content}</Markdown>
                       </div>
                     </ScrollArea>
                   </DialogContent>
