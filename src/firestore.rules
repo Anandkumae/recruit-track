@@ -16,10 +16,9 @@ service cloud.firestore {
     match /jobs/{jobId} {
       allow get: if true;
       allow create, update, delete: if isAdmin();
-      allow list: if false; // Deny list on individual docs
     }
     match /jobs {
-        allow list: if true; // Allow anyone to list the collection
+        allow list: if true;
     }
 
     // --- CANDIDATES ---
