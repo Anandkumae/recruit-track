@@ -10,6 +10,8 @@ import { useUser } from '@/firebase';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import type { WithId, Job } from '@/lib/types';
 import { format } from 'date-fns';
+import { useMemoFirebase, useFirestore, useCollection } from '@/firebase';
+import { collection, query, limit } from 'firebase/firestore';
 
 const features = [
   {
@@ -57,52 +59,15 @@ const faqs = [
     }
 ]
 
-const staticJobs: WithId<Job>[] = [
-    {
-    "id": "job-1",
-    "title": "Senior Frontend Engineer (React)",
-    "department": "Engineering",
-    "description": "We are seeking a highly skilled Senior Frontend Engineer to lead the development of our next-generation user interfaces. You will be responsible for building, testing, and deploying complex, scalable, and performant web applications using React and the latest frontend technologies.",
-    "requirements": [
-      "5+ years of professional experience in frontend development.",
-      "Expert-level proficiency in JavaScript, React, and TypeScript."
-    ],
-    "status": "Open",
-    "postedBy": "user-2",
-    "createdAt": "2024-05-20T10:00:00Z"
-  },
-  {
-    "id": "job-2",
-    "title": "AI Prompt Engineer",
-    "department": "Innovation",
-    "description": "As an AI Prompt Engineer, you will be at the forefront of our generative AI initiatives. You will specialize in designing, refining, and optimizing prompts for large language models (LLMs) to generate high-quality, accurate, and contextually relevant content.",
-    "requirements": [
-      "Proven experience in prompt engineering or working extensively with LLMs (e.g., Gemini, GPT-4).",
-      "Excellent command of the English language with a talent for creative and technical writing."
-    ],
-    "status": "Open",
-    "postedBy": "user-1",
-    "createdAt": "2024-05-18T14:30:00Z"
-  },
-  {
-    "id": "job-4",
-    "title": "Cloud Infrastructure Engineer",
-    "department": "Platform Engineering",
-    "description": "As a Cloud Infrastructure Engineer, you will be responsible for designing, building, and maintaining our scalable and reliable cloud infrastructure on Google Cloud Platform (GCP). You will work with technologies like Kubernetes, Terraform, and Docker to automate our infrastructure.",
-    "requirements": [
-      "4+ years of experience in a DevOps or Infrastructure Engineering role.",
-      "Hands-on experience with Google Cloud Platform (GCP) or another major cloud provider (AWS, Azure)."
-    ],
-    "status": "Open",
-    "postedBy": "user-3",
-    "createdAt": "2024-05-25T12:00:00Z"
-  }
-];
-
-
 function RecentJobsSection() {
-    const jobs = staticJobs;
-    const isLoading = false;
+    const firestore = useFirestore();
+
+    const jobsQuery = useMemoFirebase(() => {
+        if (!firestore) return null;
+        return query(collection(firestore, 'jobs'), limit(3));
+    }, [firestore]);
+
+    const { data: jobs, isLoading } = useCollection<WithId<Job>>(jobsQuery);
 
     const formatDate = (timestamp: any) => {
       if (!timestamp) return '';
@@ -135,9 +100,13 @@ function RecentJobsSection() {
         )
     }
 
+    if (!jobs || jobs.length === 0) {
+        return <p className="text-center text-muted-foreground">No open jobs at the moment. Please check back later.</p>
+    }
+
     return (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {jobs?.slice(0, 3).map(job => (
+            {jobs.map(job => (
                 <Card key={job.id} className="flex flex-col transition-all duration-300 hover:shadow-xl hover:-translate-y-1">
                     <CardHeader>
                         <CardTitle className="text-xl">{job.title}</CardTitle>
@@ -165,35 +134,37 @@ export default function LandingPage() {
   
   return (
     <div className="flex flex-col min-h-screen">
-      <header className="px-4 lg:px-6 h-16 flex items-center bg-background/95 backdrop-blur-sm sticky top-0 z-50">
-        <Link href="/" className="flex items-center justify-center gap-2">
-          <Briefcase className="h-6 w-6 text-primary" />
-          <span className="font-bold text-lg">LeoRecruit</span>
-        </Link>
-        <nav className="ml-auto flex gap-4 sm:gap-6">
-          {user ? (
-             <Button asChild>
+      <header className="sticky top-4 inset-x-0 mx-auto z-50 max-w-5xl">
+        <nav className="flex items-center justify-between p-2 lg:px-4 rounded-full bg-background/95 backdrop-blur-sm border shadow-sm">
+          <Link href="/" className="flex items-center justify-center gap-2">
+            <Briefcase className="h-6 w-6 text-primary" />
+            <span className="font-bold text-lg">LeoRecruit</span>
+          </Link>
+          <div className="flex gap-2 sm:gap-4 items-center">
+            {user ? (
+              <Button asChild>
                 <Link href="/dashboard">
                   Go to Dashboard <ArrowRight className="ml-2 h-4 w-4" />
                 </Link>
               </Button>
-          ) : (
-            <>
-            <Button variant="ghost" asChild>
-              <Link href="/login">Login</Link>
-            </Button>
-             <Button asChild>
-                <Link href="/login">
-                  Get Started
-                </Link>
-              </Button>
-            </>
-          )}
+            ) : (
+              <>
+                <Button variant="ghost" asChild>
+                  <Link href="/login">Login</Link>
+                </Button>
+                <Button asChild>
+                  <Link href="/login">
+                    Get Started
+                  </Link>
+                </Button>
+              </>
+            )}
+          </div>
         </nav>
       </header>
       <main className="flex-1">
         {/* Hero Section */}
-        <section className="w-full py-20 md:py-24 lg:py-32 bg-gray-50 dark:bg-gray-900/50">
+        <section className="w-full py-20 md:py-24 lg:py-32">
           <div className="container px-4 md:px-6">
             <div className="grid gap-6 lg:grid-cols-2 lg:gap-12 xl:gap-16 items-center">
               <div className="flex flex-col justify-center space-y-4">
@@ -225,7 +196,7 @@ export default function LandingPage() {
         </section>
 
          {/* Jobs Section */}
-        <section className="w-full py-20 md:py-32">
+        <section className="w-full py-20 md:py-32 bg-gray-50 dark:bg-gray-900/50">
             <div className="container px-4 md:px-6">
                  <div className="flex flex-col items-center justify-center space-y-4 text-center mb-12">
                     <div className="space-y-2">
@@ -240,7 +211,7 @@ export default function LandingPage() {
         </section>
 
         {/* Features Section */}
-        <section className="w-full py-20 md:py-32 bg-gray-50 dark:bg-gray-900/50">
+        <section className="w-full py-20 md:py-32">
           <div className="container px-4 md:px-6">
             <div className="flex flex-col items-center justify-center space-y-4 text-center">
               <div className="space-y-2">
@@ -268,7 +239,7 @@ export default function LandingPage() {
         </section>
         
         {/* FAQ Section */}
-        <section className="w-full py-20 md:py-32">
+        <section className="w-full py-20 md:py-32 bg-gray-50 dark:bg-gray-900/50">
             <div className="container px-4 md:px-6">
                 <div className="flex flex-col items-center justify-center space-y-4 text-center">
                     <div className="space-y-2">
