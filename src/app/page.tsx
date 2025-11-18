@@ -15,6 +15,7 @@ import {
   Instagram,
   BookOpen,
   Check,
+  Star,
 } from 'lucide-react';
 import Image from 'next/image';
 import { useUser } from '@/firebase';
@@ -402,6 +403,34 @@ export default function LandingPage() {
             </div>
           </div>
         </section>
+
+        {/* Integrations Section */}
+        <section className="w-full bg-gray-50 py-20 dark:bg-gray-900/50 md:py-32">
+            <div className="container px-4 md:px-6">
+                <div className="flex flex-col items-center justify-center space-y-4 text-center">
+                    <div className="space-y-2">
+                        <div className="inline-block rounded-lg bg-secondary px-3 py-1 text-sm">
+                            Integrations
+                        </div>
+                        <h2 className="text-3xl font-bold tracking-tighter sm:text-5xl">
+                            Connect Your Favorite Tools
+                        </h2>
+                        <p className="max-w-[900px] text-muted-foreground md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed">
+                            LeoRecruit works with the tools you already use to create a seamless hiring workflow from start to finish.
+                        </p>
+                    </div>
+                </div>
+                <div className="mx-auto mt-12 grid max-w-4xl grid-cols-2 gap-6 sm:grid-cols-3 md:grid-cols-5 md:gap-8">
+                    {['Google Calendar', 'Zoom', 'Slack', 'LinkedIn', 'GitHub'].map(tool => (
+                        <div key={tool} className="group flex flex-col items-center justify-center gap-2">
+                            <div className="flex h-20 w-20 items-center justify-center rounded-full border-2 border-dashed bg-background transition-all duration-300 group-hover:border-primary group-hover:bg-primary/5">
+                                <span className="text-xs font-semibold text-muted-foreground group-hover:text-primary">{tool}</span>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        </section>
         
         {/* Pricing Section */}
         <section className="w-full py-20 md:py-32">
@@ -704,5 +733,3 @@ export default function LandingPage() {
     </div>
   );
 }
-
-    
