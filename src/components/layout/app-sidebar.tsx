@@ -123,11 +123,11 @@ function SidebarNotifications({ userRole, userId }: { userRole: Role; userId: st
 
 function SidebarItem({ item }: { item: (typeof navItems)[0] }) {
     const pathname = usePathname();
-    const { isMobile, setOpen } = useSidebar();
+    const { isMobile, setOpenMobile } = useSidebar();
 
     const handleClick = () => {
         if (isMobile) {
-            setOpen(false);
+            setOpenMobile(false);
         }
     }
     
@@ -155,7 +155,7 @@ function SidebarItem({ item }: { item: (typeof navItems)[0] }) {
 export function AppSidebar() {
   const { user } = useUser();
   const firestore = useFirestore();
-  const { isMobile, setOpen } = useSidebar();
+  const { isMobile, setOpenMobile } = useSidebar();
 
   const userProfileRef = useMemoFirebase(() => {
     if (!firestore || !user) return null;
@@ -168,7 +168,7 @@ export function AppSidebar() {
     return null;
   }
   
-  let userRole: Role = 'Candidate'; // Default to the most restrictive role
+  let userRole: Role = 'Candidate';
 
   if (user.email === 'anandkumar.shinnovationco@gmail.com') {
     userRole = 'Admin';
@@ -182,8 +182,8 @@ export function AppSidebar() {
   });
 
    const handleLinkClick = () => {
-    if (!isMobile) {
-      setOpen(false);
+    if (isMobile) {
+      setOpenMobile(false);
     }
    };
 
@@ -200,7 +200,7 @@ export function AppSidebar() {
         </SidebarMenuButton>
         <SidebarTrigger className="hidden md:flex" />
       </SidebarHeader>
-      <SidebarContent className="p-2" onClick={handleLinkClick}>
+      <SidebarContent className="p-2">
         <SidebarMenu>
           {allowedNavItems.map((item) => (
            <SidebarItem key={item.href} item={item} />
