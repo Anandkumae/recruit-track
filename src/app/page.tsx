@@ -15,16 +15,14 @@ import {
   Instagram,
 } from 'lucide-react';
 import Image from 'next/image';
-import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { useUser } from '@/firebase';
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
-import type { WithId, Job } from '@/lib/types';
 import { format } from 'date-fns';
-import { collection, query, where, orderBy, limit } from 'firebase/firestore';
 
 const features = [
   {
@@ -82,91 +80,74 @@ const faqs = [
 ];
 
 function RecentJobsSection() {
-  const firestore = useFirestore();
+    const jobs = [
+        {
+            "id": "job-1",
+            "title": "Senior Frontend Engineer (React)",
+            "department": "Engineering",
+            "description": "We are seeking a highly skilled Senior Frontend Engineer to lead the development of our next-generation user interfaces. You will be responsible for building, testing, and deploying complex, scalable, and performant web applications using React and the latest frontend technologies.",
+            "createdAt": "2024-05-20T10:00:00Z"
+        },
+        {
+            "id": "job-2",
+            "title": "AI Prompt Engineer",
+            "department": "Innovation",
+            "description": "As an AI Prompt Engineer, you will be at the forefront of our generative AI initiatives. You will specialize in designing, refining, and optimizing prompts for large language models (LLMs) to generate high-quality, accurate, and contextually relevant content.",
+            "createdAt": "2024-05-18T14:30:00Z"
+        },
+        {
+            "id": "job-4",
+            "title": "Cloud Infrastructure Engineer",
+            "department": "Platform Engineering",
+            "description": "As a Cloud Infrastructure Engineer, you will be responsible for designing, building, and maintaining our scalable and reliable cloud infrastructure on Google Cloud Platform (GCP). You will work with technologies like Kubernetes, Terraform, and Docker to automate our infrastructure and deployment pipelines.",
+            "createdAt": "2024-05-25T12:00:00Z"
+        }
+    ];
 
-  const jobsQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
-    return query(
-      collection(firestore, 'jobs'),
-      where('status', '==', 'Open'),
-      orderBy('createdAt', 'desc'),
-      limit(3)
-    );
-  }, [firestore]);
+    const formatDate = (dateString: string) => {
+        try {
+            return format(new Date(dateString), 'MMM d, yyyy');
+        } catch {
+            return '';
+        }
+    };
 
-  const { data: jobs, isLoading } = useCollection<WithId<Job>>(jobsQuery);
-
-  const formatDate = (timestamp: any) => {
-    if (!timestamp) return '';
-    if (timestamp.toDate) {
-      return format(timestamp.toDate(), 'MMM d, yyyy');
+    if (!jobs || jobs.length === 0) {
+        return (
+            <div className="text-center py-12 text-muted-foreground">
+                No open positions at the moment. Please check back later!
+            </div>
+        )
     }
-    try {
-        return format(new Date(timestamp), 'MMM d, yyyy');
-    } catch {
-        return '';
-    }
-  };
-  
-  if (isLoading) {
+
     return (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[...Array(3)].map((_, i) => (
-                <Card key={i}>
+        <div className="grid grid-cols-1 justify-center gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {jobs.map((job) => (
+                <Card
+                    key={job.id}
+                    className="flex flex-col transition-all duration-300 hover:-translate-y-1 hover:shadow-xl w-full"
+                >
                     <CardHeader>
-                        <div className="h-6 bg-muted rounded w-3/4"></div>
-                        <div className="h-4 bg-muted rounded w-1/2 mt-2"></div>
+                        <CardTitle className="text-xl">{job.title}</CardTitle>
+                        <div className="flex items-center justify-between text-sm text-muted-foreground">
+                            <span>{job.department}</span>
+                            <span>{formatDate(job.createdAt)}</span>
+                        </div>
                     </CardHeader>
-                    <CardContent>
-                         <div className="h-4 bg-muted rounded w-full mb-2"></div>
-                         <div className="h-4 bg-muted rounded w-full mb-2"></div>
-                         <div className="h-4 bg-muted rounded w-5/6"></div>
+                    <CardContent className="flex-grow">
+                        <p className="line-clamp-3 text-sm text-muted-foreground">
+                            {job.description}
+                        </p>
                     </CardContent>
                     <div className="p-6 pt-0">
-                        <div className="h-10 bg-muted rounded w-full"></div>
+                        <Button asChild className="w-full">
+                            <Link href={`/jobs/${job.id}`}>View Job</Link>
+                        </Button>
                     </div>
                 </Card>
             ))}
         </div>
-    )
-  }
-
-  if (!jobs || jobs.length === 0) {
-      return (
-          <div className="text-center py-12 text-muted-foreground">
-              No open positions at the moment. Please check back later!
-          </div>
-      )
-  }
-
-  return (
-    <div className="grid grid-cols-1 justify-center gap-6 md:grid-cols-2 lg:grid-cols-3">
-      {jobs.map((job) => (
-        <Card
-          key={job.id}
-          className="flex flex-col transition-all duration-300 hover:-translate-y-1 hover:shadow-xl w-full"
-        >
-          <CardHeader>
-            <CardTitle className="text-xl">{job.title}</CardTitle>
-            <div className="flex items-center justify-between text-sm text-muted-foreground">
-              <span>{job.department}</span>
-              <span>{formatDate(job.createdAt)}</span>
-            </div>
-          </CardHeader>
-          <CardContent className="flex-grow">
-            <p className="line-clamp-3 text-sm text-muted-foreground">
-              {job.description}
-            </p>
-          </CardContent>
-          <div className="p-6 pt-0">
-            <Button asChild className="w-full">
-              <Link href={`/jobs/${job.id}`}>View Job</Link>
-            </Button>
-          </div>
-        </Card>
-      ))}
-    </div>
-  );
+    );
 }
 
 export default function LandingPage() {
