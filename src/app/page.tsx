@@ -59,15 +59,52 @@ const faqs = [
     }
 ]
 
+const staticJobs: WithId<Job>[] = [
+    {
+    "id": "job-1",
+    "title": "Senior Frontend Engineer (React)",
+    "department": "Engineering",
+    "description": "We are seeking a highly skilled Senior Frontend Engineer to lead the development of our next-generation user interfaces. You will be responsible for building, testing, and deploying complex, scalable, and performant web applications using React and the latest frontend technologies.",
+    "requirements": [
+      "5+ years of professional experience in frontend development.",
+      "Expert-level proficiency in JavaScript, React, and TypeScript."
+    ],
+    "status": "Open",
+    "postedBy": "user-2",
+    "createdAt": "2024-05-20T10:00:00Z"
+  },
+  {
+    "id": "job-2",
+    "title": "AI Prompt Engineer",
+    "department": "Innovation",
+    "description": "As an AI Prompt Engineer, you will be at the forefront of our generative AI initiatives. You will specialize in designing, refining, and optimizing prompts for large language models (LLMs) to generate high-quality, accurate, and contextually relevant content.",
+    "requirements": [
+      "Proven experience in prompt engineering or working extensively with LLMs (e.g., Gemini, GPT-4).",
+      "Excellent command of the English language with a talent for creative and technical writing."
+    ],
+    "status": "Open",
+    "postedBy": "user-1",
+    "createdAt": "2024-05-18T14:30:00Z"
+  },
+  {
+    "id": "job-4",
+    "title": "Cloud Infrastructure Engineer",
+    "department": "Platform Engineering",
+    "description": "As a Cloud Infrastructure Engineer, you will be responsible for designing, building, and maintaining our scalable and reliable cloud infrastructure on Google Cloud Platform (GCP). You will work with technologies like Kubernetes, Terraform, and Docker to automate our infrastructure.",
+    "requirements": [
+      "4+ years of experience in a DevOps or Infrastructure Engineering role.",
+      "Hands-on experience with Google Cloud Platform (GCP) or another major cloud provider (AWS, Azure)."
+    ],
+    "status": "Open",
+    "postedBy": "user-3",
+    "createdAt": "2024-05-25T12:00:00Z"
+  }
+];
+
+
 function RecentJobsSection() {
-    const firestore = useFirestore();
-
-    const jobsQuery = useMemoFirebase(() => {
-        if (!firestore) return null;
-        return query(collection(firestore, 'jobs'), where('status', '==', 'Open'), orderBy('createdAt', 'desc'), limit(6));
-    }, [firestore]);
-
-    const { data: jobs, isLoading } = useCollection<WithId<Job>>(jobsQuery);
+    const jobs = staticJobs;
+    const isLoading = false;
 
     const formatDate = (timestamp: any) => {
       if (!timestamp) return '';
@@ -80,7 +117,7 @@ function RecentJobsSection() {
     if (isLoading) {
         return (
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                {[...Array(6)].map((_, i) => (
+                {[...Array(3)].map((_, i) => (
                     <Card key={i} className="flex flex-col">
                         <CardHeader>
                             <div className="h-6 bg-muted rounded w-3/4 animate-pulse"></div>
@@ -102,7 +139,7 @@ function RecentJobsSection() {
 
     return (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {jobs?.map(job => (
+            {jobs?.slice(0, 3).map(job => (
                 <Card key={job.id} className="flex flex-col hover:shadow-lg transition-shadow">
                     <CardHeader>
                         <CardTitle className="text-xl">{job.title}</CardTitle>
@@ -255,7 +292,3 @@ export default function LandingPage() {
     </div>
   );
 }
-
-    
-
-    
