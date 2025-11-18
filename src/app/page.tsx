@@ -6,11 +6,9 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Briefcase, Zap, Users, BarChart, ArrowRight, Loader2 } from 'lucide-react';
 import Image from 'next/image';
-import { useUser, useCollection, useFirestore, useMemoFirebase } from '@/firebase';
+import { useUser } from '@/firebase';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { collection, query, orderBy, limit, where } from 'firebase/firestore';
 import type { WithId, Job } from '@/lib/types';
-import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 
 const features = [
@@ -197,30 +195,52 @@ export default function LandingPage() {
         {/* Hero Section */}
         <section className="w-full py-20 md:py-24 lg:py-32 bg-gray-50 dark:bg-gray-900/50">
           <div className="container px-4 md:px-6">
-            <div className="flex flex-col items-center space-y-4 text-center">
-                 <h1 className="text-4xl font-bold tracking-tighter sm:text-5xl md:text-6xl xl:text-7xl/none">
+            <div className="grid gap-6 lg:grid-cols-2 lg:gap-12 xl:gap-16 items-center">
+              <div className="flex flex-col justify-center space-y-4">
+                <h1 className="text-4xl font-bold tracking-tighter sm:text-5xl md:text-6xl xl:text-7xl/none">
                   Find Your Next Opportunity
                 </h1>
                 <p className="max-w-[700px] text-muted-foreground md:text-xl">
                   Browse our open positions and discover a role that matches your skills and ambitions. Your next career move starts here.
                 </p>
-                 <div className="flex flex-col gap-2 min-[400px]:flex-row">
-                   <Button size="lg" asChild>
-                      <Link href={user ? "/jobs" : "/login"}>
-                        {user ? "Browse All Jobs" : "Get Started Free"}
-                        <ArrowRight className="ml-2 h-5 w-5" />
-                      </Link>
-                    </Button>
+                <div className="flex flex-col gap-2 min-[400px]:flex-row">
+                  <Button size="lg" asChild>
+                    <Link href={user ? "/jobs" : "/login"}>
+                      {user ? "Browse All Jobs" : "Get Started Free"}
+                      <ArrowRight className="ml-2 h-5 w-5" />
+                    </Link>
+                  </Button>
                 </div>
-            </div>
-             <div className="mt-16">
-                <RecentJobsSection />
+              </div>
+              <Image
+                src="https://placehold.co/600x400/216EFA/FFFFFF/png?text=LeoRecruit&font=raleway"
+                alt="Hero Illustration"
+                width={600}
+                height={400}
+                className="mx-auto aspect-video overflow-hidden rounded-xl object-cover object-center sm:w-full"
+                data-ai-hint="abstract 3d"
+              />
             </div>
           </div>
         </section>
 
-        {/* Features Section */}
+         {/* Jobs Section */}
         <section className="w-full py-20 md:py-32">
+            <div className="container px-4 md:px-6">
+                 <div className="flex flex-col items-center justify-center space-y-4 text-center mb-12">
+                    <div className="space-y-2">
+                        <h2 className="text-3xl font-bold tracking-tighter sm:text-5xl">Recent Job Openings</h2>
+                        <p className="max-w-[900px] text-muted-foreground md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed">
+                            Explore the latest opportunities to join our team.
+                        </p>
+                    </div>
+                </div>
+                <RecentJobsSection />
+            </div>
+        </section>
+
+        {/* Features Section */}
+        <section className="w-full py-20 md:py-32 bg-gray-50 dark:bg-gray-900/50">
           <div className="container px-4 md:px-6">
             <div className="flex flex-col items-center justify-center space-y-4 text-center">
               <div className="space-y-2">
@@ -248,7 +268,7 @@ export default function LandingPage() {
         </section>
         
         {/* FAQ Section */}
-        <section className="w-full py-20 md:py-32 bg-gray-50 dark:bg-gray-900/50">
+        <section className="w-full py-20 md:py-32">
             <div className="container px-4 md:px-6">
                 <div className="flex flex-col items-center justify-center space-y-4 text-center">
                     <div className="space-y-2">
@@ -292,3 +312,5 @@ export default function LandingPage() {
     </div>
   );
 }
+
+    
