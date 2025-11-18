@@ -175,17 +175,6 @@ export default function LandingPage() {
         </section>
 
       </main>
-
-      {/* Floating CTA Button */}
-      <div className="fixed bottom-6 right-6 z-50">
-        <Button asChild size="lg" className="rounded-full shadow-lg">
-          <Link href={user ? '/dashboard' : '/login'}>
-            <ArrowRight className="mr-2 h-5 w-5" />
-            {user ? 'Go to Dashboard' : 'Get Started'}
-          </Link>
-        </Button>
-      </div>
-
       <footer className="flex flex-col gap-2 sm:flex-row py-6 w-full shrink-0 items-center px-4 md:px-6 border-t">
         <p className="text-xs text-muted-foreground">&copy; 2024 LeoRecruit. All rights reserved.</p>
         <nav className="sm:ml-auto flex gap-4 sm:gap-6">
