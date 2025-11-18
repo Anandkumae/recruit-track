@@ -17,6 +17,8 @@ import {
   Check,
   Star,
   FileUp,
+  Building,
+  MapPin,
 } from 'lucide-react';
 import Image from 'next/image';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
@@ -38,6 +40,7 @@ import { format } from 'date-fns';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { collection, query, where, orderBy, limit } from 'firebase/firestore';
 import type { Job, WithId } from '@/lib/types';
+import { Badge } from '@/components/ui/badge';
 
 const features = [
   {
@@ -207,6 +210,12 @@ Promoting from within reinforces a positive culture where loyalty, growth, and l
   },
 ];
 
+const topCompanies = [
+  { name: 'Innovate Inc.', location: 'San Francisco, CA', roles: 12, logo: 'I' },
+  { name: 'QuantumLeap', location: 'New York, NY', roles: 8, logo: 'Q' },
+  { name: 'Synergy Corp', location: 'Austin, TX', roles: 15, logo: 'S' },
+  { name: 'DataWeavers', location: 'Remote', roles: 22, logo: 'D' },
+];
 
 function RecentJobsSection() {
     const jobs: WithId<Job>[] = [
@@ -403,6 +412,51 @@ export default function LandingPage() {
                 </Button>
               </CardContent>
             </Card>
+          </div>
+        </section>
+        
+        {/* Top Companies Section */}
+        <section className="w-full bg-gray-50 py-20 dark:bg-gray-900/50 md:py-32">
+          <div className="container px-4 md:px-6">
+            <div className="mb-12 flex flex-col items-center justify-center space-y-4 text-center">
+              <div className="space-y-2">
+                <div className="inline-block rounded-lg bg-secondary px-3 py-1 text-sm">
+                  Top Companies
+                </div>
+                <h2 className="text-3xl font-bold tracking-tighter sm:text-5xl">
+                  Top Companies Hiring Now
+                </h2>
+                <p className="max-w-[900px] text-muted-foreground md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed">
+                  Join innovative teams at industry-leading companies.
+                </p>
+              </div>
+            </div>
+            <div className="mx-auto grid max-w-5xl items-start gap-8 sm:grid-cols-2 md:gap-12 lg:max-w-none lg:grid-cols-4">
+              {topCompanies.map((company) => (
+                <Card
+                  key={company.name}
+                  className="flex h-full flex-col text-center transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
+                >
+                  <CardHeader>
+                    <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-muted">
+                      <span className="text-2xl font-bold text-primary">{company.logo}</span>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="flex flex-1 flex-col justify-between">
+                    <div>
+                      <h3 className="text-lg font-bold">{company.name}</h3>
+                      <div className="mt-1 flex items-center justify-center gap-1.5 text-sm text-muted-foreground">
+                        <MapPin className="h-4 w-4" />
+                        <span>{company.location}</span>
+                      </div>
+                    </div>
+                    <Badge variant="outline" className="mt-4 w-fit mx-auto">
+                      {company.roles} Open Roles
+                    </Badge>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
           </div>
         </section>
 
