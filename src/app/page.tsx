@@ -138,7 +138,7 @@ function RecentJobsSection() {
     return (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {jobs?.slice(0, 3).map(job => (
-                <Card key={job.id} className="flex flex-col hover:shadow-lg transition-shadow">
+                <Card key={job.id} className="flex flex-col transition-all duration-300 hover:shadow-xl hover:-translate-y-1">
                     <CardHeader>
                         <CardTitle className="text-xl">{job.title}</CardTitle>
                         <div className="flex items-center justify-between text-sm text-muted-foreground">
@@ -204,7 +204,7 @@ export default function LandingPage() {
                   Browse our open positions and discover a role that matches your skills and ambitions. Your next career move starts here.
                 </p>
                 <div className="flex flex-col gap-2 min-[400px]:flex-row">
-                  <Button size="lg" asChild>
+                  <Button size="lg" asChild className="transition-transform duration-300 hover:scale-105">
                     <Link href={user ? "/jobs" : "/login"}>
                       {user ? "Browse All Jobs" : "Get Started Free"}
                       <ArrowRight className="ml-2 h-5 w-5" />
@@ -217,7 +217,7 @@ export default function LandingPage() {
                 alt="Hero Illustration"
                 width={600}
                 height={400}
-                className="mx-auto aspect-video overflow-hidden rounded-xl object-cover object-center sm:w-full"
+                className="mx-auto aspect-video overflow-hidden rounded-xl object-cover object-center sm:w-full transition-transform duration-300 hover:scale-105"
                 data-ai-hint="abstract 3d"
               />
             </div>
@@ -253,7 +253,7 @@ export default function LandingPage() {
             </div>
             <div className="mx-auto grid max-w-5xl items-start gap-8 sm:grid-cols-2 md:gap-12 lg:max-w-none lg:grid-cols-4 mt-12">
               {features.map((feature) => (
-                 <Card key={feature.title} className="h-full hover:shadow-lg transition-shadow">
+                 <Card key={feature.title} className="h-full transition-all duration-300 hover:shadow-xl hover:-translate-y-1">
                     <CardContent className="p-6 flex flex-col items-start text-left gap-4">
                         <div className="inline-block rounded-lg bg-primary/10 p-3 text-primary">
                             <feature.icon className="h-6 w-6" />
@@ -312,5 +312,3 @@ export default function LandingPage() {
     </div>
   );
 }
-
-    
