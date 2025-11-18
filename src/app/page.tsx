@@ -15,7 +15,7 @@ import {
   Instagram,
 } from 'lucide-react';
 import Image from 'next/image';
-import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { useUser } from '@/firebase';
 import {
   Accordion,
   AccordionContent,
@@ -24,7 +24,6 @@ import {
 } from '@/components/ui/accordion';
 import type { WithId, Job } from '@/lib/types';
 import { format } from 'date-fns';
-import { collection, query, limit, where, orderBy } from 'firebase/firestore';
 
 const features = [
   {
@@ -82,26 +81,49 @@ const faqs = [
 ];
 
 function RecentJobsSection() {
-  const firestore = useFirestore();
-
-  const jobsQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
-    return query(
-      collection(firestore, 'jobs'),
-      where('status', '==', 'Open'),
-      orderBy('createdAt', 'desc'),
-      limit(3)
-    );
-  }, [firestore]);
-
-  const { data: jobs, isLoading } = useCollection<WithId<Job>>(jobsQuery);
+    const staticJobs: Job[] = [
+    {
+      id: "job-1",
+      title: "Senior Frontend Engineer (React)",
+      department: "Engineering",
+      description: "We are seeking a highly skilled Senior Frontend Engineer to lead the development of our next-generation user interfaces. You will be responsible for building, testing, and deploying complex, scalable, and performant web applications using React and the latest frontend technologies.",
+      requirements: [],
+      status: "Open",
+      postedBy: "user-2",
+      createdAt: "2024-05-20T10:00:00Z"
+    },
+    {
+      id: "job-2",
+      title: "AI Prompt Engineer",
+      department: "Innovation",
+      description: "As an AI Prompt Engineer, you will be at the forefront of our generative AI initiatives. You will specialize in designing, refining, and optimizing prompts for large language models (LLMs) to generate high-quality, accurate, and contextually relevant content.",
+      requirements: [],
+      status: "Open",
+      postedBy: "user-1",
+      createdAt: "2024-05-18T14:30:00Z"
+    },
+    {
+      id: "job-4",
+      title: "Cloud Infrastructure Engineer",
+      department: "Platform Engineering",
+      description: "As a Cloud Infrastructure Engineer, you will be responsible for designing, building, and maintaining our scalable and reliable cloud infrastructure on Google Cloud Platform (GCP).",
+      requirements: [],
+      status: "Open",
+      postedBy: "user-3",
+      createdAt: "2024-05-25T12:00:00Z"
+    }
+  ];
+  
+  const jobs = staticJobs;
+  const isLoading = false;
 
   const formatDate = (timestamp: any) => {
     if (!timestamp) return '';
-    if (timestamp.toDate) {
-      return format(timestamp.toDate(), 'MMM d, yyyy');
+    try {
+        return format(new Date(timestamp), 'MMM d, yyyy');
+    } catch {
+        return '';
     }
-    return format(new Date(timestamp), 'MMM d, yyyy');
   };
   
   if (isLoading) {
@@ -438,3 +460,5 @@ export default function LandingPage() {
     </div>
   );
 }
+
+    
