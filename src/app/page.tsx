@@ -23,7 +23,16 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogDescription,
+} from '@/components/ui/dialog';
 import { format } from 'date-fns';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 const features = [
   {
@@ -85,27 +94,114 @@ const resources = [
     category: 'Hiring Tips',
     title: '10 Strategies to Attract Top Talent',
     description: 'In a competitive market, finding the right people is crucial. Explore our top 10 strategies to attract and retain the best candidates.',
-    link: '#',
+    content: `
+### 1. **Develop a Strong Employer Brand**
+Showcase your company culture, values, and mission. A positive brand attracts candidates who align with your vision.
+
+### 2. **Write Compelling Job Descriptions**
+Go beyond a list of duties. Sell the opportunity and describe the impact the role will have on the company.
+
+### 3. **Leverage Social Media**
+Use platforms like LinkedIn to share job openings, company news, and employee testimonials.
+
+### 4. **Implement an Employee Referral Program**
+Your current employees can be your best recruiters. Reward them for bringing in qualified candidates.
+
+### 5. **Offer Competitive Compensation and Benefits**
+Research industry standards to ensure your offers are attractive and fair.
+
+### 6. **Provide Clear Growth Opportunities**
+Top talent wants to know they have a future at your company. Outline potential career paths.
+
+### 7. **Streamline Your Application Process**
+A long, complicated application can deter great candidates. Make it simple and mobile-friendly.
+
+### 8. **Communicate Transparently**
+Keep candidates informed at every stage of the hiring process. A positive experience matters, even for those you don't hire.
+
+### 9. **Highlight Flexibility and Work-Life Balance**
+In today's market, remote work options and a focus on well-being are major draws.
+
+### 10. **Build a Talent Pipeline**
+Stay connected with promising candidates even if you don't have an immediate opening. Future opportunities may arise.
+`,
   },
   {
     category: 'Resume Guides',
     title: 'Crafting a Resume That Stands Out',
     description: 'Learn how to build a resume that not only looks great but also passes through applicant tracking systems and catches the eye of recruiters.',
-    link: '#',
+    content: `
+### 1. **Tailor It to the Job**
+Customize your resume for each application. Use keywords from the job description to show you're a perfect fit.
+
+### 2. **Start with a Powerful Summary**
+Write a 2-3 sentence summary at the top that highlights your key qualifications and career goals.
+
+### 3. **Focus on Accomplishments, Not Just Duties**
+Instead of saying "Managed social media," say "Increased social media engagement by 40% in six months by implementing a new content strategy." Use numbers to quantify your impact.
+
+### 4. **Keep It Clean and Readable**
+Use a professional font, ample white space, and clear section headings. Aim for one page if you have less than 10 years of experience.
+
+### 5. **Optimize for Applicant Tracking Systems (ATS)**
+Many companies use ATS to screen resumes. Avoid fancy graphics, tables, and headers/footers that can confuse the software.
+
+### 6. **Include a "Skills" Section**
+List your most relevant hard and soft skills. This makes it easy for recruiters to see your qualifications at a glance.
+
+### 7. **Proofread Meticulously**
+Typos and grammatical errors are a major red flag. Read your resume multiple times, and ask a friend to review it as well.
+`,
   },
   {
     category: 'Interview Prep',
     title: 'Acing Your Next Behavioral Interview',
     description: 'Behavioral questions are a staple of modern interviews. We break down the STAR method and provide examples to help you prepare.',
-    link: '#',
+    content: `
+Behavioral questions are designed to assess your past performance as an indicator of future success. The key to answering them effectively is the **STAR method**.
+
+### What is the STAR Method?
+- **S - Situation:** Briefly describe the context. Where were you? What was the project or challenge?
+- **T - Task:** What was your specific responsibility? What was the goal?
+- **A - Action:** What specific steps did you take to address the situation? Focus on *your* contributions.
+- **R - Result:** What was the outcome? Quantify it whenever possible (e.g., increased efficiency by 15%, reduced errors by 25%).
+
+### Example Question: "Tell me about a time you had to handle a difficult stakeholder."
+
+**Situation:** "In my previous role as a Project Manager, we were developing a new software feature. One of our key stakeholders had a very different vision for the final product than the engineering team, and progress had stalled."
+
+**Task:** "My task was to bridge the communication gap, align the stakeholder's vision with what was technically feasible, and get the project back on track."
+
+**Action:** "I scheduled a one-on-one meeting with the stakeholder to listen to their concerns and fully understand their goals. Then, I organized a workshop with the engineering team and the stakeholder. I acted as a facilitator, translating the stakeholder's business needs into technical requirements and explaining the engineering constraints in a non-technical way."
+
+**Result:** "Through these discussions, we found a compromise that met the core business objectives while being technically achievable. The stakeholder felt heard and became a champion for the project, and we delivered the feature on schedule, which contributed to a 10% increase in user adoption that quarter."
+`,
   },
   {
     category: 'HR Trends',
     title: 'The Rise of Internal Mobility Platforms',
     description: 'Discover why more companies are investing in internal hiring and how it can boost retention and employee satisfaction.',
-    link: '#',
+    content: `
+Internal mobility—the practice of moving employees into new roles within the same organization—is no longer just a buzzword; it's a strategic imperative. Here's why platforms like LeoRecruit are becoming essential for modern companies.
+
+### 1. **Boosts Employee Retention**
+When employees see clear opportunities for growth within their company, they are far less likely to look for it elsewhere. Investing in internal mobility is a direct investment in retaining your top talent.
+
+### 2. **Reduces Hiring Costs and Time**
+External recruitment is expensive and time-consuming. Internal hiring significantly cuts down on sourcing costs, onboarding time, and the "time-to-productivity" for new roles, as internal candidates are already familiar with the company culture and processes.
+
+### 3. **Enhances Employee Engagement**
+Employees who feel their company is invested in their career development are more engaged, motivated, and productive. An internal mobility platform sends a clear message that the company values its people and wants to help them succeed.
+
+### 4. **Fills Skills Gaps and Develops Leaders**
+By identifying high-potential employees and moving them into new roles, companies can strategically develop the skills and leadership qualities they need for the future. It's a powerful way to build a resilient and adaptable workforce from within.
+
+### 5. **Strengthens Company Culture**
+Promoting from within reinforces a positive culture where loyalty, growth, and long-term commitment are rewarded. It creates a virtuous cycle of development and success.
+`,
   },
 ];
+
 
 function RecentJobsSection() {
     const jobs = [
@@ -383,20 +479,35 @@ export default function LandingPage() {
             </div>
              <div className="mx-auto mt-12 grid max-w-5xl gap-8 sm:grid-cols-2 lg:max-w-none lg:grid-cols-4">
               {resources.map((post) => (
-                <Card key={post.title} className="flex flex-col overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-xl">
-                  <CardHeader>
-                    <p className="text-sm font-medium text-primary">{post.category}</p>
-                    <CardTitle className="text-lg">{post.title}</CardTitle>
-                  </CardHeader>
-                  <CardContent className="flex-grow">
-                    <p className="text-sm text-muted-foreground line-clamp-3">{post.description}</p>
-                  </CardContent>
-                  <div className="p-6 pt-0">
-                    <Button variant="link" asChild className="p-0">
-                      <Link href={post.link}>Read More <ArrowRight className="ml-2 h-4 w-4" /></Link>
-                    </Button>
-                  </div>
-                </Card>
+                <Dialog key={post.title}>
+                  <Card className="flex flex-col overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-xl">
+                    <CardHeader>
+                      <p className="text-sm font-medium text-primary">{post.category}</p>
+                      <CardTitle className="text-lg">{post.title}</CardTitle>
+                    </CardHeader>
+                    <CardContent className="flex-grow">
+                      <p className="text-sm text-muted-foreground line-clamp-3">{post.description}</p>
+                    </CardContent>
+                    <div className="p-6 pt-0">
+                      <DialogTrigger asChild>
+                        <Button variant="link" className="p-0">
+                          Read More <ArrowRight className="ml-2 h-4 w-4" />
+                        </Button>
+                      </DialogTrigger>
+                    </div>
+                  </Card>
+                  <DialogContent className="max-w-3xl">
+                    <DialogHeader>
+                      <DialogTitle className="text-2xl">{post.title}</DialogTitle>
+                      <DialogDescription>{post.category}</DialogDescription>
+                    </DialogHeader>
+                    <ScrollArea className="max-h-[60vh] pr-4">
+                      <div className="prose prose-sm dark:prose-invert max-w-full">
+                        {post.content}
+                      </div>
+                    </ScrollArea>
+                  </DialogContent>
+                </Dialog>
               ))}
             </div>
           </div>
@@ -488,3 +599,5 @@ export default function LandingPage() {
     </div>
   );
 }
+
+    
