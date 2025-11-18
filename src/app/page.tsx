@@ -24,7 +24,7 @@ import {
 } from '@/components/ui/accordion';
 import type { WithId, Job } from '@/lib/types';
 import { format } from 'date-fns';
-import { collection, query, limit, where } from 'firebase/firestore';
+import { collection, query, limit, where, orderBy } from 'firebase/firestore';
 
 const features = [
   {
@@ -89,6 +89,7 @@ function RecentJobsSection() {
     return query(
       collection(firestore, 'jobs'),
       where('status', '==', 'Open'),
+      orderBy('createdAt', 'desc'),
       limit(3)
     );
   }, [firestore]);
@@ -135,7 +136,7 @@ function RecentJobsSection() {
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 justify-center gap-6">
+    <div className="grid grid-cols-1 justify-center gap-6 md:grid-cols-2 lg:grid-cols-3">
       {jobs.map((job) => (
         <Card
           key={job.id}
