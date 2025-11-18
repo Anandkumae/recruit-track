@@ -16,9 +16,10 @@ import {
   BookOpen,
   Check,
   Star,
+  FileUp,
 } from 'lucide-react';
 import Image from 'next/image';
-import { useUser } from '@/firebase';
+import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import {
   Accordion,
   AccordionContent,
@@ -35,6 +36,8 @@ import {
 } from '@/components/ui/dialog';
 import { format } from 'date-fns';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { collection, query, where, orderBy, limit } from 'firebase/firestore';
+import type { Job, WithId } from '@/lib/types';
 
 const features = [
   {
@@ -206,38 +209,50 @@ Promoting from within reinforces a positive culture where loyalty, growth, and l
 
 
 function RecentJobsSection() {
-    const jobs = [
-        {
-            "id": "job-1",
-            "title": "Senior Frontend Engineer (React)",
-            "department": "Engineering",
-            "description": "We are seeking a highly skilled Senior Frontend Engineer to lead the development of our next-generation user interfaces. You will be responsible for building, testing, and deploying complex, scalable, and performant web applications using React and the latest frontend technologies.",
-            "createdAt": "2024-05-20T10:00:00Z"
-        },
-        {
-            "id": "job-2",
-            "title": "AI Prompt Engineer",
-            "department": "Innovation",
-            "description": "As an AI Prompt Engineer, you will be at the forefront of our generative AI initiatives. You will specialize in designing, refining, and optimizing prompts for large language models (LLMs) to generate high-quality, accurate, and contextually relevant content.",
-            "createdAt": "2024-05-18T14:30:00Z"
-        },
-        {
-            "id": "job-4",
-            "title": "Cloud Infrastructure Engineer",
-            "department": "Platform Engineering",
-            "description": "As a Cloud Infrastructure Engineer, you will be responsible for designing, building, and maintaining our scalable and reliable cloud infrastructure on Google Cloud Platform (GCP). You will work with technologies like Kubernetes, Terraform, and Docker to automate our infrastructure and deployment pipelines.",
-            "createdAt": "2024-05-25T12:00:00Z"
-        }
-    ];
+    const firestore = useFirestore();
+    
+    const jobsQuery = useMemoFirebase(() => {
+        if (!firestore) return null;
+        // Query for open jobs, order by creation date descending, limit to 3
+        return query(
+            collection(firestore, 'jobs'),
+            where('status', '==', 'Open'),
+            orderBy('createdAt', 'desc'),
+            limit(3)
+        );
+    }, [firestore]);
 
-    const formatDate = (dateString: string) => {
+    const { data: jobs, isLoading, error } = useCollection<WithId<Job>>(jobsQuery);
+
+    const formatDate = (timestamp: any) => {
+        if (!timestamp) return '';
         try {
-            return format(new Date(dateString), 'MMM d, yyyy');
+            const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+            return format(date, 'MMM d, yyyy');
         } catch {
             return '';
         }
     };
+    
+    if (isLoading) {
+        return (
+            <div className="flex justify-center items-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+        )
+    }
 
+    if (error) {
+        // This is a public page, so we don't want to show a scary error.
+        // We can log it for developers and show a friendly message.
+        console.error("Firestore error on landing page:", error.message);
+        return (
+            <div className="text-center py-12 text-muted-foreground">
+                Could not load job openings at this time. Please try again later.
+            </div>
+        );
+    }
+    
     if (!jobs || jobs.length === 0) {
         return (
             <div className="text-center py-12 text-muted-foreground">
@@ -247,7 +262,7 @@ function RecentJobsSection() {
     }
 
     return (
-      <div className="grid grid-cols-1 justify-center gap-6 md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid grid-cols-1 justify-center gap-6 md:grid-cols-2 lg:grid-cols-3 lg:data-[job-count='1']:grid-cols-1 lg:data-[job-count='2']:grid-cols-2 lg:data-[job-count='1']:max-w-2xl lg:data-[job-count='2']:max-w-4xl mx-auto" data-job-count={jobs.length}>
         {jobs.map((job) => (
           <Card
             key={job.id}
@@ -362,6 +377,33 @@ export default function LandingPage() {
               </div>
             </div>
             <RecentJobsSection />
+          </div>
+        </section>
+
+         {/* Resume Uploader Mini Section */}
+         <section className="w-full py-20">
+          <div className="container px-4 md:px-6">
+            <Card className="mx-auto max-w-3xl overflow-hidden bg-gradient-to-r from-primary/80 to-primary">
+              <CardContent className="flex flex-col items-center gap-6 p-8 text-center text-primary-foreground sm:flex-row sm:text-left">
+                <FileUp className="h-16 w-16 shrink-0" />
+                <div className="flex-1">
+                  <h3 className="text-2xl font-bold">
+                    Get Instant Job Matches
+                  </h3>
+                  <p className="mt-1 opacity-90">
+                    Don't just browse. Upload your resume and let our AI find the perfect role for you.
+                  </p>
+                </div>
+                <Button
+                  asChild
+                  size="lg"
+                  variant="secondary"
+                  className="shrink-0 transition-transform duration-300 hover:scale-105"
+                >
+                  <Link href="/login">Upload Your Resume</Link>
+                </Button>
+              </CardContent>
+            </Card>
           </div>
         </section>
 
