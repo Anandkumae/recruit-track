@@ -105,7 +105,7 @@ function RecentJobsSection() {
   
   if (isLoading) {
     return (
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {[...Array(3)].map((_, i) => (
                 <Card key={i}>
                     <CardHeader>
@@ -135,11 +135,11 @@ function RecentJobsSection() {
   }
 
   return (
-    <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 justify-center gap-6">
       {jobs.map((job) => (
         <Card
           key={job.id}
-          className="flex flex-col transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
+          className="flex flex-col transition-all duration-300 hover:-translate-y-1 hover:shadow-xl w-full"
         >
           <CardHeader>
             <CardTitle className="text-xl">{job.title}</CardTitle>
