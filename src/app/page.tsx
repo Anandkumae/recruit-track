@@ -3,11 +3,15 @@
 
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { Briefcase, Zap, Users, BarChart, ArrowRight } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Briefcase, Zap, Users, BarChart, ArrowRight, Loader2 } from 'lucide-react';
 import Image from 'next/image';
-import { useUser } from '@/firebase';
+import { useUser, useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { collection, query, orderBy, limit, where } from 'firebase/firestore';
+import type { WithId, Job } from '@/lib/types';
+import { Badge } from '@/components/ui/badge';
+import { format } from 'date-fns';
 
 const features = [
   {
@@ -55,6 +59,72 @@ const faqs = [
     }
 ]
 
+function RecentJobsSection() {
+    const firestore = useFirestore();
+
+    const jobsQuery = useMemoFirebase(() => {
+        if (!firestore) return null;
+        return query(collection(firestore, 'jobs'), where('status', '==', 'Open'), orderBy('createdAt', 'desc'), limit(6));
+    }, [firestore]);
+
+    const { data: jobs, isLoading } = useCollection<WithId<Job>>(jobsQuery);
+
+    const formatDate = (timestamp: any) => {
+      if (!timestamp) return '';
+      if (timestamp.toDate) {
+        return format(timestamp.toDate(), 'MMM d, yyyy');
+      }
+      return format(new Date(timestamp), 'MMM d, yyyy');
+    }
+
+    if (isLoading) {
+        return (
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                {[...Array(6)].map((_, i) => (
+                    <Card key={i} className="flex flex-col">
+                        <CardHeader>
+                            <div className="h-6 bg-muted rounded w-3/4 animate-pulse"></div>
+                            <div className="h-4 bg-muted rounded w-1/2 mt-2 animate-pulse"></div>
+                        </CardHeader>
+                        <CardContent className="flex-grow space-y-2">
+                             <div className="h-4 bg-muted rounded w-full animate-pulse"></div>
+                             <div className="h-4 bg-muted rounded w-full animate-pulse"></div>
+                             <div className="h-4 bg-muted rounded w-5/6 animate-pulse"></div>
+                        </CardContent>
+                        <div className="p-6 pt-0">
+                            <div className="h-10 bg-muted rounded w-full animate-pulse"></div>
+                        </div>
+                    </Card>
+                ))}
+            </div>
+        )
+    }
+
+    return (
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {jobs?.map(job => (
+                <Card key={job.id} className="flex flex-col hover:shadow-lg transition-shadow">
+                    <CardHeader>
+                        <CardTitle className="text-xl">{job.title}</CardTitle>
+                        <div className="flex items-center justify-between text-sm text-muted-foreground">
+                            <span>{job.department}</span>
+                            <span>{formatDate(job.createdAt)}</span>
+                        </div>
+                    </CardHeader>
+                    <CardContent className="flex-grow">
+                         <p className="text-sm text-muted-foreground line-clamp-3">{job.description}</p>
+                    </CardContent>
+                    <div className="p-6 pt-0">
+                        <Button asChild className="w-full">
+                            <Link href={`/jobs/${job.id}`}>View Job</Link>
+                        </Button>
+                    </div>
+                </Card>
+            ))}
+        </div>
+    )
+}
+
 export default function LandingPage() {
   const { user } = useUser();
   
@@ -88,33 +158,26 @@ export default function LandingPage() {
       </header>
       <main className="flex-1">
         {/* Hero Section */}
-        <section className="w-full py-20 md:py-32 lg:py-40 bg-gray-50 dark:bg-gray-900/50">
+        <section className="w-full py-20 md:py-24 lg:py-32 bg-gray-50 dark:bg-gray-900/50">
           <div className="container px-4 md:px-6">
-            <div className="grid gap-6 lg:grid-cols-2 lg:gap-12 xl:gap-16 items-center">
-              <div className="space-y-4">
-                <h1 className="text-4xl font-bold tracking-tighter sm:text-5xl md:text-6xl xl:text-7xl/none">
-                  Hire smarter, not harder.
+            <div className="flex flex-col items-center space-y-4 text-center">
+                 <h1 className="text-4xl font-bold tracking-tighter sm:text-5xl md:text-6xl xl:text-7xl/none">
+                  Find Your Next Opportunity
                 </h1>
-                <p className="max-w-[600px] text-muted-foreground md:text-xl">
-                  LeoRecruit is the AI-powered internal hiring platform that helps you find the perfect candidate, faster.
+                <p className="max-w-[700px] text-muted-foreground md:text-xl">
+                  Browse our open positions and discover a role that matches your skills and ambitions. Your next career move starts here.
                 </p>
-                <div className="flex flex-col gap-2 min-[400px]:flex-row">
+                 <div className="flex flex-col gap-2 min-[400px]:flex-row">
                    <Button size="lg" asChild>
-                      <Link href={user ? "/dashboard" : "/login"}>
-                        {user ? "View Dashboard" : "Get Started Free"}
+                      <Link href={user ? "/jobs" : "/login"}>
+                        {user ? "Browse All Jobs" : "Get Started Free"}
                         <ArrowRight className="ml-2 h-5 w-5" />
                       </Link>
                     </Button>
                 </div>
-              </div>
-              <Image
-                src="https://picsum.photos/seed/hero-image/800/600"
-                width={800}
-                height={600}
-                alt="Hero"
-                className="mx-auto aspect-[4/3] overflow-hidden rounded-xl object-cover"
-                data-ai-hint="recruitment dashboard"
-              />
+            </div>
+             <div className="mt-16">
+                <RecentJobsSection />
             </div>
           </div>
         </section>
@@ -133,8 +196,8 @@ export default function LandingPage() {
             </div>
             <div className="mx-auto grid max-w-5xl items-start gap-8 sm:grid-cols-2 md:gap-12 lg:max-w-none lg:grid-cols-4 mt-12">
               {features.map((feature) => (
-                 <Card key={feature.title} className="h-full">
-                    <CardContent className="p-6 flex flex-col items-start gap-4">
+                 <Card key={feature.title} className="h-full hover:shadow-lg transition-shadow">
+                    <CardContent className="p-6 flex flex-col items-start text-left gap-4">
                         <div className="inline-block rounded-lg bg-primary/10 p-3 text-primary">
                             <feature.icon className="h-6 w-6" />
                         </div>
@@ -192,3 +255,7 @@ export default function LandingPage() {
     </div>
   );
 }
+
+    
+
+    
