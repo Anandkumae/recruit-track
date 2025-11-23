@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useDoc, useFirestore, useMemoFirebase, useFirebase, useUser, useCollection } from "@/firebase";
@@ -25,7 +24,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useActionState } from 'react';
-import { RerunAnalysis } from '@/components/candidates/rerun-analysis';
+
 
 const getInitials = (name: string) => {
     return name ? name.split(' ').map(n => n[0]).join('') : '';
@@ -87,23 +86,15 @@ function ResumeSection({ resumeUrl, storage }: { resumeUrl?: string, storage: Fi
     return <p className="text-sm text-muted-foreground">This candidate has not uploaded a resume file.</p>;
 }
 
-
-function InterviewSchedulingSection({ candidateId, candidateName, jobTitle }: { candidateId: string, candidateName: string, jobTitle: string }) {
+function InterviewSchedulingSection({ candidateId, candidateName, jobTitle, isOwner }: { candidateId: string, candidateName: string, jobTitle: string, isOwner: boolean }) {
     const { user } = useUser();
-    const firestore = useFirestore();
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [state, formAction] = useActionState<ScheduleInterviewState, FormData>(scheduleInterview, { candidateId });
+    const [interviews, setInterviews] = useState<WithId<Interview>[]>([]);
+    const [interviewsLoading, setInterviewsLoading] = useState(true);
 
     // Only query if user is admin and we have a valid candidateId
     const isAdminUser = user?.email === 'anandkumar.shinnovationco@gmail.com';
-    const interviewsQuery = useMemoFirebase(() => {
-        if (!firestore || !candidateId || !isAdminUser) return null;
-        return query(
-            collection(firestore, 'interviews'),
-            where('candidateId', '==', candidateId),
-            orderBy('scheduledAt', 'desc')
-        );
-    }, [firestore, candidateId, isAdminUser]);
 
     type Interview = {
         id: string;
@@ -114,8 +105,6 @@ function InterviewSchedulingSection({ candidateId, candidateName, jobTitle }: { 
         notes?: string;
         status: 'Scheduled' | 'Completed' | 'Cancelled' | 'Rescheduled';
     };
-
-    const { data: interviews, isLoading: interviewsLoading } = useCollection<WithId<Interview>>(interviewsQuery);
 
     const formatDateTime = (timestamp: any) => {
         if (!timestamp) return 'N/A';
@@ -128,12 +117,38 @@ function InterviewSchedulingSection({ candidateId, candidateName, jobTitle }: { 
     };
 
     useEffect(() => {
+        let mounted = true;
+        
+        async function fetchInterviews() {
+            if (!candidateId || (!isAdminUser && !isOwner)) return;
+            
+            setInterviewsLoading(true);
+            try {
+                const { getInterviewsAction } = await import('@/lib/actions');
+                const result = await getInterviewsAction(candidateId);
+                
+                if (mounted && result.interviews) {
+                    setInterviews(result.interviews as WithId<Interview>[]);
+                }
+            } catch (error) {
+                console.error("Failed to load interviews:", error);
+            } finally {
+                if (mounted) setInterviewsLoading(false);
+            }
+        }
+
+        fetchInterviews();
+
+        return () => { mounted = false; };
+    }, [candidateId, isAdminUser, isOwner, state?.success]);
+
+    useEffect(() => {
         if (state?.success) {
             setIsDialogOpen(false);
         }
     }, [state?.success]);
     
-    if (!isAdminUser) return null;
+    if (!isAdminUser && !isOwner) return null;
 
     return (
         <Card>
@@ -141,103 +156,109 @@ function InterviewSchedulingSection({ candidateId, candidateName, jobTitle }: { 
                 <div className="flex items-center justify-between">
                     <div>
                         <CardTitle>Interview Scheduling</CardTitle>
-                        <CardDescription>Schedule and manage interviews for this candidate.</CardDescription>
+                        <CardDescription>
+                            {isAdminUser 
+                                ? "Schedule and manage interviews for this candidate." 
+                                : "View your scheduled interviews."}
+                        </CardDescription>
                     </div>
-                    <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                        <DialogTrigger asChild>
-                            <Button size="sm">
-                                <Plus className="mr-2 h-4 w-4" />
-                                Schedule Interview
-                            </Button>
-                        </DialogTrigger>
-                        <DialogContent className="max-w-2xl">
-                            <DialogHeader>
-                                <DialogTitle>Schedule Interview</DialogTitle>
-                                <DialogDescription>
-                                    Schedule an interview for {candidateName} for the position: {jobTitle}
-                                </DialogDescription>
-                            </DialogHeader>
-                            <form action={formAction} className="space-y-4">
-                                <input type="hidden" name="candidateId" value={candidateId} />
-                                <input type="hidden" name="scheduledBy" value={user?.uid || ''} />
-                                <input type="hidden" name="scheduledByName" value={user?.email || ''} />
-                                
-                                {state?.errors?._form && (
-                                    <Alert variant="destructive">
-                                        <AlertDescription>{state.errors._form[0]}</AlertDescription>
-                                    </Alert>
-                                )}
-
-                                <div className="space-y-2">
-                                    <Label htmlFor="scheduledAt">Date & Time *</Label>
-                                    <Input
-                                        id="scheduledAt"
-                                        name="scheduledAt"
-                                        type="datetime-local"
-                                        required
-                                        className={state?.errors?.scheduledAt ? 'border-red-500' : ''}
-                                    />
-                                    {state?.errors?.scheduledAt && (
-                                        <p className="text-sm text-red-500">{state.errors.scheduledAt[0]}</p>
+                    {isAdminUser && (
+                        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                            <DialogTrigger asChild>
+                                <Button size="sm">
+                                    <Plus className="mr-2 h-4 w-4" />
+                                    Schedule Interview
+                                </Button>
+                            </DialogTrigger>
+                            <DialogContent className="max-w-2xl">
+                                <DialogHeader>
+                                    <DialogTitle>Schedule Interview</DialogTitle>
+                                    <DialogDescription>
+                                        Schedule an interview for {candidateName} for the position: {jobTitle}
+                                    </DialogDescription>
+                                </DialogHeader>
+                                <form action={formAction} className="space-y-4">
+                                    <input type="hidden" name="candidateId" value={candidateId} />
+                                    <input type="hidden" name="scheduledBy" value={user?.uid || ''} />
+                                    <input type="hidden" name="scheduledByName" value={user?.email || ''} />
+                                    
+                                    {state?.errors?._form && (
+                                        <Alert variant="destructive">
+                                            <AlertDescription>{state.errors._form[0]}</AlertDescription>
+                                        </Alert>
                                     )}
-                                </div>
 
-                                <div className="space-y-2">
-                                    <Label htmlFor="location">Location</Label>
-                                    <Input
-                                        id="location"
-                                        name="location"
-                                        placeholder="e.g., Conference Room A, Zoom, etc."
-                                        className={state?.errors?.location ? 'border-red-500' : ''}
-                                    />
-                                    {state?.errors?.location && (
-                                        <p className="text-sm text-red-500">{state.errors.location[0]}</p>
-                                    )}
-                                </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="scheduledAt">Date & Time *</Label>
+                                        <Input
+                                            id="scheduledAt"
+                                            name="scheduledAt"
+                                            type="datetime-local"
+                                            required
+                                            className={state?.errors?.scheduledAt ? 'border-red-500' : ''}
+                                        />
+                                        {state?.errors?.scheduledAt && (
+                                            <p className="text-sm text-red-500">{state.errors.scheduledAt[0]}</p>
+                                        )}
+                                    </div>
 
-                                <div className="space-y-2">
-                                    <Label htmlFor="meetingLink">Meeting Link</Label>
-                                    <Input
-                                        id="meetingLink"
-                                        name="meetingLink"
-                                        type="url"
-                                        placeholder="https://zoom.us/j/..."
-                                        className={state?.errors?.meetingLink ? 'border-red-500' : ''}
-                                    />
-                                    {state?.errors?.meetingLink && (
-                                        <p className="text-sm text-red-500">{state.errors.meetingLink[0]}</p>
-                                    )}
-                                </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="location">Location</Label>
+                                        <Input
+                                            id="location"
+                                            name="location"
+                                            placeholder="e.g., Conference Room A, Zoom, etc."
+                                            className={state?.errors?.location ? 'border-red-500' : ''}
+                                        />
+                                        {state?.errors?.location && (
+                                            <p className="text-sm text-red-500">{state.errors.location[0]}</p>
+                                        )}
+                                    </div>
 
-                                <div className="space-y-2">
-                                    <Label htmlFor="notes">Notes</Label>
-                                    <Textarea
-                                        id="notes"
-                                        name="notes"
-                                        placeholder="Additional notes about the interview..."
-                                        rows={3}
-                                        className={state?.errors?.notes ? 'border-red-500' : ''}
-                                    />
-                                    {state?.errors?.notes && (
-                                        <p className="text-sm text-red-500">{state.errors.notes[0]}</p>
-                                    )}
-                                </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="meetingLink">Meeting Link</Label>
+                                        <Input
+                                            id="meetingLink"
+                                            name="meetingLink"
+                                            type="url"
+                                            placeholder="https://zoom.us/j/..."
+                                            className={state?.errors?.meetingLink ? 'border-red-500' : ''}
+                                        />
+                                        {state?.errors?.meetingLink && (
+                                            <p className="text-sm text-red-500">{state.errors.meetingLink[0]}</p>
+                                        )}
+                                    </div>
 
-                                <div className="flex justify-end gap-2">
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        onClick={() => setIsDialogOpen(false)}
-                                    >
-                                        Cancel
-                                    </Button>
-                                    <Button type="submit" disabled={state?.success}>
-                                        {state?.success ? 'Scheduled!' : 'Schedule Interview'}
-                                    </Button>
-                                </div>
-                            </form>
-                        </DialogContent>
-                    </Dialog>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="notes">Notes</Label>
+                                        <Textarea
+                                            id="notes"
+                                            name="notes"
+                                            placeholder="Additional notes about the interview..."
+                                            rows={3}
+                                            className={state?.errors?.notes ? 'border-red-500' : ''}
+                                        />
+                                        {state?.errors?.notes && (
+                                            <p className="text-sm text-red-500">{state.errors.notes[0]}</p>
+                                        )}
+                                    </div>
+
+                                    <div className="flex justify-end gap-2">
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            onClick={() => setIsDialogOpen(false)}
+                                        >
+                                            Cancel
+                                        </Button>
+                                        <Button type="submit" disabled={state?.success}>
+                                            {state?.success ? 'Scheduled!' : 'Schedule Interview'}
+                                        </Button>
+                                    </div>
+                                </form>
+                            </DialogContent>
+                        </Dialog>
+                    )}
                 </div>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -312,6 +333,7 @@ function InterviewSchedulingSection({ candidateId, candidateName, jobTitle }: { 
 
 function CandidateDetailsView({ candidate, job }: { candidate: WithId<Candidate>, job: WithId<Job> | null}) {
     const { storage, user } = useFirebase();
+    const isOwner = user?.uid === candidate.userId;
     
     const formatDate = (timestamp: any) => {
         if (!timestamp) return 'N/A';
@@ -345,44 +367,6 @@ function CandidateDetailsView({ candidate, job }: { candidate: WithId<Candidate>
 
             <div className="grid gap-8 md:grid-cols-3">
                 <div className="md:col-span-2 space-y-6">
-                     <Card>
-                        <CardHeader className="flex flex-row items-center justify-between">
-                            <div>
-                                <CardTitle>AI Match Analysis</CardTitle>
-                                <CardDescription>
-                                    AI analysis of the candidate's resume against the job description.
-                                </CardDescription>
-                            </div>
-                            {user?.email === 'anandkumar.shinnovationco@gmail.com' && (
-                               <RerunAnalysis candidateId={candidate.id} />
-                            )}
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                             <div>
-                                {candidate.matchScore ? (
-                                    <>
-                                        <div className="flex items-baseline justify-between">
-                                        <span className="text-sm font-medium">Match Score</span>
-                                        <span className="text-xl font-bold text-primary">
-                                            {candidate.matchScore}
-                                            <span className="text-xs text-muted-foreground">/100</span>
-                                        </span>
-                                        </div>
-                                        <Progress value={candidate.matchScore} className="mt-2" />
-                                    </>
-                                ) : <p className="text-sm text-muted-foreground">No AI match score available.</p>}
-                              </div>
-                              <div>
-                                <span className="text-sm font-medium">AI Reasoning</span>
-                                {candidate.matchReasoning ? (
-                                     <p className="mt-1 text-sm text-foreground/80 rounded-md border bg-muted/50 p-3">
-                                        {candidate.matchReasoning}
-                                     </p>
-                                ) : <p className="text-sm text-muted-foreground mt-1">No AI reasoning available.</p>}
-                              </div>
-                        </CardContent>
-                    </Card>
-
                     <Card>
                         <CardHeader>
                             <CardTitle>Skills</CardTitle>
@@ -412,11 +396,12 @@ function CandidateDetailsView({ candidate, job }: { candidate: WithId<Candidate>
                         </CardContent>
                     </Card>
                     
-                    {user?.email === 'anandkumar.shinnovationco@gmail.com' && (
+                    {(user?.email === 'anandkumar.shinnovationco@gmail.com' || isOwner) && (
                         <InterviewSchedulingSection
                             candidateId={candidate.id}
                             candidateName={candidate.name}
                             jobTitle={job?.title || 'Unknown Job'}
+                            isOwner={isOwner}
                         />
                     )}
                 </div>
@@ -528,5 +513,3 @@ export default function CandidateDetailsPage() {
         <CandidateDetailsView candidate={candidate} job={job || null} />
     );
 }
-
-    

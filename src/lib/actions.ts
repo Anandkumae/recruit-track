@@ -96,7 +96,7 @@ export async function applyForJob(
     const userDocRef = db.collection('users').doc(userId);
     await userDocRef.set({ phone }, { merge: true });
 
-    let matchResult = { matchScore: 0, reasoning: 'AI analysis could not be performed.', suggestedSkills: [] };
+    let matchResult = { matchScore: 0, reasoning: 'AI analysis could not be performed.', suggestedSkills: [] as string[] };
     
     // We will use resumeText if available for AI matching
     const resumeContent = resumeText; 
@@ -379,6 +379,9 @@ export type RerunAiMatchState = {
   };
 };
 
+import * as fs from 'fs';
+import * as path from 'path';
+
 export async function rerunAiMatch(
   prevState: RerunAiMatchState,
   formData: FormData
@@ -412,17 +415,61 @@ export async function rerunAiMatch(
     }
     
     const job = jobDoc.data() as Job;
-
-    const resumeContent = candidate.resumeText;
     const jobDescription = job.description;
 
-    if (!resumeContent || resumeContent.length < 10 || !jobDescription || jobDescription.length < 10) {
-      return { errors: { _form: ['Not enough resume or job description text to perform analysis.'] } };
+    if (!jobDescription || jobDescription.length < 10) {
+        return { errors: { _form: ['Job description is too short for analysis.'] } };
+    }
+
+    let photoDataUri: string | null = null;
+
+    // 1. Try to use existing resumeText
+    if (candidate.resumeText && candidate.resumeText.length >= 10) {
+        // Use text/plain for text content
+        photoDataUri = `data:text/plain;base64,${Buffer.from(candidate.resumeText).toString('base64')}`;
+    } 
+    // 2. Fallback: Try to fetch from resumeUrl
+    else if (candidate.resumeUrl) {
+        try {
+            let fetchUrl = candidate.resumeUrl;
+            
+            // Check if it's a relative path (storage path)
+            if (!candidate.resumeUrl.startsWith('http')) {
+                const { storage } = await getFirebaseAdmin();
+                const bucket = storage.bucket();
+                const file = bucket.file(candidate.resumeUrl);
+                
+                const [signedUrl] = await file.getSignedUrl({
+                    action: 'read',
+                    expires: Date.now() + 15 * 60 * 1000, // 15 minutes
+                });
+                
+                fetchUrl = signedUrl;
+            }
+
+            const response = await fetch(fetchUrl);
+            
+            if (response.ok) {
+                const arrayBuffer = await response.arrayBuffer();
+                const buffer = Buffer.from(arrayBuffer);
+                const base64 = buffer.toString('base64');
+                const mimeType = response.headers.get('content-type') || 'application/pdf';
+                photoDataUri = `data:${mimeType};base64,${base64}`;
+            } else {
+                console.warn(`Failed to fetch resume from URL: ${fetchUrl} - Status: ${response.status}`);
+            }
+        } catch (fetchError) {
+            console.error(`Error fetching resume file: ${fetchError}`);
+        }
+    }
+
+    if (!photoDataUri) {
+      return { errors: { _form: ['Not enough resume text found and failed to retrieve resume file for analysis.'] } };
     }
     
     const result = await matchResumeToJob({
       jobDescription,
-      photoDataUri: `data:image/png;base64,${Buffer.from(resumeContent).toString('base64')}`
+      photoDataUri,
     });
     
     if(!result) {
@@ -438,7 +485,7 @@ export async function rerunAiMatch(
     return { success: true, message: 'AI analysis has been updated.' };
 
   } catch (error) {
-    console.error('AI Re-match Error:', error);
+    console.error(`Unexpected error: ${error}`);
     return { errors: { _form: ['An unexpected error occurred while re-running the analysis.'] } };
   }
 }
@@ -611,4 +658,30 @@ export async function parseResumeAction(prevState: ResumeParserState, formData: 
     console.error('Resume Parser Action Error:', error);
     return { errors: { _form: ['An error occurred during resume parsing.'] } };
   }
+}
+
+export async function getInterviewsAction(candidateId: string): Promise<{ interviews?: Interview[], error?: string }> {
+    const { db } = await getFirebaseAdmin();
+    try {
+        const snapshot = await db.collection('interviews')
+            .where('candidateId', '==', candidateId)
+            .orderBy('scheduledAt', 'desc')
+            .get();
+
+        const interviews = snapshot.docs.map((doc: any) => {
+            const data = doc.data();
+            return {
+                id: doc.id,
+                ...data,
+                // Convert Firestore Timestamps/Dates to ISO strings for serialization
+                scheduledAt: data.scheduledAt instanceof Date ? data.scheduledAt.toISOString() : (data.scheduledAt?.toDate ? data.scheduledAt.toDate().toISOString() : data.scheduledAt),
+                createdAt: data.createdAt instanceof Date ? data.createdAt.toISOString() : (data.createdAt?.toDate ? data.createdAt.toDate().toISOString() : data.createdAt),
+            } as Interview;
+        });
+
+        return { interviews };
+    } catch (error) {
+        console.error("Error fetching interviews:", error);
+        return { error: "Failed to fetch interviews." };
+    }
 }

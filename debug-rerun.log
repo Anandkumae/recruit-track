@@ -1,0 +1,15 @@
+[2025-11-23T16:48:02.767Z] Starting analysis for candidate: asIFWnVLi1us69EKqUF9
+[2025-11-23T16:48:03.833Z] resumeText missing or short. Attempting to fetch from URL: resumes/UEGv6hFFOJMnd3t8m01rmzYMmSi1/Anand's Resume (2).pdf
+[2025-11-23T16:48:03.840Z] Error fetching resume file: TypeError: Failed to parse URL from resumes/UEGv6hFFOJMnd3t8m01rmzYMmSi1/Anand's Resume (2).pdf
+[2025-11-23T16:48:03.840Z] Failed to obtain photoDataUri.
+[2025-11-23T16:48:31.587Z] Starting analysis for candidate: asIFWnVLi1us69EKqUF9
+[2025-11-23T16:48:32.497Z] resumeText missing or short. Attempting to fetch from URL: resumes/UEGv6hFFOJMnd3t8m01rmzYMmSi1/Anand's Resume (2).pdf
+[2025-11-23T16:48:32.499Z] Error fetching resume file: TypeError: Failed to parse URL from resumes/UEGv6hFFOJMnd3t8m01rmzYMmSi1/Anand's Resume (2).pdf
+[2025-11-23T16:48:32.500Z] Failed to obtain photoDataUri.
+[2025-11-23T16:54:54.991Z] Starting analysis for candidate: asIFWnVLi1us69EKqUF9
+[2025-11-23T16:54:56.734Z] resumeText missing or short. Attempting to fetch from URL: resumes/UEGv6hFFOJMnd3t8m01rmzYMmSi1/Anand's Resume (2).pdf
+[2025-11-23T16:54:56.735Z] URL appears to be a storage path. Generating signed URL...
+[2025-11-23T16:54:58.785Z] Generated signed URL: https://storage.googleapis.com/studio-7488920972-4...
+[2025-11-23T16:55:01.025Z] Fetch response status: 404
+[2025-11-23T16:55:01.027Z] Failed to fetch resume from URL: https://storage.googleapis.com/studio-7488920972-4ef9c.appspot.com/resumes/UEGv6hFFOJMnd3t8m01rmzYMmSi1/Anand%27s%20Resume%20%282%29.pdf?GoogleAccessId=firebase-adminsdk-fbsvc%40studio-7488920972-4ef9c.iam.gserviceaccount.com&Expires=1763917797&Signature=Di40vSPN1JmaCaIwyAJgcSYBYaix7rgLIUhJZ8tpRvADs6IeUl2jeALmk6cwrhl9CAPPLmwDg2IlEk0GDyM2Bpi8bJuStPkCy9t8hQ5qo%2BjhDjPIFzydknPs9LVgGW2Yv6KQG912eMl3fsE6DBtdZlz7EM8Co1nZ3Kq%2BhCWQvXSFYGh82TZnieop%2BgPlDi%2BEV0KLmu6HFkRW0p1hF2OqWaO0IF1xsz4qh7Ws6witaOaglJyDjN40CZ8D6A7Oa3RURHZTn81FCNMuHYaHvz6Ut6LdUfdEXeOqOVTyjcirhOPc5w692fEC3lPiHQ55xzdqT9DBN0S0zMhY4fyQ9VdRWA%3D%3D - Status: 404
+[2025-11-23T16:55:01.027Z] Failed to obtain photoDataUri.

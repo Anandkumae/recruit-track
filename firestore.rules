@@ -86,8 +86,9 @@ service cloud.firestore {
     function isAdmin() {
       return isSignedIn() &&
         (
-          exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid))
-          || request.auth.token.email == "anandkumar.shinnovationco@gmail.com"
+          request.auth.token.email == "anandkumar.shinnovationco@gmail.com"
+          || request.auth.uid == "n4Cd1LLnVFV5Odz7aXtkdjNdtzw2"
+          || exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid))
         );
     }
 

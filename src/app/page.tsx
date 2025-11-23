@@ -1,6 +1,7 @@
 
 'use client';
 
+import { useMemo } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -219,38 +220,32 @@ const topCompanies = [
 ];
 
 function RecentJobsSection() {
-    const jobs: WithId<Job>[] = [
-      {
-        "id": "job-1",
-        "title": "Senior Frontend Engineer (React)",
-        "department": "Engineering",
-        "description": "We are seeking a highly skilled Senior Frontend Engineer to lead the development of our next-generation user interfaces. You will be responsible for building, testing, and deploying complex, scalable, and performant web applications using React and the latest frontend technologies.",
-        "requirements": [],
-        "status": "Open",
-        "postedBy": "user-2",
-        "createdAt": "2024-05-20T10:00:00Z"
-      },
-      {
-        "id": "job-2",
-        "title": "AI Prompt Engineer",
-        "department": "Innovation",
-        "description": "As an AI Prompt Engineer, you will be at the forefront of our generative AI initiatives. You will specialize in designing, refining, and optimizing prompts for large language models (LLMs) to generate high-quality, accurate, and contextually relevant content.",
-        "requirements": [],
-        "status": "Open",
-        "postedBy": "user-1",
-        "createdAt": "2024-05-18T14:30:00Z"
-      },
-      {
-        "id": "job-4",
-        "title": "Cloud Infrastructure Engineer",
-        "department": "Platform Engineering",
-        "description": "As a Cloud Infrastructure Engineer, you will be responsible for designing, building, and maintaining our scalable and reliable cloud infrastructure on Google Cloud Platform (GCP). You will work with technologies like Kubernetes, Terraform, and Docker to automate our infrastructure and deployment pipelines.",
-        "requirements": [],
-        "status": "Open",
-        "postedBy": "user-3",
-        "createdAt": "2024-05-25T12:00:00Z"
-      }
-    ];
+    const firestore = useFirestore();
+    
+    const jobsQuery = useMemo(() => {
+      return query(collection(firestore, 'jobs'), orderBy('createdAt', 'desc'), limit(3));
+    }, [firestore]);
+
+    const { data: jobs, isLoading, error } = useCollection<Job>(jobsQuery);
+
+    if (isLoading) {
+      return (
+        <div className="flex justify-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      );
+    }
+
+    if (error) {
+       console.error("Error fetching jobs:", error);
+       return (
+         <div className="text-center py-12 text-red-500">
+           Failed to load jobs. Please try again later.
+         </div>
+       )
+    }
+
+    const jobList = jobs || [];
 
     const formatDate = (timestamp: any) => {
         if (!timestamp) return '';
@@ -262,7 +257,7 @@ function RecentJobsSection() {
         }
     };
     
-    if (jobs.length === 0) {
+    if (jobList.length === 0) {
         return (
             <div className="text-center py-12 text-muted-foreground">
                 No open positions at the moment. Please check back later!
@@ -271,8 +266,8 @@ function RecentJobsSection() {
     }
 
     return (
-      <div className="grid grid-cols-1 justify-center gap-6 md:grid-cols-2 lg:grid-cols-3 lg:data-[job-count='1']:grid-cols-1 lg:data-[job-count='2']:grid-cols-2 lg:data-[job-count='1']:max-w-2xl lg:data-[job-count='2']:max-w-4xl mx-auto" data-job-count={jobs.length}>
-        {jobs.map((job) => (
+      <div className="grid grid-cols-1 justify-center gap-6 md:grid-cols-2 lg:grid-cols-3 lg:data-[job-count='1']:grid-cols-1 lg:data-[job-count='2']:grid-cols-2 lg:data-[job-count='1']:max-w-2xl lg:data-[job-count='2']:max-w-4xl mx-auto" data-job-count={jobList.length}>
+        {jobList.map((job) => (
           <Card
             key={job.id}
             className="flex flex-col transition-all duration-300 hover:-translate-y-1 hover:shadow-xl w-full"
