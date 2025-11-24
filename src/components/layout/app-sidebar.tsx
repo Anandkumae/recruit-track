@@ -74,7 +74,6 @@ function SidebarNotifications({ userRole, userId }: { userRole: Role; userId: st
     if (!firestore || userRole !== 'Candidate') return null;
     return query(
       collection(firestore, 'users', userId, 'notifications'),
-      orderBy('timestamp', 'desc'),
       limit(5)
     );
   }, [firestore, userRole, userId]);
@@ -99,6 +98,7 @@ function SidebarNotifications({ userRole, userId }: { userRole: Role; userId: st
         <ul className="mt-2 space-y-2">
           {notifications.map((notification) => {
             const time = toDate(notification.timestamp);
+              
             return (
               <li
                 key={notification.id}
@@ -190,7 +190,7 @@ export function AppSidebar() {
   return (
     <Sidebar className="border-r" side="left" collapsible="icon">
       <SidebarHeader className='p-2 flex items-center justify-between'>
-        <SidebarMenuButton asChild variant="ghost" className="w-full justify-start h-10 px-2 text-lg font-semibold">
+        <SidebarMenuButton asChild variant="outline" className="w-full justify-start h-10 px-2 text-lg font-semibold border-0">
            <Link href="/dashboard" className="flex items-center gap-2">
             <Briefcase className="h-7 w-7 text-primary" />
             <span className="text-lg font-semibold text-foreground">

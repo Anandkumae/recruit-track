@@ -19,7 +19,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import type { Role, WithId, Job, User } from '@/lib/types';
 import { useUser, useFirestore, useCollection, useMemoFirebase, useDoc } from '@/firebase';
 import { format } from 'date-fns';
-import { collection, doc, query, orderBy } from 'firebase/firestore';
+import { collection, doc, query, orderBy, where } from 'firebase/firestore';
 
 function PosterName({ userId }: { userId: string }) {
   const firestore = useFirestore();
@@ -39,13 +39,6 @@ export default function JobsPage() {
   const { user, isUserLoading } = useUser();
   const firestore = useFirestore();
 
-  const jobsQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
-    return query(collection(firestore, 'jobs'), orderBy('createdAt', 'desc'));
-  }, [firestore]);
-
-  const { data: jobs, isLoading: jobsLoading } = useCollection<WithId<Job>>(jobsQuery);
-  
   const userProfileRef = useMemoFirebase(() => {
     if (!firestore || !user) return null;
     return doc(firestore, 'users', user.uid);
@@ -59,6 +52,29 @@ export default function JobsPage() {
   } else if (userProfile?.role) {
     userRole = userProfile.role;
   }
+
+  const jobsQuery = useMemoFirebase(() => {
+    if (!firestore) return null;
+    
+    // For Candidates, show all jobs
+    if (userRole === 'Candidate') {
+        return query(collection(firestore, 'jobs'), orderBy('createdAt', 'desc'));
+    }
+
+    // For Employers (Admin/HR/Manager), only show their own jobs
+    // Note: Removed orderBy to avoid potential missing index issues. Sorting can be done client-side if needed.
+    if (user && (userRole === 'Admin' || userRole === 'HR' || userRole === 'Manager')) {
+         return query(collection(firestore, 'jobs'), where('postedBy', '==', user.uid));
+    }
+    
+    return null;
+  }, [firestore, userRole, user]);
+
+  const { data: jobs, isLoading: jobsLoading } = useCollection<WithId<Job>>(jobsQuery);
+  
+
+
+
 
   const filteredJobs = jobs?.filter((job) =>
     job.title.toLowerCase().includes(searchTerm.toLowerCase()) ||

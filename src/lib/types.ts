@@ -47,6 +47,7 @@ export type Candidate = {
   matchReasoning?: string;
   avatarUrl: string;
   userId: string;
+  employerId?: string;
 };
 
 export type NavItem = {

@@ -36,10 +36,16 @@ export default function DashboardPage() {
 
   // --- Data Fetching for Admin ---
   const jobsQuery = useMemoFirebase(() => {
-    if (!firestore || !isPrivilegedUser) return null;
-    return collection(firestore, 'jobs');
-  }, [firestore, isPrivilegedUser]);
+    if (!firestore || !isPrivilegedUser || !user) return null;
+    return query(collection(firestore, 'jobs'), where('postedBy', '==', user.uid));
+  }, [firestore, isPrivilegedUser, user]);
   const { data: jobs, isLoading: jobsLoading } = useCollection<WithId<Job>>(jobsQuery);
+  
+  const candidatesQuery = useMemoFirebase(() => {
+    if (!firestore || !isPrivilegedUser || !user) return null;
+    return query(collection(firestore, 'candidates'), where('employerId', '==', user.uid));
+  }, [firestore, isPrivilegedUser, user]);
+  const { data: adminCandidates, isLoading: adminCandidatesLoading } = useCollection<WithId<Candidate>>(candidatesQuery);
 
   // --- Data Fetching for Candidate ---
   const candidateApplicationsQuery = useMemoFirebase(() => {
@@ -48,7 +54,7 @@ export default function DashboardPage() {
   }, [firestore, user, isPrivilegedUser]);
   const { data: candidateApplications, isLoading: candidateAppsLoading } = useCollection<WithId<Candidate>>(candidateApplicationsQuery);
 
-  const isLoading = isUserLoading || isProfileLoading || (isPrivilegedUser && jobsLoading) || (!isPrivilegedUser && candidateAppsLoading);
+  const isLoading = isUserLoading || isProfileLoading || (isPrivilegedUser && (jobsLoading || adminCandidatesLoading)) || (!isPrivilegedUser && candidateAppsLoading);
 
   if (isLoading) {
     return (
@@ -60,6 +66,9 @@ export default function DashboardPage() {
 
   // --- Admin Dashboard Stats ---
   const totalJobs = jobs?.length || 0;
+  const totalCandidates = adminCandidates?.length || 0;
+  const shortlistedCandidates = adminCandidates?.filter(c => c.status === 'Shortlisted').length || 0;
+  const hiredCandidates = adminCandidates?.filter(c => c.status === 'Hired').length || 0;
   
   // --- Candidate Dashboard Stats ---
   const applicationsSent = candidateApplications?.length || 0;
@@ -88,26 +97,26 @@ export default function DashboardPage() {
             />
              <StatCard
               title="Total Candidates"
-              value={"Metric disabled"}
+              value={totalCandidates}
               icon={Users}
-              description="This metric is temporarily disabled."
+              description="Total applications received."
             />
             <StatCard
               title="Shortlisted"
-              value={"Metric disabled"}
+              value={shortlistedCandidates}
               icon={UserCheck}
-              description="This metric is temporarily disabled."
+              description="Candidates currently shortlisted."
             />
             <StatCard
               title="Hired"
-              value={"Metric disabled"}
+              value={hiredCandidates}
               icon={CheckCircle}
-              description="This metric is temporarily disabled."
+              description="Candidates successfully hired."
             />
           </div>
           <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
              <div className="lg:col-span-3">
-                <OverviewChart candidates={[]} />
+                <OverviewChart candidates={adminCandidates || []} />
              </div>
           </div>
         </div>

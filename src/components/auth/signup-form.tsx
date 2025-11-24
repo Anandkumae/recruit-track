@@ -8,15 +8,24 @@ import { Label } from '@/components/ui/label';
 import { Loader2 } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import {
-  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
   GoogleAuthProvider,
   signInWithPopup,
-  signInWithRedirect,
   RecaptchaVerifier,
   signInWithPhoneNumber,
   type ConfirmationResult,
 } from 'firebase/auth';
+import { doc, setDoc } from 'firebase/firestore';
+import { useFirestore } from '@/firebase';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useSearchParams } from 'next/navigation';
+
+declare global {
+  interface Window {
+    grecaptcha: any;
+  }
+  var grecaptcha: any;
+}
 
 const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="24px" height="24px" {...props}>
@@ -28,8 +37,16 @@ const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
 );
 
 
-export function LoginForm() {
+export function SignupForm() {
   const auth = useAuth();
+  const firestore = useFirestore();
+  const searchParams = useSearchParams();
+  const plan = searchParams.get('plan');
+  const roleParam = searchParams.get('role');
+  
+  // Default to candidate if not specified or invalid
+  const role = roleParam === 'employer' ? 'Admin' : 'Candidate';
+  
   const [isEmailSubmitting, setIsEmailSubmitting] = React.useState(false);
   const [isGoogleSubmitting, setIsGoogleSubmitting] = React.useState(false);
   const [isPhoneSubmitting, setIsPhoneSubmitting] = React.useState(false);
@@ -51,7 +68,7 @@ export function LoginForm() {
   }, [auth]);
 
 
-  const handleEmailLogin = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleEmailSignup = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsEmailSubmitting(true);
     setError(null);
@@ -61,22 +78,40 @@ export function LoginForm() {
     const password = formData.get('password') as string;
 
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      if (userCredential.user) {
+        await setDoc(doc(firestore, 'users', userCredential.user.uid), {
+          email: userCredential.user.email,
+          role: role,
+          createdAt: new Date().toISOString(),
+        });
+      }
+      // TODO: Handle plan selection after signup if needed
     } catch (err: any) {
-      setError(err.message || 'Failed to sign in. Please check your credentials.');
+      setError(err.message || 'Failed to sign up. Please try again.');
     } finally {
         setIsEmailSubmitting(false);
     }
   };
 
-  const handleGoogleLogin = async () => {
+  const handleGoogleSignup = async () => {
     setIsGoogleSubmitting(true);
     setError(null);
     const provider = new GoogleAuthProvider();
     try {
-      await signInWithRedirect(auth, provider);
+      const userCredential = await signInWithPopup(auth, provider);
+      if (userCredential.user) {
+         // Check if user document already exists to avoid overwriting role on login
+         // For now, we assume signup flow, but in production we should check existence
+         await setDoc(doc(firestore, 'users', userCredential.user.uid), {
+          email: userCredential.user.email,
+          role: role,
+          createdAt: new Date().toISOString(),
+        }, { merge: true });
+      }
+      // TODO: Handle plan selection after signup if needed
     } catch (err: any) {
-        setError(err.message || 'Failed to sign in with Google.');
+        setError(err.message || 'Failed to sign up with Google.');
     } finally {
         setIsGoogleSubmitting(false);
     }
@@ -114,7 +149,15 @@ export function LoginForm() {
     setError(null);
     setIsPhoneSubmitting(true);
     try {
-      await confirmationResult.confirm(verificationCode);
+      const userCredential = await confirmationResult.confirm(verificationCode);
+      if (userCredential.user) {
+         await setDoc(doc(firestore, 'users', userCredential.user.uid), {
+          phoneNumber: userCredential.user.phoneNumber,
+          role: role,
+          createdAt: new Date().toISOString(),
+        }, { merge: true });
+      }
+      // TODO: Handle plan selection after signup if needed
     } catch (err: any) {
       setError(err.message || 'Failed to verify code.');
     } finally {
@@ -129,7 +172,7 @@ export function LoginForm() {
        <div id="recaptcha-container"></div>
       {error && (
         <Alert variant="destructive">
-          <AlertTitle>Login Failed</AlertTitle>
+          <AlertTitle>Signup Failed</AlertTitle>
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
@@ -140,7 +183,7 @@ export function LoginForm() {
             <TabsTrigger value="phone">Phone</TabsTrigger>
         </TabsList>
         <TabsContent value="email">
-            <form onSubmit={handleEmailLogin} className="grid gap-4 pt-4">
+            <form onSubmit={handleEmailSignup} className="grid gap-4 pt-4">
                 <div className="grid gap-2">
                 <Label htmlFor="email">Email</Label>
                 <Input
@@ -158,7 +201,7 @@ export function LoginForm() {
                 </div>
                 <Button type="submit" className="w-full" disabled={isEmailSubmitting}>
                 {isEmailSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Sign In with Email
+                Sign Up with Email
                 </Button>
             </form>
         </TabsContent>
@@ -207,7 +250,7 @@ export function LoginForm() {
                         </div>
                         <Button onClick={handlePhoneCodeVerify} className="w-full" disabled={isPhoneSubmitting || !verificationCode}>
                             {isPhoneSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                            Verify & Sign In
+                            Verify & Sign Up
                         </Button>
                          <Button variant="link" size="sm" onClick={() => { setConfirmationResult(null); setError(null); }} disabled={isSubmitting}>
                             Back
@@ -229,13 +272,13 @@ export function LoginForm() {
           </span>
         </div>
       </div>
-      <Button variant="outline" className="w-full" onClick={handleGoogleLogin} disabled={isGoogleSubmitting}>
+      <Button variant="outline" className="w-full" onClick={handleGoogleSignup} disabled={isGoogleSubmitting}>
         {isGoogleSubmitting ? (
           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
         ) : (
           <GoogleIcon className="mr-2 h-5 w-5" />
         )}
-        Sign In with Google
+        Sign Up with Google
       </Button>
     </div>
   );

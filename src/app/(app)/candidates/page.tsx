@@ -21,8 +21,8 @@ import { cn } from '@/lib/utils';
 import type { HiringStage, Candidate, Job, WithId } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { TableHead } from '@/components/ui/table';
-import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
-import { collection, query, orderBy } from 'firebase/firestore';
+import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
+import { collection, query, orderBy, where } from 'firebase/firestore';
 
 
 const getInitials = (name: string) => {
@@ -40,12 +40,13 @@ const statusColors: Record<HiringStage, string> = {
 
 export default function CandidatesPage() {
   const [searchTerm, setSearchTerm] = useState('');
+  const { user } = useUser();
   const firestore = useFirestore();
 
   const candidatesQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
-    return query(collection(firestore, 'candidates'), orderBy('appliedAt', 'desc'));
-  }, [firestore]);
+    if (!firestore || !user) return null;
+    return query(collection(firestore, 'candidates'), where('employerId', '==', user.uid));
+  }, [firestore, user]);
   
   const { data: candidates, isLoading: candidatesLoading } = useCollection<WithId<Candidate>>(candidatesQuery);
   

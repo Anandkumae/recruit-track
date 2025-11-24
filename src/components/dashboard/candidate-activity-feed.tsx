@@ -76,7 +76,6 @@ export function CandidateActivityFeed({ userId }: { userId: string }) {
     if (!firestore || !userId) return null;
     return query(
         collection(firestore, 'users', userId, 'notifications'),
-        orderBy('timestamp', 'desc'),
         limit(10)
       );
   }, [firestore, userId]);

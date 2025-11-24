@@ -21,15 +21,17 @@ service cloud.firestore {
 
     // --- JOBS ---
     match /jobs/{jobId} {
-      allow get, list: if true;
-      allow create, update, delete: if isAdmin();
+      allow read: if true;
+      allow create: if isAdmin();
+      allow update, delete: if isAdmin() && (resource.data.postedBy == request.auth.uid || request.auth.token.email == "anandkumar.shinnovationco@gmail.com");
     }
 
 
     // --- CANDIDATES ---
     match /candidates/{candidateId} {
-      allow read, create: if isSignedIn();
-      allow update, delete: if isAdmin();
+      allow create: if isSignedIn();
+      allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || resource.data.employerId == request.auth.uid);
+      allow update, delete: if isAdmin() && resource.data.employerId == request.auth.uid;
     }
 
 
@@ -89,6 +91,7 @@ service cloud.firestore {
           request.auth.token.email == "anandkumar.shinnovationco@gmail.com"
           || request.auth.uid == "n4Cd1LLnVFV5Odz7aXtkdjNdtzw2"
           || exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid))
+          || (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin')
         );
     }
 
@@ -119,5 +122,3 @@ service firebase.storage {
     }
   }
 }
-
-

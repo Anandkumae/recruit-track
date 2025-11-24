@@ -139,6 +139,7 @@ export async function applyForJob(
       avatarUrl: avatarUrl || `https://picsum.photos/seed/${userId}/100/100`, // Placeholder image
       resumeText: resumeText || '',
       resumeUrl: resumeUrl || '',
+      employerId: jobData.postedBy,
     };
 
     await db.collection('candidates').add(candidateData);

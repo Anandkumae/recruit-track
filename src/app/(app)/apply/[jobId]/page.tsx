@@ -63,6 +63,11 @@ export default function ApplyPage() {
     );
   }
 
+  if (!user) {
+      router.push(`/login?redirect=/apply/${jobId}`);
+      return null;
+  }
+
   if (!jobId) {
     return (
       <div className="flex min-h-screen w-full items-center justify-center bg-muted/40 px-4">
