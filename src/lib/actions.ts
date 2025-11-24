@@ -61,8 +61,21 @@ export async function applyForJob(
   prevState: ApplicationState,
   formData: FormData
 ): Promise<ApplicationState> {
-  const { db } = await getFirebaseAdmin();
   const { jobId, userId } = prevState;
+  console.log('[applyForJob] Starting application submission', { jobId, userId });
+  
+  let db;
+  try {
+    const firebaseAdmin = await getFirebaseAdmin();
+    db = firebaseAdmin.db;
+    console.log('[applyForJob] Firebase Admin initialized successfully');
+  } catch (initError) {
+    console.error('[applyForJob] Firebase Admin initialization failed:', initError);
+    return { 
+      ...prevState, 
+      errors: { _form: ['Server configuration error. Please contact support.'] } 
+    };
+  }
   
   const validatedFields = ApplySchema.safeParse({
     name: formData.get('name'),
@@ -76,6 +89,7 @@ export async function applyForJob(
   });
   
   if (!validatedFields.success) {
+    console.log('[applyForJob] Validation failed:', validatedFields.error);
     return {
       ...prevState,
       errors: validatedFields.error.flatten().fieldErrors,
@@ -83,6 +97,7 @@ export async function applyForJob(
   }
 
   const { name, email, phone, resumeText, resumeUrl, avatarUrl } = validatedFields.data;
+  console.log('[applyForJob] Validation successful, proceeding with submission');
 
   try {
     const jobDoc = await db.collection('jobs').doc(jobId).get();
@@ -96,34 +111,30 @@ export async function applyForJob(
     const userDocRef = db.collection('users').doc(userId);
     await userDocRef.set({ phone }, { merge: true });
 
-    let matchResult = { matchScore: 0, reasoning: 'AI analysis could not be performed.', suggestedSkills: [] as string[] };
+    let matchResult = { matchScore: 0, reasoning: 'Application submitted successfully.', suggestedSkills: [] as string[] };
     
-    // We will use resumeText if available for AI matching
+    // AI matching is currently disabled to ensure fast application submission
+    // Can be re-enabled in the future by uncommenting the code below
+    /*
     const resumeContent = resumeText; 
-
-    if (
-      resumeContent &&
-      resumeContent.length > 10 &&
-      jobDescription.length > 10
-    ) {
-        // Since resumeText is just text, we need to wrap it in a format the AI flow expects.
-        // The flow expects a data URI, so we'll base64 encode the text.
+    if (resumeContent && resumeContent.length > 10 && jobDescription.length > 10) {
         try {
-            const result = await matchResumeToJob({
-                jobDescription,
-                photoDataUri: `data:text/plain;base64,${Buffer.from(resumeContent).toString('base64')}`
-            });
+            const result = await Promise.race([
+                matchResumeToJob({
+                    jobDescription,
+                    photoDataUri: `data:text/plain;base64,${Buffer.from(resumeContent).toString('base64')}`
+                }),
+                new Promise((_, reject) => setTimeout(() => reject(new Error('AI matching timeout')), 5000))
+            ]);
             if (result) {
-                matchResult = result;
+                matchResult = result as typeof matchResult;
             }
         } catch (aiError) {
             console.error('AI Matching Error:', aiError);
-            // Don't block application if AI fails, just use default score.
-            matchResult.reasoning = 'AI analysis failed. Please try again later.';
+            matchResult.reasoning = 'AI analysis skipped.';
         }
-    } else {
-        matchResult.reasoning = 'Not enough information in resume or job description for AI analysis.';
     }
+    */
 
     const candidateData: Record<string, unknown> = {
       name,

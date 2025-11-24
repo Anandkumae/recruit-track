@@ -25,14 +25,25 @@ export function ApplyForm({ job, userProfile }: { job: WithId<Job>, userProfile:
     userId: user?.uid || '',
   };
 
-  const [state, formAction] = useActionState(applyForJob, initialState);
+  const [state, formAction, isPending] = useActionState(applyForJob, initialState);
+
+  console.log('[ApplyForm] Component mounted/rendered', { 
+    jobId: job.id, 
+    userId: user?.uid,
+    hasUserProfile: !!userProfile 
+  });
 
   useEffect(() => {
     setIsClient(true);
   }, []);
 
   useEffect(() => {
+    console.log('[ApplyForm] State changed:', { success: state?.success, errors: state?.errors, isPending });
+  }, [state, isPending]);
+
+  useEffect(() => {
     if (state?.success) {
+      console.log('[ApplyForm] Application successful, redirecting to dashboard');
       setTimeout(() => {
         router.push('/dashboard');
       }, 2000);
@@ -96,7 +107,7 @@ export function ApplyForm({ job, userProfile }: { job: WithId<Job>, userProfile:
                 <p className="text-sm text-destructive">{state.errors.name[0]}</p>
               )}
             </div>
-            <div className="space-y-2">
+           <div className="space-y-2">
               <Label htmlFor="email">Email Address</Label>
               <Input
                 id="email"
@@ -104,7 +115,7 @@ export function ApplyForm({ job, userProfile }: { job: WithId<Job>, userProfile:
                 type="email"
                 defaultValue={user?.email || ''}
                 readOnly
-                disabled
+                className="bg-muted"
               />
             </div>
           </div>
@@ -132,9 +143,19 @@ export function ApplyForm({ job, userProfile }: { job: WithId<Job>, userProfile:
           <Button
             type="submit"
             className="w-full"
-            disabled={state.success}
+            disabled={state.success || isPending}
+            onClick={() => console.log('[ApplyForm] Submit button clicked', { isPending, success: state.success })}
           >
-            <Send className="mr-2 h-4 w-4" /> Submit Application
+            {isPending ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Submitting...
+              </>
+            ) : (
+              <>
+                <Send className="mr-2 h-4 w-4" /> Submit Application
+              </>
+            )}
           </Button>
         </form>
       </CardContent>
