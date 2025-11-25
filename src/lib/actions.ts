@@ -332,11 +332,11 @@ export async function scheduleInterview(
       scheduledAt: scheduledDate.toISOString(),
       scheduledBy,
       scheduledByName: scheduledByName || undefined,
-      location: location || undefined,
-      meetingLink: meetingLink || undefined,
-      notes: notes || undefined,
       status: 'Scheduled',
       createdAt: new Date().toISOString(),
+      ...(location && { location }),
+      ...(meetingLink && { meetingLink }),
+      ...(notes && { notes }),
     };
 
     await db.collection('interviews').add(interviewData);
@@ -696,4 +696,64 @@ export async function getInterviewsAction(candidateId: string): Promise<{ interv
         console.error("Error fetching interviews:", error);
         return { error: "Failed to fetch interviews." };
     }
+}
+
+
+// Delete Job Action
+const DeleteJobSchema = z.object({
+  jobId: z.string().min(1, 'Job ID is required.'),
+  userId: z.string().min(1, 'User ID is required.'),
+});
+
+export type DeleteJobState = {
+  success?: boolean;
+  message?: string;
+  errors?: {
+    _form?: string[];
+  };
+};
+
+export async function deleteJob(
+  prevState: DeleteJobState,
+  formData: FormData
+): Promise<DeleteJobState> {
+  const { db } = await getFirebaseAdmin();
+  
+  const validatedFields = DeleteJobSchema.safeParse({
+    jobId: formData.get('jobId'),
+    userId: formData.get('userId'),
+  });
+
+  if (!validatedFields.success) {
+    return { errors: { _form: ['Invalid data provided.'] } };
+  }
+
+  const { jobId, userId } = validatedFields.data;
+
+  try {
+    // Fetch the job to verify ownership
+    const jobDoc = await db.collection('jobs').doc(jobId).get();
+    
+    if (!jobDoc.exists) {
+      return { errors: { _form: ['Job not found.'] } };
+    }
+
+    const jobData = jobDoc.data() as Job;
+
+    // Verify that the user is the one who posted the job
+    if (jobData.postedBy !== userId) {
+      return { errors: { _form: ['You do not have permission to delete this job.'] } };
+    }
+
+    // Delete the job
+    await db.collection('jobs').doc(jobId).delete();
+
+    revalidatePath('/jobs');
+    revalidatePath('/dashboard');
+
+    return { success: true, message: 'Job deleted successfully.' };
+  } catch (error) {
+    console.error('Delete Job Error:', error);
+    return { errors: { _form: ['An unexpected error occurred while deleting the job.'] } };
+  }
 }

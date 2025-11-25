@@ -11,7 +11,7 @@ import {
 } from '@/components/ui/card';
 import type { HiringStage, Candidate, WithId } from '@/lib/types';
 
-const stageOrder: HiringStage[] = ['Applied', 'Shortlisted', 'Interviewed', 'Hired', 'Rejected'];
+const stageOrder: HiringStage[] = ['Applied', 'Shortlisted', 'Interview Scheduled', 'Interviewed', 'Hired', 'Rejected'];
 
 interface OverviewChartProps {
     candidates: WithId<Candidate>[];

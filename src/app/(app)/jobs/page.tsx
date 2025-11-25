@@ -3,9 +3,10 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { PlusCircle, Search, Loader2 } from 'lucide-react';
+import { PlusCircle, Search, Loader2, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { useActionState } from 'react';
 import {
   Table,
   TableBody,
@@ -16,10 +17,22 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import type { Role, WithId, Job, User } from '@/lib/types';
 import { useUser, useFirestore, useCollection, useMemoFirebase, useDoc } from '@/firebase';
 import { format } from 'date-fns';
 import { collection, doc, query, orderBy, where } from 'firebase/firestore';
+import { deleteJob, type DeleteJobState } from '@/lib/actions';
 
 function PosterName({ userId }: { userId: string }) {
   const firestore = useFirestore();
@@ -31,6 +44,39 @@ function PosterName({ userId }: { userId: string }) {
 
   if (isLoading) return <Loader2 className="h-4 w-4 animate-spin" />;
   return <>{user?.name || 'Unknown'}</>;
+}
+
+function DeleteJobButton({ jobId, userId }: { jobId: string; userId: string }) {
+  const [state, formAction] = useActionState<DeleteJobState, FormData>(deleteJob, {});
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <AlertDialog open={isOpen} onOpenChange={setIsOpen}>
+      <AlertDialogTrigger asChild>
+        <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive">
+          <Trash2 className="h-4 w-4" />
+        </Button>
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Delete Job</AlertDialogTitle>
+          <AlertDialogDescription>
+            Are you sure you want to delete this job? This action cannot be undone.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <form action={formAction}>
+            <input type="hidden" name="jobId" value={jobId} />
+            <input type="hidden" name="userId" value={userId} />
+            <AlertDialogAction type="submit" className="bg-destructive hover:bg-destructive/90">
+              Delete
+            </AlertDialogAction>
+          </form>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
 }
 
 
@@ -174,9 +220,14 @@ export default function JobsPage() {
                     </TableCell>
                     <TableCell><PosterName userId={job.postedBy} /></TableCell>
                     <TableCell className="text-right">
-                       <Button variant="outline" size="sm" asChild>
-                         <Link href={`/jobs/${job.id}`}>View</Link>
-                       </Button>
+                      <div className="flex items-center justify-end gap-2">
+                        <Button variant="outline" size="sm" asChild>
+                          <Link href={`/jobs/${job.id}`}>View</Link>
+                        </Button>
+                        {user && job.postedBy === user.uid && (
+                          <DeleteJobButton jobId={job.id} userId={user.uid} />
+                        )}
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))

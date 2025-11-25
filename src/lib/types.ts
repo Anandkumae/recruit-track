@@ -18,7 +18,7 @@ export type User = {
   skills?: string[];
 };
 
-export type HiringStage = 'Applied' | 'Shortlisted' | 'Interviewed' | 'Hired' | 'Rejected';
+export type HiringStage = 'Applied' | 'Shortlisted' | 'Interview Scheduled' | 'Interviewed' | 'Hired' | 'Rejected';
 
 export type Job = {
   id?: string; // Optional because it's added after fetching
