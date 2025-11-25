@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useDoc, useFirestore, useMemoFirebase, useFirebase, useUser, useCollection } from "@/firebase";
@@ -86,15 +87,16 @@ function ResumeSection({ resumeUrl, storage }: { resumeUrl?: string, storage: Fi
     return <p className="text-sm text-muted-foreground">This candidate has not uploaded a resume file.</p>;
 }
 
-function InterviewSchedulingSection({ candidateId, candidateName, jobTitle, isOwner }: { candidateId: string, candidateName: string, jobTitle: string, isOwner: boolean }) {
+function InterviewSchedulingSection({ candidateId, candidateName, jobTitle, isOwner, employerId }: { candidateId: string, candidateName: string, jobTitle: string, isOwner: boolean, employerId?: string }) {
     const { user } = useUser();
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [state, formAction] = useActionState<ScheduleInterviewState, FormData>(scheduleInterview, { candidateId });
     const [interviews, setInterviews] = useState<WithId<Interview>[]>([]);
     const [interviewsLoading, setInterviewsLoading] = useState(true);
 
-    // Only query if user is admin and we have a valid candidateId
+    // Check if user is admin or employer
     const isAdminUser = user?.email === 'anandkumar.shinnovationco@gmail.com';
+    const isEmployer = user?.uid === employerId;
 
     type Interview = {
         id: string;
@@ -120,7 +122,7 @@ function InterviewSchedulingSection({ candidateId, candidateName, jobTitle, isOw
         let mounted = true;
         
         async function fetchInterviews() {
-            if (!candidateId || (!isAdminUser && !isOwner)) return;
+            if (!candidateId || (!isAdminUser && !isOwner && !isEmployer)) return;
             
             setInterviewsLoading(true);
             try {
@@ -140,7 +142,7 @@ function InterviewSchedulingSection({ candidateId, candidateName, jobTitle, isOw
         fetchInterviews();
 
         return () => { mounted = false; };
-    }, [candidateId, isAdminUser, isOwner, state?.success]);
+    }, [candidateId, isAdminUser, isOwner, isEmployer, state?.success]);
 
     useEffect(() => {
         if (state?.success) {
@@ -148,7 +150,7 @@ function InterviewSchedulingSection({ candidateId, candidateName, jobTitle, isOw
         }
     }, [state?.success]);
     
-    if (!isAdminUser && !isOwner) return null;
+    if (!isAdminUser && !isOwner && !isEmployer) return null;
 
     return (
         <Card>
@@ -157,12 +159,12 @@ function InterviewSchedulingSection({ candidateId, candidateName, jobTitle, isOw
                     <div>
                         <CardTitle>Interview Scheduling</CardTitle>
                         <CardDescription>
-                            {isAdminUser 
+                            {(isAdminUser || isEmployer)
                                 ? "Schedule and manage interviews for this candidate." 
                                 : "View your scheduled interviews."}
                         </CardDescription>
                     </div>
-                    {isAdminUser && (
+                    {(isAdminUser || isEmployer) && (
                         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                             <DialogTrigger asChild>
                                 <Button size="sm">
@@ -396,12 +398,13 @@ function CandidateDetailsView({ candidate, job }: { candidate: WithId<Candidate>
                         </CardContent>
                     </Card>
                     
-                    {(user?.email === 'anandkumar.shinnovationco@gmail.com' || isOwner) && (
+                    {(user?.email === 'anandkumar.shinnovationco@gmail.com' || isOwner || user?.uid === candidate.employerId) && (
                         <InterviewSchedulingSection
                             candidateId={candidate.id}
                             candidateName={candidate.name}
                             jobTitle={job?.title || 'Unknown Job'}
                             isOwner={isOwner}
+                            employerId={candidate.employerId}
                         />
                     )}
                 </div>
