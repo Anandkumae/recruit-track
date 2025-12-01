@@ -319,10 +319,10 @@ export default function LandingPage() {
             ) : (
               <>
                 <Button variant="ghost" asChild>
-                  <Link href="/login">Login</Link>
+                  <Link href="/role-selection">Login</Link>
                 </Button>
                 <Button asChild>
-                  <Link href="/login">Get Started</Link>
+                  <Link href="/role-selection">Get Started</Link>
                 </Button>
               </>
             )}
@@ -348,7 +348,7 @@ export default function LandingPage() {
                     asChild
                     className="transition-transform duration-300 hover:scale-105"
                   >
-                    <Link href={user ? '/jobs' : '/login'}>
+                    <Link href={user ? '/jobs' : '/role-selection'}>
                       {user ? 'Browse All Jobs' : 'Get Started Free'}
                       <ArrowRight className="ml-2 h-5 w-5" />
                     </Link>
@@ -363,95 +363,6 @@ export default function LandingPage() {
                 className="mx-auto aspect-video overflow-hidden rounded-xl object-cover object-center transition-transform duration-300 hover:scale-105 sm:w-full"
                 data-ai-hint="abstract 3d"
               />
-            </div>
-          </div>
-        </section>
-
-        {/* Jobs Section */}
-        <section className="w-full bg-gray-50 py-20 dark:bg-gray-900/50 md:py-32">
-          <div className="container px-4 md:px-6">
-            <div className="mb-12 flex flex-col items-center justify-center space-y-4 text-center">
-              <div className="space-y-2">
-                <h2 className="text-3xl font-bold tracking-tighter sm:text-5xl">
-                  Recent Job Openings
-                </h2>
-                <p className="max-w-[900px] text-muted-foreground md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed">
-                  Explore the latest opportunities to join our team.
-                </p>
-              </div>
-            </div>
-            <RecentJobsSection />
-          </div>
-        </section>
-
-         {/* Resume Uploader Mini Section */}
-         <section className="w-full py-20">
-          <div className="container px-4 md:px-6">
-            <Card className="mx-auto max-w-3xl overflow-hidden bg-gradient-to-r from-primary/80 to-primary">
-              <CardContent className="flex flex-col items-center gap-6 p-8 text-center text-primary-foreground sm:flex-row sm:text-left">
-                <FileUp className="h-16 w-16 shrink-0" />
-                <div className="flex-1">
-                  <h3 className="text-2xl font-bold">
-                    Get Instant Job Matches
-                  </h3>
-                  <p className="mt-1 opacity-90">
-                    Don't just browse. Upload your resume and let our AI find the perfect role for you.
-                  </p>
-                </div>
-                <Button
-                  asChild
-                  size="lg"
-                  variant="secondary"
-                  className="shrink-0 transition-transform duration-300 hover:scale-105"
-                >
-                  <Link href="/login">Upload Your Resume</Link>
-                </Button>
-              </CardContent>
-            </Card>
-          </div>
-        </section>
-        
-        {/* Top Companies Section */}
-        <section className="w-full bg-gray-50 py-20 dark:bg-gray-900/50 md:py-32">
-          <div className="container px-4 md:px-6">
-            <div className="mb-12 flex flex-col items-center justify-center space-y-4 text-center">
-              <div className="space-y-2">
-                <div className="inline-block rounded-lg bg-secondary px-3 py-1 text-sm">
-                  Top Companies
-                </div>
-                <h2 className="text-3xl font-bold tracking-tighter sm:text-5xl">
-                  Top Companies Hiring Now
-                </h2>
-                <p className="max-w-[900px] text-muted-foreground md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed">
-                  Join innovative teams at industry-leading companies.
-                </p>
-              </div>
-            </div>
-            <div className="mx-auto grid max-w-5xl items-start gap-8 sm:grid-cols-2 md:gap-12 lg:max-w-none lg:grid-cols-4">
-              {topCompanies.map((company) => (
-                <Card
-                  key={company.name}
-                  className="flex h-full flex-col text-center transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
-                >
-                  <CardHeader>
-                    <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-muted">
-                      <span className="text-2xl font-bold text-primary">{company.logo}</span>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="flex flex-1 flex-col justify-between">
-                    <div>
-                      <h3 className="text-lg font-bold">{company.name}</h3>
-                      <div className="mt-1 flex items-center justify-center gap-1.5 text-sm text-muted-foreground">
-                        <MapPin className="h-4 w-4" />
-                        <span>{company.location}</span>
-                      </div>
-                    </div>
-                    <Badge variant="outline" className="mt-4 w-fit mx-auto">
-                      {company.roles} Open Roles
-                    </Badge>
-                  </CardContent>
-                </Card>
-              ))}
             </div>
           </div>
         </section>
@@ -491,96 +402,6 @@ export default function LandingPage() {
                   </CardContent>
                 </Card>
               ))}
-            </div>
-          </div>
-        </section>
-
-        {/* Integrations Section */}
-        <section className="w-full bg-gray-50 py-20 dark:bg-gray-900/50 md:py-32">
-            <div className="container px-4 md:px-6">
-                <div className="flex flex-col items-center justify-center space-y-4 text-center">
-                    <div className="space-y-2">
-                        <div className="inline-block rounded-lg bg-secondary px-3 py-1 text-sm">
-                            Integrations
-                        </div>
-                        <h2 className="text-3xl font-bold tracking-tighter sm:text-5xl">
-                            Connect Your Favorite Tools
-                        </h2>
-                        <p className="max-w-[900px] text-muted-foreground md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed">
-                            LeoRecruit works with the tools you already use to create a seamless hiring workflow from start to finish.
-                        </p>
-                    </div>
-                </div>
-                <div className="mx-auto mt-12 grid max-w-4xl grid-cols-2 gap-6 sm:grid-cols-3 md:grid-cols-5 md:gap-8">
-                    {['Google Calendar', 'Zoom', 'Slack', 'LinkedIn', 'GitHub'].map(tool => (
-                        <div key={tool} className="group flex flex-col items-center justify-center gap-2">
-                            <div className="flex h-20 w-20 items-center justify-center rounded-full border-2 border-dashed bg-background transition-all duration-300 group-hover:border-primary group-hover:bg-primary/5">
-                                <span className="text-xs font-semibold text-muted-foreground group-hover:text-primary">{tool}</span>
-                            </div>
-                        </div>
-                    ))}
-                </div>
-            </div>
-        </section>
-        
-        {/* Pricing Section */}
-        <PricingSection />
-
-        {/* Mobile App Promo Section */}
-        <section className="w-full bg-gray-50 py-20 dark:bg-gray-900/50 md:py-32">
-          <div className="container grid items-center justify-center gap-8 px-4 text-center md:px-6 lg:grid-cols-2 lg:text-left">
-            <div className="space-y-4">
-              <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl md:text-5xl">
-                Hiring on the Go
-              </h2>
-              <p className="mx-auto max-w-[700px] text-muted-foreground md:text-xl/relaxed lg:mx-0">
-                Manage your entire recruitment pipeline from anywhere with the LeoRecruit mobile app. Coming soon to iOS and Android.
-              </p>
-              <Button size="lg" disabled>
-                📱 Download LeoRecruit App
-              </Button>
-            </div>
-            <Image
-              src="/app-mockup.jpg"
-              width="400"
-              height="400"
-              alt="Sugar Factory"
-              className="mx-auto overflow-hidden rounded-2xl object-cover object-center transition-transform duration-300 hover:scale-105"
-              data-ai-hint="mobile app interface"
-            />
-          </div>
-        </section>
-
-        {/* FAQ Section */}
-        <section className="w-full py-20 md:py-32">
-          <div className="container px-4 md:px-6">
-            <div className="flex flex-col items-center justify-center space-y-4 text-center">
-              <div className="space-y-2">
-                <div className="inline-block rounded-lg bg-secondary px-3 py-1 text-sm">
-                  FAQ
-                </div>
-                <h2 className="text-3xl font-bold tracking-tighter sm:text-5xl">
-                  Frequently Asked Questions
-                </h2>
-                <p className="max-w-[900px] text-muted-foreground md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed">
-                  Have questions? We've got answers. Here are some of the most
-                  common questions we get.
-                </p>
-              </div>
-            </div>
-            <div className="mx-auto mt-12 max-w-3xl">
-              <Accordion type="single" collapsible className="w-full">
-                {faqs.map((faq, index) => (
-                  <AccordionItem key={index} value={`item-${index}`}>
-                    <AccordionTrigger className="text-left">
-                      {faq.question}
-                    </AccordionTrigger>
-                    <AccordionContent className="text-muted-foreground">
-                      {faq.answer}
-                    </AccordionContent>
-                  </AccordionItem>
-                ))}
-              </Accordion>
             </div>
           </div>
         </section>

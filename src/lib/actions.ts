@@ -765,3 +765,114 @@ export async function deleteJob(
     return { errors: { _form: ['An unexpected error occurred while deleting the job.'] } };
   }
 }
+// Delete Account Action (for Employers)
+const DeleteAccountSchema = z.object({
+  userId: z.string().min(1, 'User ID is required.'),
+});
+
+export type DeleteAccountState = {
+  success?: boolean;
+  message?: string;
+  errors?: {
+    _form?: string[];
+  };
+};
+
+export async function deleteEmployerAccount(
+  prevState: DeleteAccountState,
+  formData: FormData
+): Promise<DeleteAccountState> {
+  const { db } = await getFirebaseAdmin();
+  
+  const validatedFields = DeleteAccountSchema.safeParse({
+    userId: formData.get('userId'),
+  });
+
+  if (!validatedFields.success) {
+    return { errors: { _form: ['Invalid data provided.'] } };
+  }
+
+  const { userId } = validatedFields.data;
+
+  try {
+    // 1. Verify user exists and is an employer
+    const userDoc = await db.collection('users').doc(userId).get();
+    
+    if (!userDoc.exists) {
+      return { errors: { _form: ['User not found.'] } };
+    }
+
+    const userData = userDoc.data() as User;
+
+    // Verify user is an employer (Admin or HR)
+    if (userData.role !== 'Admin' && userData.role !== 'HR') {
+      return { errors: { _form: ['Only employers can delete their accounts using this feature.'] } };
+    }
+
+    // 2. Get all jobs posted by this employer
+    const jobsSnapshot = await db.collection('jobs')
+      .where('postedBy', '==', userId)
+      .get();
+
+    const jobIds = jobsSnapshot.docs.map((doc: any) => doc.id);
+    
+    console.log(`[deleteEmployerAccount] Found ${jobIds.length} jobs to delete for user ${userId}`);
+
+    // 3. Delete all applications to those jobs
+    if (jobIds.length > 0) {
+      const candidatesSnapshot = await db.collection('candidates')
+        .where('jobAppliedFor', 'in', jobIds.slice(0, 10))
+        .get();
+
+      const deleteCandidatePromises = candidatesSnapshot.docs.map((doc: any) => 
+        db.collection('candidates').doc(doc.id).delete()
+      );
+
+      await Promise.all(deleteCandidatePromises);
+      console.log(`[deleteEmployerAccount] Deleted ${candidatesSnapshot.docs.length} applications`);
+
+      // If there are more than 10 jobs, handle them in batches
+      if (jobIds.length > 10) {
+        for (let i = 10; i < jobIds.length; i += 10) {
+          const batch = jobIds.slice(i, i + 10);
+          const batchSnapshot = await db.collection('candidates')
+            .where('jobAppliedFor', 'in', batch)
+            .get();
+          
+          const batchDeletePromises = batchSnapshot.docs.map((doc: any) => 
+            db.collection('candidates').doc(doc.id).delete()
+          );
+          
+          await Promise.all(batchDeletePromises);
+          console.log(`[deleteEmployerAccount] Deleted ${batchSnapshot.docs.length} more applications`);
+        }
+      }
+    }
+
+    // 4. Delete all jobs posted by the employer
+    const deleteJobPromises = jobsSnapshot.docs.map((doc: any) => 
+      db.collection('jobs').doc(doc.id).delete()
+    );
+
+    await Promise.all(deleteJobPromises);
+    console.log(`[deleteEmployerAccount] Deleted ${jobIds.length} jobs`);
+
+    // 5. Delete user profile from Firestore
+    await db.collection('users').doc(userId).delete();
+    console.log(`[deleteEmployerAccount] Deleted user profile for ${userId}`);
+
+    // 6. Revalidate paths
+    revalidatePath('/profile');
+    revalidatePath('/jobs');
+    revalidatePath('/dashboard');
+    revalidatePath('/candidates');
+
+    return { 
+      success: true, 
+      message: 'Your account and all associated data have been permanently deleted.' 
+    };
+  } catch (error) {
+    console.error('Delete Account Error:', error);
+    return { errors: { _form: ['An unexpected error occurred while deleting your account. Please try again.'] } };
+  }
+}

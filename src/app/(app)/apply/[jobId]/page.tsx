@@ -25,6 +25,71 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { format } from 'date-fns';
+import { Building2, Phone } from 'lucide-react';
+
+// Component to display company information
+function CompanyInfoCard({ jobPostedBy }: { jobPostedBy: string }) {
+  const firestore = useFirestore();
+
+  const employerRef = useMemoFirebase(() => {
+    if (!firestore || !jobPostedBy) return null;
+    return doc(firestore, 'users', jobPostedBy);
+  }, [firestore, jobPostedBy]);
+
+  const { data: employer, isLoading } = useDoc<WithId<User>>(employerRef);
+
+  if (isLoading) {
+    return (
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <Building2 className="h-5 w-5 text-primary" />
+            <CardTitle>Company Information</CardTitle>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-center py-4">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (!employer || !employer.companyName) {
+    return null;
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center gap-2">
+          <Building2 className="h-5 w-5 text-primary" />
+          <CardTitle>Company Information</CardTitle>
+        </div>
+        <CardDescription>About the employer</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <div className="flex items-start gap-3">
+          <Building2 className="h-4 w-4 text-primary mt-0.5" />
+          <div>
+            <p className="font-medium text-foreground">Company Name</p>
+            <p className="text-sm text-muted-foreground">{employer.companyName}</p>
+          </div>
+        </div>
+        {employer.phone && (
+          <div className="flex items-start gap-3">
+            <Phone className="h-4 w-4 text-primary mt-0.5" />
+            <div>
+              <p className="font-medium text-foreground">Contact</p>
+              <p className="text-sm text-muted-foreground">{employer.phone}</p>
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
 
 export default function ApplyPage() {
   const params = useParams();
@@ -232,6 +297,9 @@ export default function ApplyPage() {
                 </CardContent>
               </Card>
             )}
+
+            {/* Company Information Card */}
+            <CompanyInfoCard jobPostedBy={job.postedBy} />
           </div>
 
           <div className="lg:sticky lg:top-6">

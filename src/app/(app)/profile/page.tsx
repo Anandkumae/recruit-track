@@ -8,16 +8,20 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { Loader2, Upload, User as UserIcon, Mail, Phone, Book, Pencil, Save, Eye, FileText, Wand2, Building2, Users } from "lucide-react";
+import { Loader2, Upload, User as UserIcon, Mail, Phone, Book, Pencil, Save, Eye, FileText, Wand2, Building2, Users, Trash2 } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { ProfileImageUpload } from '@/components/profile/ProfileImageUpload';
 import { updateProfileImage } from '@/lib/services/profileService';
-import { parseResumeAction } from '@/lib/actions';
+import { parseResumeAction, deleteEmployerAccount, type DeleteAccountState } from '@/lib/actions';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { DeleteAccountDialog } from '@/components/profile/delete-account-dialog';
+import { useActionState } from 'react';
+import { signOut } from 'firebase/auth';
 
 function ResumeSection({ resumeUrl, storage }: { resumeUrl?: string, storage: any }) {
     const [downloadURL, setDownloadURL] = useState<string | null>(null);
@@ -71,12 +75,17 @@ function ResumeSection({ resumeUrl, storage }: { resumeUrl?: string, storage: an
 
 export default function ProfilePage() {
     const { user } = useUser();
-    const { firestore, storage } = useFirebase();
+    const { firestore, storage, auth } = useFirebase();
     const { toast } = useToast();
+    const router = useRouter();
     const [isEditing, setIsEditing] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const [isUploading, setIsUploading] = useState(false);
+    const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+    
+    const initialDeleteState: DeleteAccountState = {};
+    const [deleteState, deleteAction, isDeleting] = useActionState(deleteEmployerAccount, initialDeleteState);
 
     const userProfileRef = useMemoFirebase(() => {
         if (!firestore || !user) return null;
@@ -235,6 +244,41 @@ export default function ProfilePage() {
     const getInitials = (name: string) => {
         return name ? name.split(' ').map(n => n[0]).join('') : '';
     }
+    
+    // Handle delete account
+    const handleDeleteAccount = async () => {
+        if (!user) return;
+        
+        const formData = new FormData();
+        formData.append('userId', user.uid);
+        
+        await deleteAction(formData);
+    };
+    
+    // Effect to handle successful deletion
+    useEffect(() => {
+        if (deleteState.success && auth) {
+            toast({
+                title: "Account Deleted",
+                description: deleteState.message || "Your account has been deleted successfully.",
+            });
+            
+            // Sign out and redirect to login
+            signOut(auth).then(() => {
+                router.push('/login');
+            }).catch((error) => {
+                console.error('Sign out error:', error);
+                router.push('/login');
+            });
+        } else if (deleteState.errors?._form) {
+            toast({
+                title: "Error",
+                description: deleteState.errors._form[0],
+                variant: "destructive",
+            });
+            setShowDeleteDialog(false);
+        }
+    }, [deleteState, auth, router, toast]);
 
     if (isLoading) {
         return (
@@ -359,7 +403,9 @@ export default function ProfilePage() {
                 )}
             </Card>
 
-            <Card>
+            {/* Resume Section - Only for Candidates */}
+            {!isEmployer && (
+              <Card>
                 <CardHeader>
                     <CardTitle>My Resume</CardTitle>
                     <CardDescription>Upload a resume to auto-fill your profile information.</CardDescription>
@@ -384,8 +430,12 @@ export default function ProfilePage() {
                          </Alert>
                     </div>
                 </CardContent>
-            </Card>
-             <Card>
+              </Card>
+            )}
+            
+            {/* Skills Section - Only for Candidates */}
+            {!isEmployer && (
+              <Card>
                 <CardHeader>
                     <CardTitle>My Skills</CardTitle>
                     <CardDescription>Skills extracted from your resume.</CardDescription>
@@ -401,7 +451,8 @@ export default function ProfilePage() {
                         <p className="text-sm text-muted-foreground">No skills found. Upload a resume to populate this section.</p>
                     )}
                 </CardContent>
-            </Card>
+              </Card>
+            )}
             
             {/* Company Information - Only for Employers */}
             {isEmployer && (
@@ -490,8 +541,49 @@ export default function ProfilePage() {
                 </CardContent>
               </Card>
             )}
+            
+            {/* Delete Account Section - Only for Employers */}
+            {isEmployer && (
+              <Card className="border-destructive">
+                <CardHeader>
+                  <CardTitle className="text-destructive">Danger Zone</CardTitle>
+                  <CardDescription>
+                    Permanently delete your account and all associated data.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <Alert variant="destructive">
+                    <AlertDescription>
+                      Once you delete your account, there is no going back. This will permanently delete:
+                      <ul className="list-disc list-inside mt-2">
+                        <li>Your profile and account information</li>
+                        <li>All jobs you have posted</li>
+                        <li>All applications to your jobs</li>
+                      </ul>
+                    </AlertDescription>
+                  </Alert>
+                  <Button
+                    variant="destructive"
+                    onClick={() => setShowDeleteDialog(true)}
+                    disabled={isDeleting}
+                    className="w-full sm:w-auto"
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Delete Account
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
         </div>
       </div>
+      
+      {/* Delete Account Dialog */}
+      <DeleteAccountDialog
+        open={showDeleteDialog}
+        onOpenChange={setShowDeleteDialog}
+        onConfirm={handleDeleteAccount}
+        isDeleting={isDeleting}
+      />
     </div>
   );
 }
