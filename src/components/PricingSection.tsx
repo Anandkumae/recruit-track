@@ -8,7 +8,7 @@ import { Check } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 
-export function PricingSection() {
+export function PricingSection({ onGetStarted }: { onGetStarted?: () => void }) {
   const [isYearly, setIsYearly] = useState(false);
 
   return (
@@ -56,8 +56,8 @@ export function PricingSection() {
                   <Check className="h-4 w-4 text-green-500" /> Community support
                 </li>
               </ul>
-              <Button className="mt-6 w-full" variant="outline" asChild>
-                <Link href="/pricing/basic">Get Started</Link>
+              <Button className="mt-6 w-full" variant="outline" onClick={onGetStarted}>
+                Get Started
               </Button>
             </CardContent>
           </Card>
@@ -95,8 +95,8 @@ export function PricingSection() {
                   <Check className="h-4 w-4 text-green-500" /> Email support
                 </li>
               </ul>
-              <Button className="mt-6 w-full" asChild>
-                <Link href="/pricing/pro">Choose Pro</Link>
+              <Button className="mt-6 w-full" onClick={onGetStarted}>
+                Choose Pro
               </Button>
             </CardContent>
           </Card>
@@ -123,8 +123,8 @@ export function PricingSection() {
                   <Check className="h-4 w-4 text-green-500" /> Dedicated support
                 </li>
               </ul>
-              <Button className="mt-6 w-full" variant="outline" asChild>
-                <Link href="/pricing/business">Contact Sales</Link>
+              <Button className="mt-6 w-full" variant="outline" onClick={onGetStarted}>
+                Contact Sales
               </Button>
             </CardContent>
           </Card>

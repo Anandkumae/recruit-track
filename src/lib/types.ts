@@ -8,7 +8,7 @@ export type User = {
   id: string;
   name: string;
   email: string;
-  phone?: string;
+  phone: string; // Made required
   qualification?: string;
   avatarUrl?: string;
   role: Role;
@@ -16,14 +16,22 @@ export type User = {
   resumeUrl?: string; 
   resumeText?: string;
   skills?: string[];
+  // Company information (for employers/admins only)
+  companyName?: string;
+  companyDescription?: string;
+  companyWebsite?: string;
+  companySize?: string;
 };
 
 export type HiringStage = 'Applied' | 'Shortlisted' | 'Interview Scheduled' | 'Interviewed' | 'Hired' | 'Rejected';
+
+export type JobCategory = 'Commissioning Engineer' | 'Service Engineer' | 'Project Engineer' | 'Technician';
 
 export type Job = {
   id?: string; // Optional because it's added after fetching
   title: string;
   department: string;
+  jobCategory: JobCategory; // Required mechanical engineering category
   description: string;
   requirements: string[];
   status: 'Open' | 'Closed';
@@ -35,10 +43,12 @@ export type Candidate = {
   id: string;
   name: string;
   email: string;
-  phone: string;
+  phone: string; // Made required
   skills: string[];
   resumeUrl?: string; // Link to resume
   resumeText?: string; // For AI matching
+  applicationDescription: string; // Required: Employee's job description/cover letter
+  requiredTimePeriod?: string; // Optional: Notice period or availability
   jobAppliedFor: string; // Job ID
   status: HiringStage;
   notes?: string;

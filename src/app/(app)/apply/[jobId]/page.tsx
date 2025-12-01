@@ -153,8 +153,7 @@ export default function ApplyPage() {
             href="/"
             className="flex items-center gap-2 text-2xl font-semibold text-primary"
           >
-            <Briefcase className="h-7 w-7" />
-            LeoRecruit
+            <img src="/leox.jpg" alt="Leox" className="h-10 w-auto" />
           </Link>
         </div>
 

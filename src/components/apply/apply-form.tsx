@@ -5,6 +5,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Loader2, PartyPopper, Send } from 'lucide-react';
 import type { Job, User, WithId } from '@/lib/types';
@@ -132,6 +133,32 @@ export function ApplyForm({ job, userProfile }: { job: WithId<Job>, userProfile:
                 <p className="text-sm text-destructive">{state.errors.phone[0]}</p>
               )}
             </div>
+          
+          <div className="space-y-2">
+            <Label htmlFor="applicationDescription">Why are you a good fit for this role? *</Label>
+            <Textarea
+              id="applicationDescription"
+              name="applicationDescription"
+              placeholder="Describe your relevant experience, skills, and why you're interested in this position..."
+              rows={6}
+              required
+            />
+            {state.errors?.applicationDescription && (
+              <p className="text-sm text-destructive">{state.errors.applicationDescription[0]}</p>
+            )}
+          </div>
+          
+          <div className="space-y-2">
+            <Label htmlFor="requiredTimePeriod">Notice Period / Availability (Optional)</Label>
+            <Input
+              id="requiredTimePeriod"
+              name="requiredTimePeriod"
+              placeholder="e.g., 2 weeks notice, Immediate, 1 month"
+            />
+            {state.errors?.requiredTimePeriod && (
+              <p className="text-sm text-destructive">{state.errors.requiredTimePeriod[0]}</p>
+            )}
+          </div>
           
           {state.errors?._form && (
             <Alert variant="destructive">

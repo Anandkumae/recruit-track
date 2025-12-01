@@ -2,12 +2,13 @@
 
 import { useUser, useFirebase, useDoc, useMemoFirebase } from '@/firebase';
 import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
-import { ref, getDownloadURL, uploadBytes, type Storage } from 'firebase/storage';
+import { ref, getDownloadURL, uploadBytes } from 'firebase/storage';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { Loader2, Upload, User as UserIcon, Mail, Phone, Book, Pencil, Save, Eye, FileText, Wand2 } from "lucide-react";
+import { Loader2, Upload, User as UserIcon, Mail, Phone, Book, Pencil, Save, Eye, FileText, Wand2, Building2, Users } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
 import React, { useState, useEffect } from 'react';
@@ -18,7 +19,7 @@ import { parseResumeAction } from '@/lib/actions';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
-function ResumeSection({ resumeUrl, storage }: { resumeUrl?: string, storage: Storage | null }) {
+function ResumeSection({ resumeUrl, storage }: { resumeUrl?: string, storage: any }) {
     const [downloadURL, setDownloadURL] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(true);
 
@@ -83,6 +84,8 @@ export default function ProfilePage() {
     }, [firestore, user]);
 
     const { data: userProfile, isLoading } = useDoc(userProfileRef);
+    
+    const isEmployer = userProfile?.role === 'Admin' || userProfile?.role === 'HR';
 
     const [formData, setFormData] = useState({
         name: '',
@@ -90,6 +93,10 @@ export default function ProfilePage() {
         qualification: '',
         avatarUrl: '',
         skills: [] as string[],
+        companyName: '',
+        companyDescription: '',
+        companyWebsite: '',
+        companySize: '',
     });
 
     useEffect(() => {
@@ -100,11 +107,15 @@ export default function ProfilePage() {
                 qualification: userProfile.qualification || '',
                 avatarUrl: userProfile.avatarUrl || '',
                 skills: userProfile.skills || [],
+                companyName: userProfile.companyName || '',
+                companyDescription: userProfile.companyDescription || '',
+                companyWebsite: userProfile.companyWebsite || '',
+                companySize: userProfile.companySize || '',
             });
         }
     }, [userProfile]);
 
-    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         const { name, value } = e.target;
         setFormData(prev => ({ ...prev, [name]: value }));
     };
@@ -391,6 +402,94 @@ export default function ProfilePage() {
                     )}
                 </CardContent>
             </Card>
+            
+            {/* Company Information - Only for Employers */}
+            {isEmployer && (
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <div>
+                    <CardTitle>Company Information</CardTitle>
+                    <CardDescription>Details about your company.</CardDescription>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {isEditing ? (
+                    <>
+                      <div className="space-y-2">
+                        <Label htmlFor="companyName">Company Name</Label>
+                        <Input
+                          id="companyName"
+                          name="companyName"
+                          value={formData.companyName}
+                          onChange={handleInputChange}
+                          disabled={isSaving}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="companyDescription">Company Description</Label>
+                        <Textarea
+                          id="companyDescription"
+                          name="companyDescription"
+                          value={formData.companyDescription}
+                          onChange={handleInputChange}
+                          disabled={isSaving}
+                          rows={3}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="companyWebsite">Company Website</Label>
+                        <Input
+                          id="companyWebsite"
+                          name="companyWebsite"
+                          type="url"
+                          value={formData.companyWebsite}
+                          onChange={handleInputChange}
+                          disabled={isSaving}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="companySize">Company Size</Label>
+                        <Input
+                          id="companySize"
+                          name="companySize"
+                          value={formData.companySize}
+                          onChange={handleInputChange}
+                          disabled={isSaving}
+                        />
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="flex items-center gap-3">
+                        <Building2 className="h-5 w-5 text-muted-foreground" />
+                        <span>{userProfile?.companyName || 'Not provided'}</span>
+                      </div>
+                      {userProfile?.companyDescription && (
+                        <div className="flex items-start gap-3">
+                          <Book className="h-5 w-5 text-muted-foreground mt-0.5" />
+                          <span className="text-sm text-muted-foreground">{userProfile.companyDescription}</span>
+                        </div>
+                      )}
+                      {userProfile?.companyWebsite && (
+                        <div className="flex items-center gap-3">
+                          <span className="text-sm">
+                            <a href={userProfile.companyWebsite} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                              {userProfile.companyWebsite}
+                            </a>
+                          </span>
+                        </div>
+                      )}
+                      {userProfile?.companySize && (
+                        <div className="flex items-center gap-3">
+                          <Users className="h-5 w-5 text-muted-foreground" />
+                          <span className="text-sm">{userProfile.companySize}</span>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+            )}
         </div>
       </div>
     </div>

@@ -11,16 +11,26 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
 import { doc, addDoc, collection, serverTimestamp } from "firebase/firestore";
-import type { Role } from "@/lib/types";
+import type { Role, JobCategory } from "@/lib/types";
 import { z } from 'zod';
 import { useToast } from '@/hooks/use-toast';
 
+const JOB_CATEGORIES: JobCategory[] = [
+    'Commissioning Engineer',
+    'Service Engineer',
+    'Project Engineer',
+    'Technician'
+];
 
 const CreateJobSchema = z.object({
     title: z.string().min(3, "Title must be at least 3 characters."),
     department: z.string().min(2, "Department is required."),
+    jobCategory: z.enum(['Commissioning Engineer', 'Service Engineer', 'Project Engineer', 'Technician'], {
+        errorMap: () => ({ message: "Please select a job category." })
+    }),
     description: z.string().min(50, "Description must be at least 50 characters."),
     requirements: z.string().min(1, "At least one requirement is needed."),
 });
@@ -33,6 +43,7 @@ export default function CreateJobPage() {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<any>({});
+  const [selectedCategory, setSelectedCategory] = useState<JobCategory | ''>('');
 
 
   const userProfileRef = useMemoFirebase(() => {
@@ -75,6 +86,7 @@ export default function CreateJobPage() {
     const validatedFields = CreateJobSchema.safeParse({
         title: formData.get('title'),
         department: formData.get('department'),
+        jobCategory: selectedCategory,
         description: formData.get('description'),
         requirements: formData.get('requirements'),
     });
@@ -87,12 +99,13 @@ export default function CreateJobPage() {
     setIsSubmitting(true);
 
     try {
-        const { title, department, description, requirements } = validatedFields.data;
+        const { title, department, jobCategory, description, requirements } = validatedFields.data;
         const jobData = {
             title,
             department,
+            jobCategory,
             description,
-            requirements: requirements.split('\n').filter(req => req.trim() !== ''),
+            requirements: requirements.split('\n').filter((req: string) => req.trim() !== ''),
             postedBy: user.uid,
             status: 'Open' as const,
             createdAt: serverTimestamp(),
@@ -149,13 +162,29 @@ export default function CreateJobPage() {
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="title">Job Title</Label>
-              <Input id="title" name="title" placeholder="e.g., Senior Frontend Engineer" disabled={isSubmitting} />
+              <Input id="title" name="title" placeholder="e.g., Senior Commissioning Engineer" disabled={isSubmitting} />
               {errors?.title && <p className="text-sm font-medium text-destructive">{errors.title[0]}</p>}
             </div>
             <div className="space-y-2">
               <Label htmlFor="department">Department</Label>
-              <Input id="department" name="department" placeholder="e.g., Engineering" disabled={isSubmitting}/>
+              <Input id="department" name="department" placeholder="e.g., Mechanical Engineering" disabled={isSubmitting}/>
                {errors?.department && <p className="text-sm font-medium text-destructive">{errors.department[0]}</p>}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="jobCategory">Job Category *</Label>
+              <Select value={selectedCategory} onValueChange={(value) => setSelectedCategory(value as JobCategory)} disabled={isSubmitting}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select mechanical engineering role" />
+                </SelectTrigger>
+                <SelectContent>
+                  {JOB_CATEGORIES.map((category) => (
+                    <SelectItem key={category} value={category}>
+                      {category}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {errors?.jobCategory && <p className="text-sm font-medium text-destructive">{errors.jobCategory[0]}</p>}
             </div>
             <div className="space-y-2">
               <Label htmlFor="description">Job Description</Label>

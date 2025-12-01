@@ -192,6 +192,7 @@ export default function JobsPage() {
               <TableRow>
                 <TableHead>Title</TableHead>
                 <TableHead>Department</TableHead>
+                <TableHead>Job Category</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Posted On</TableHead>
                 <TableHead>Posted By</TableHead>
@@ -201,7 +202,7 @@ export default function JobsPage() {
             <TableBody>
               {jobsLoading ? (
                  <TableRow>
-                    <TableCell colSpan={6} className="text-center h-24">
+                    <TableCell colSpan={7} className="text-center h-24">
                        <Loader2 className="h-6 w-6 animate-spin mx-auto text-primary" />
                     </TableCell>
                 </TableRow>
@@ -210,6 +211,9 @@ export default function JobsPage() {
                   <TableRow key={job.id}>
                     <TableCell className="font-medium">{job.title}</TableCell>
                     <TableCell>{job.department}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline">{job.jobCategory || 'Not specified'}</Badge>
+                    </TableCell>
                     <TableCell>
                       <Badge variant={job.status === 'Open' ? 'default' : 'secondary'}>
                         {job.status}
@@ -233,7 +237,7 @@ export default function JobsPage() {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center h-24">
+                  <TableCell colSpan={7} className="text-center h-24">
                     No jobs found.
                   </TableCell>
                 </TableRow>

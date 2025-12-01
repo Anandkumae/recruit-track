@@ -307,8 +307,7 @@ export default function LandingPage() {
             href="/"
             className="flex items-center justify-center gap-2"
           >
-            <Briefcase className="h-6 w-6 text-primary" />
-            <span className="text-lg font-bold">LeoRecruit</span>
+            <img src="/leox.jpg" alt="Leox" className="h-10 w-auto" />
           </Link>
           <div className="flex items-center gap-2 sm:gap-4">
             {user ? (
@@ -357,8 +356,8 @@ export default function LandingPage() {
                 </div>
               </div>
               <Image
-                src="https://placehold.co/600x400/2563EB/FFFFFF/png?text=LeoRecruit&font=raleway"
-                alt="Hero Illustration"
+                src="/hero-image.webp"
+                alt="Oil and Gas Commissioning"
                 width={600}
                 height={400}
                 className="mx-auto aspect-video overflow-hidden rounded-xl object-cover object-center transition-transform duration-300 hover:scale-105 sm:w-full"
@@ -542,10 +541,10 @@ export default function LandingPage() {
               </Button>
             </div>
             <Image
-              src="https://placehold.co/600x600/2563EB/FFFFFF/png?text=App+Mockup&font=raleway"
+              src="/app-mockup.jpg"
               width="400"
               height="400"
-              alt="Mobile App Mockup"
+              alt="Sugar Factory"
               className="mx-auto overflow-hidden rounded-2xl object-cover object-center transition-transform duration-300 hover:scale-105"
               data-ai-hint="mobile app interface"
             />

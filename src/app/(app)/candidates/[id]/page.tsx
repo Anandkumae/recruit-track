@@ -372,6 +372,29 @@ function CandidateDetailsView({ candidate, job }: { candidate: WithId<Candidate>
                 <div className="md:col-span-2 space-y-6">
                     <Card>
                         <CardHeader>
+                            <CardTitle>Application Details</CardTitle>
+                            <CardDescription>Why this candidate is interested in the role</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            <div>
+                                <h4 className="text-sm font-medium mb-2">Cover Letter</h4>
+                                <p className="text-sm text-foreground/80 whitespace-pre-wrap bg-muted/30 p-4 rounded-md">
+                                    {candidate.applicationDescription || 'No application description provided.'}
+                                </p>
+                            </div>
+                            {candidate.requiredTimePeriod && (
+                                <div>
+                                    <h4 className="text-sm font-medium mb-2">Notice Period / Availability</h4>
+                                    <p className="text-sm text-foreground/80">
+                                        {candidate.requiredTimePeriod}
+                                    </p>
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
+                
+                    <Card>
+                        <CardHeader>
                             <CardTitle>Skills</CardTitle>
                         </CardHeader>
                         <CardContent className="flex flex-wrap gap-2">

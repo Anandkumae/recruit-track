@@ -6,8 +6,11 @@ import { FirebaseClientProvider } from '@/firebase';
 import { ThemeProvider } from '@/components/theme-provider';
 
 export const metadata: Metadata = {
-  title: 'LeoRecruit | Internal Hiring Platform',
-  description: 'A modern, internal platform for managing job postings, resumes, and candidates.',
+  title: 'Leox | Recruitment Platform',
+  description: 'A modern platform for managing job postings, resumes, and candidates in mechanical engineering.',
+  icons: {
+    icon: '/leox.jpg',
+  },
 };
 
 export default function RootLayout({

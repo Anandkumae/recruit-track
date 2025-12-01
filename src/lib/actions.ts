@@ -38,6 +38,8 @@ const ApplySchema = z.object({
   name: z.string().min(1, 'Name is required.'),
   email: z.string().email('Invalid email address.'),
   phone: z.string().min(1, 'Phone number is required.'),
+  applicationDescription: z.string().min(20, 'Please provide at least 20 characters describing why you are a good fit.'),
+  requiredTimePeriod: z.string().optional(),
   jobId: z.string(),
   userId: z.string().min(1, 'User ID is required.'),
   resumeText: z.string().optional(),
@@ -53,6 +55,8 @@ export type ApplicationState = {
     name?: string[];
     email?: string[];
     phone?: string[];
+    applicationDescription?: string[];
+    requiredTimePeriod?: string[];
     _form?: string[];
   };
 };
@@ -81,6 +85,8 @@ export async function applyForJob(
     name: formData.get('name'),
     email: formData.get('email'),
     phone: formData.get('phone'),
+    applicationDescription: formData.get('applicationDescription'),
+    requiredTimePeriod: formData.get('requiredTimePeriod'),
     jobId: jobId,
     userId: userId,
     resumeText: formData.get('resumeText'),
@@ -96,7 +102,7 @@ export async function applyForJob(
     };
   }
 
-  const { name, email, phone, resumeText, resumeUrl, avatarUrl } = validatedFields.data;
+  const { name, email, phone, applicationDescription, requiredTimePeriod, resumeText, resumeUrl, avatarUrl } = validatedFields.data;
   console.log('[applyForJob] Validation successful, proceeding with submission');
 
   try {
@@ -140,6 +146,8 @@ export async function applyForJob(
       name,
       email,
       phone,
+      applicationDescription,
+      ...(requiredTimePeriod && { requiredTimePeriod }),
       jobAppliedFor: jobId,
       status: 'Applied' as const,
       appliedAt: FieldValue.serverTimestamp(),

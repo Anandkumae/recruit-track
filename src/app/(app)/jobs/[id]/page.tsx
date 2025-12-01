@@ -155,6 +155,11 @@ export default function JobDetailsPage() {
                                 <Briefcase className="h-4 w-4 text-muted-foreground" />
                                 <span className="text-sm">{job.department}</span>
                             </div>
+                            <div className="flex items-start gap-2">
+                                <Badge variant="outline" className="text-sm">
+                                    {job.jobCategory || 'Not specified'}
+                                </Badge>
+                            </div>
                             <div className="flex items-center gap-2">
                                 <Calendar className="h-4 w-4 text-muted-foreground" />
                                 <span className="text-sm">Posted on {formatDate(job.createdAt)}</span>

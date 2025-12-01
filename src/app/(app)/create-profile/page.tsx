@@ -11,9 +11,10 @@ import {
 } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Loader2, Save } from 'lucide-react';
-import { useUser, useFirestore, useFirebase } from '@/firebase';
+import { useUser, useFirestore, useFirebase, useDoc, useMemoFirebase } from '@/firebase';
 import { useRouter } from 'next/navigation';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import React, { useEffect } from 'react';
@@ -45,9 +46,18 @@ type ProfileState = {
 
 export default function CreateProfilePage() {
   const { user } = useUser();
-  const firestore = useFirestore();
+  const { firestore } = useFirebase();
   const router = useRouter();
   const [state, setState] = React.useState<ProfileState>({});
+  
+  // Fetch user document to check role
+  const userDocRef = useMemoFirebase(() => {
+    if (!firestore || !user) return null;
+    return doc(firestore, 'users', user.uid);
+  }, [firestore, user]);
+  
+  const { data: userDoc } = useDoc(userDocRef);
+  const isEmployer = userDoc?.role === 'Admin' || userDoc?.role === 'HR';
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -62,14 +72,23 @@ export default function CreateProfilePage() {
     const name = formData.get('name') as string;
     const phone = formData.get('phone') as string;
     const qualification = formData.get('qualification') as string;
+    const companyName = formData.get('companyName') as string;
+    const companyDescription = formData.get('companyDescription') as string;
+    const companyWebsite = formData.get('companyWebsite') as string;
+    const companySize = formData.get('companySize') as string;
     
     // Basic validation
     if (!name) {
         setState({ errors: { name: ['Name is required.']}});
         return;
     }
+    
+    if (!phone) {
+        setState({ errors: { phone: ['Phone number is required.']}});
+        return;
+    }
 
-    const userProfile = {
+    const userProfile: any = {
       id: user.uid,
       name,
       email: user.email,
@@ -78,10 +97,16 @@ export default function CreateProfilePage() {
       createdAt: serverTimestamp(),
       role: 'Candidate', // Default role
     };
+    
+    // Add company fields if provided (for employers)
+    if (companyName) userProfile.companyName = companyName;
+    if (companyDescription) userProfile.companyDescription = companyDescription;
+    if (companyWebsite) userProfile.companyWebsite = companyWebsite;
+    if (companySize) userProfile.companySize = companySize;
 
     try {
       const userDocRef = doc(firestore, 'users', user.uid);
-      await setDoc(userDocRef, userProfile);
+      await setDoc(userDocRef, userProfile, { merge: true });
       router.push('/dashboard');
     } catch (error) {
       console.error('Error creating profile:', error);
@@ -126,11 +151,13 @@ export default function CreateProfilePage() {
               />
             </div>
              <div className="space-y-2">
-              <Label htmlFor="phone">Phone Number</Label>
+              <Label htmlFor="phone">Phone Number *</Label>
               <Input
                 id="phone"
                 name="phone"
+                type="tel"
                 placeholder="e.g., +91 98765 43210"
+                required
               />
               {state.errors?.phone && (
                 <p className="text-sm font-medium text-destructive">
@@ -151,6 +178,50 @@ export default function CreateProfilePage() {
                 </p>
               )}
             </div>
+            
+            {/* Company Information - Only for Employers */}
+            {isEmployer && (
+              <>
+                <div className="pt-4 border-t">
+                  <h3 className="text-lg font-semibold mb-4">Company Information</h3>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="companyName">Company Name</Label>
+                  <Input
+                    id="companyName"
+                    name="companyName"
+                    placeholder="e.g., Acme Corporation"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="companyDescription">Company Description</Label>
+                  <Textarea
+                    id="companyDescription"
+                    name="companyDescription"
+                    placeholder="Brief description of your company..."
+                    rows={3}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="companyWebsite">Company Website</Label>
+                  <Input
+                    id="companyWebsite"
+                    name="companyWebsite"
+                    type="url"
+                    placeholder="e.g., https://www.example.com"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="companySize">Company Size</Label>
+                  <Input
+                    id="companySize"
+                    name="companySize"
+                    placeholder="e.g., 50-200 employees"
+                  />
+                </div>
+              </>
+            )}
+            
             {state.errors?._form && (
               <Alert variant="destructive">
                 <AlertTitle>Error</AlertTitle>
