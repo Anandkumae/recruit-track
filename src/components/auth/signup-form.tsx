@@ -15,7 +15,7 @@ import {
   signInWithPhoneNumber,
   type ConfirmationResult,
 } from 'firebase/auth';
-import { doc, setDoc } from 'firebase/firestore';
+import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { useFirestore } from '@/firebase';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useSearchParams } from 'next/navigation';
@@ -80,11 +80,13 @@ export function SignupForm() {
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       if (userCredential.user) {
+        // For email signup, always create new document (new user)
         await setDoc(doc(firestore, 'users', userCredential.user.uid), {
           email: userCredential.user.email,
           role: role,
           createdAt: new Date().toISOString(),
         });
+        console.log(`User registered with role: ${role}`);
       }
       // TODO: Handle plan selection after signup if needed
     } catch (err: any) {
@@ -101,13 +103,24 @@ export function SignupForm() {
     try {
       const userCredential = await signInWithPopup(auth, provider);
       if (userCredential.user) {
-         // Check if user document already exists to avoid overwriting role on login
-         // For now, we assume signup flow, but in production we should check existence
-         await setDoc(doc(firestore, 'users', userCredential.user.uid), {
-          email: userCredential.user.email,
-          role: role,
-          createdAt: new Date().toISOString(),
-        }, { merge: true });
+         const userDocRef = doc(firestore, 'users', userCredential.user.uid);
+         const userDocSnap = await getDoc(userDocRef);
+         
+         if (!userDocSnap.exists()) {
+           // New user - create document with role
+           await setDoc(userDocRef, {
+            email: userCredential.user.email,
+            role: role,
+            createdAt: new Date().toISOString(),
+          });
+          console.log(`New user registered with role: ${role}`);
+         } else {
+           // Existing user - update their role if signing up with different role
+           await setDoc(userDocRef, {
+            role: role,
+          }, { merge: true });
+          console.log(`Updated existing user role to: ${role}`);
+         }
       }
       // TODO: Handle plan selection after signup if needed
     } catch (err: any) {
@@ -151,11 +164,24 @@ export function SignupForm() {
     try {
       const userCredential = await confirmationResult.confirm(verificationCode);
       if (userCredential.user) {
-         await setDoc(doc(firestore, 'users', userCredential.user.uid), {
-          phoneNumber: userCredential.user.phoneNumber,
-          role: role,
-          createdAt: new Date().toISOString(),
-        }, { merge: true });
+         const userDocRef = doc(firestore, 'users', userCredential.user.uid);
+         const userDocSnap = await getDoc(userDocRef);
+         
+         if (!userDocSnap.exists()) {
+           // New user - create document with role
+           await setDoc(userDocRef, {
+            phoneNumber: userCredential.user.phoneNumber,
+            role: role,
+            createdAt: new Date().toISOString(),
+          });
+          console.log(`New user registered with role: ${role}`);
+         } else {
+           // Existing user - update their role if signing up with different role
+           await setDoc(userDocRef, {
+            role: role,
+          }, { merge: true });
+          console.log(`Updated existing user role to: ${role}`);
+         }
       }
       // TODO: Handle plan selection after signup if needed
     } catch (err: any) {

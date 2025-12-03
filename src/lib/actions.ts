@@ -45,7 +45,13 @@ const ApplySchema = z.object({
   resumeText: z.string().optional(),
   resumeUrl: z.string().optional(),
   avatarUrl: z.string().optional(),
-});
+}).refine(
+  (data) => data.resumeText || data.resumeUrl,
+  {
+    message: 'Resume is required. Please upload a resume in your profile before applying.',
+    path: ['resumeText'], // This will show the error on the resumeText field
+  }
+);
 
 export type ApplicationState = {
   jobId: string;

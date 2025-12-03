@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
-import { Loader2, PartyPopper, Send } from 'lucide-react';
+import { Loader2, PartyPopper, Send, FileText } from 'lucide-react';
 import type { Job, User, WithId } from '@/lib/types';
 import { useFirestore, useUser } from '@/firebase';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -56,6 +56,45 @@ export function ApplyForm({ job, userProfile }: { job: WithId<Job>, userProfile:
       <div className="flex h-64 items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
+    );
+  }
+
+  // Check if user has uploaded a resume
+  const hasResume = userProfile?.resumeUrl || userProfile?.resumeText;
+
+  if (!hasResume) {
+    return (
+      <Card>
+        <CardHeader className="items-center text-center">
+          <FileText className="h-12 w-12 text-amber-500 mb-2" />
+          <CardTitle className="text-2xl">Resume Required</CardTitle>
+          <CardDescription>
+            You must upload a resume before you can apply for jobs.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <Alert variant="default" className="border-amber-500/40 bg-amber-500/5">
+            <AlertTitle>Why do I need a resume?</AlertTitle>
+            <AlertDescription>
+              Your resume helps employers understand your qualifications and experience. 
+              It's a required part of the application process.
+            </AlertDescription>
+          </Alert>
+          <Button 
+            className="w-full" 
+            onClick={() => router.push('/profile')}
+          >
+            Go to Profile to Upload Resume
+          </Button>
+          <Button 
+            variant="outline" 
+            className="w-full" 
+            onClick={() => router.push('/jobs')}
+          >
+            Back to Jobs
+          </Button>
+        </CardContent>
+      </Card>
     );
   }
 

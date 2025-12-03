@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Loader2, Upload, User as UserIcon, Mail, Phone, Book, Pencil, Save, Eye, FileText, Wand2, Building2, Users, Trash2 } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, startTransition } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ProfileImageUpload } from '@/components/profile/ProfileImageUpload';
@@ -252,7 +252,10 @@ export default function ProfilePage() {
         const formData = new FormData();
         formData.append('userId', user.uid);
         
-        await deleteAction(formData);
+        // Wrap in startTransition to comply with useActionState requirements
+        startTransition(() => {
+            deleteAction(formData);
+        });
     };
     
     // Effect to handle successful deletion

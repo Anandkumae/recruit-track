@@ -95,7 +95,7 @@ export default function CreateProfilePage() {
       phone,
       qualification,
       createdAt: serverTimestamp(),
-      role: 'Candidate', // Default role
+      // Role is already set during signup, don't overwrite it
     };
     
     // Add company fields if provided (for employers)

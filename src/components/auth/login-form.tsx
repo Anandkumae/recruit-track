@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { useAuth } from '@/firebase';
+import { useAuth, useFirestore } from '@/firebase';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -16,7 +16,9 @@ import {
   signInWithPhoneNumber,
   type ConfirmationResult,
 } from 'firebase/auth';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useSearchParams } from 'next/navigation';
 
 const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="24px" height="24px" {...props}>
@@ -30,6 +32,13 @@ const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
 
 export function LoginForm() {
   const auth = useAuth();
+  const firestore = useFirestore();
+  const searchParams = useSearchParams();
+  const roleParam = searchParams.get('role');
+  
+  // Convert URL role parameter to internal role
+  const role = roleParam === 'employer' ? 'Admin' : 'Candidate';
+  
   const [isEmailSubmitting, setIsEmailSubmitting] = React.useState(false);
   const [isGoogleSubmitting, setIsGoogleSubmitting] = React.useState(false);
   const [isPhoneSubmitting, setIsPhoneSubmitting] = React.useState(false);
@@ -74,7 +83,23 @@ export function LoginForm() {
     setError(null);
     const provider = new GoogleAuthProvider();
     try {
-      await signInWithPopup(auth, provider);
+      const userCredential = await signInWithPopup(auth, provider);
+      
+      // Check if user document exists in Firestore
+      if (userCredential.user) {
+        const userDocRef = doc(firestore, 'users', userCredential.user.uid);
+        const userDocSnap = await getDoc(userDocRef);
+        
+        // If user document doesn't exist, create it with the role from URL parameter
+        if (!userDocSnap.exists()) {
+          await setDoc(userDocRef, {
+            email: userCredential.user.email,
+            role: role,
+            createdAt: new Date().toISOString(),
+          });
+          console.log(`New user registered via Google login with role: ${role}`);
+        }
+      }
     } catch (err: any) {
         setError(err.message || 'Failed to sign in with Google.');
     } finally {
@@ -114,7 +139,23 @@ export function LoginForm() {
     setError(null);
     setIsPhoneSubmitting(true);
     try {
-      await confirmationResult.confirm(verificationCode);
+      const userCredential = await confirmationResult.confirm(verificationCode);
+      
+      // Check if user document exists in Firestore
+      if (userCredential.user) {
+        const userDocRef = doc(firestore, 'users', userCredential.user.uid);
+        const userDocSnap = await getDoc(userDocRef);
+        
+        // If user document doesn't exist, create it with the role from URL parameter
+        if (!userDocSnap.exists()) {
+          await setDoc(userDocRef, {
+            phoneNumber: userCredential.user.phoneNumber,
+            role: role,
+            createdAt: new Date().toISOString(),
+          });
+          console.log(`New user registered via phone login with role: ${role}`);
+        }
+      }
     } catch (err: any) {
       setError(err.message || 'Failed to verify code.');
     } finally {
