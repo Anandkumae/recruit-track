@@ -176,6 +176,10 @@ export function AppSidebar() {
     userRole = userProfile.role;
   }
 
+  // Debug logging
+  console.log('[AppSidebar] User email:', user.email);
+  console.log('[AppSidebar] User profile role:', userProfile?.role);
+  console.log('[AppSidebar] Determined user role:', userRole);
 
   const allowedNavItems = navItems.filter((item) => {
     return item.roles.includes(userRole);

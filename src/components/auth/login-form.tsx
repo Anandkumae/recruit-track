@@ -71,6 +71,7 @@ export function LoginForm() {
 
     try {
       await signInWithEmailAndPassword(auth, email, password);
+      // Role is set during registration and should not be changed during login
     } catch (err: any) {
       setError(err.message || 'Failed to sign in. Please check your credentials.');
     } finally {
@@ -91,13 +92,17 @@ export function LoginForm() {
         const userDocSnap = await getDoc(userDocRef);
         
         // If user document doesn't exist, create it with the role from URL parameter
+        // This only happens for NEW users logging in for the first time
         if (!userDocSnap.exists()) {
           await setDoc(userDocRef, {
             email: userCredential.user.email,
             role: role,
             createdAt: new Date().toISOString(),
           });
-          console.log(`New user registered via Google login with role: ${role}`);
+          console.log('[LoginForm] Google login - New user registered with role:', role);
+        } else {
+          // Existing user - do NOT change their role
+          console.log('[LoginForm] Google login - Existing user, keeping role:', userDocSnap.data()?.role);
         }
       }
     } catch (err: any) {
@@ -147,13 +152,17 @@ export function LoginForm() {
         const userDocSnap = await getDoc(userDocRef);
         
         // If user document doesn't exist, create it with the role from URL parameter
+        // This only happens for NEW users logging in for the first time
         if (!userDocSnap.exists()) {
           await setDoc(userDocRef, {
             phoneNumber: userCredential.user.phoneNumber,
             role: role,
             createdAt: new Date().toISOString(),
           });
-          console.log(`New user registered via phone login with role: ${role}`);
+          console.log('[LoginForm] Phone login - New user registered with role:', role);
+        } else {
+          // Existing user - do NOT change their role
+          console.log('[LoginForm] Phone login - Existing user, keeping role:', userDocSnap.data()?.role);
         }
       }
     } catch (err: any) {

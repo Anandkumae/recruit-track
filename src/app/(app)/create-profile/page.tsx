@@ -104,12 +104,16 @@ export default function CreateProfilePage() {
     if (companyWebsite) userProfile.companyWebsite = companyWebsite;
     if (companySize) userProfile.companySize = companySize;
 
+    console.log('[CreateProfile] Current user role from userDoc:', userDoc?.role);
+    console.log('[CreateProfile] Profile data being saved (role NOT included):', userProfile);
+
     try {
       const userDocRef = doc(firestore, 'users', user.uid);
       await setDoc(userDocRef, userProfile, { merge: true });
+      console.log('[CreateProfile] Profile saved successfully, role should remain:', userDoc?.role);
       router.push('/dashboard');
     } catch (error) {
-      console.error('Error creating profile:', error);
+      console.error('[CreateProfile] Error creating profile:', error);
       setState({ errors: { _form: ['Failed to save profile. Please try again.'] } });
     }
   };

@@ -47,6 +47,10 @@ export function SignupForm() {
   // Default to candidate if not specified or invalid
   const role = roleParam === 'employer' ? 'Admin' : 'Candidate';
   
+  // Debug logging
+  console.log('[SignupForm] Role parameter from URL:', roleParam);
+  console.log('[SignupForm] Assigned role:', role);
+  
   const [isEmailSubmitting, setIsEmailSubmitting] = React.useState(false);
   const [isGoogleSubmitting, setIsGoogleSubmitting] = React.useState(false);
   const [isPhoneSubmitting, setIsPhoneSubmitting] = React.useState(false);
@@ -81,15 +85,18 @@ export function SignupForm() {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       if (userCredential.user) {
         // For email signup, always create new document (new user)
-        await setDoc(doc(firestore, 'users', userCredential.user.uid), {
+        const userDoc = {
           email: userCredential.user.email,
           role: role,
           createdAt: new Date().toISOString(),
-        });
-        console.log(`User registered with role: ${role}`);
+        };
+        await setDoc(doc(firestore, 'users', userCredential.user.uid), userDoc);
+        console.log('[SignupForm] Email signup - User registered with role:', role);
+        console.log('[SignupForm] Email signup - User document saved:', userDoc);
       }
       // TODO: Handle plan selection after signup if needed
     } catch (err: any) {
+      console.error('[SignupForm] Email signup error:', err);
       setError(err.message || 'Failed to sign up. Please try again.');
     } finally {
         setIsEmailSubmitting(false);
@@ -108,22 +115,23 @@ export function SignupForm() {
          
          if (!userDocSnap.exists()) {
            // New user - create document with role
-           await setDoc(userDocRef, {
+           const userDoc = {
             email: userCredential.user.email,
             role: role,
             createdAt: new Date().toISOString(),
-          });
-          console.log(`New user registered with role: ${role}`);
+          };
+           await setDoc(userDocRef, userDoc);
+           console.log('[SignupForm] Google signup - New user registered with role:', role);
+           console.log('[SignupForm] Google signup - User document saved:', userDoc);
          } else {
-           // Existing user - update their role if signing up with different role
-           await setDoc(userDocRef, {
-            role: role,
-          }, { merge: true });
-          console.log(`Updated existing user role to: ${role}`);
+           // Existing user signing up again - DO NOT change their role
+           console.log('[SignupForm] Google signup - User already exists, keeping existing role:', userDocSnap.data()?.role);
+           console.warn('[SignupForm] Google signup - User tried to sign up again. Redirecting to login instead.');
          }
       }
       // TODO: Handle plan selection after signup if needed
     } catch (err: any) {
+        console.error('[SignupForm] Google signup error:', err);
         setError(err.message || 'Failed to sign up with Google.');
     } finally {
         setIsGoogleSubmitting(false);
@@ -169,22 +177,23 @@ export function SignupForm() {
          
          if (!userDocSnap.exists()) {
            // New user - create document with role
-           await setDoc(userDocRef, {
+           const userDoc = {
             phoneNumber: userCredential.user.phoneNumber,
             role: role,
             createdAt: new Date().toISOString(),
-          });
-          console.log(`New user registered with role: ${role}`);
+          };
+           await setDoc(userDocRef, userDoc);
+           console.log('[SignupForm] Phone signup - New user registered with role:', role);
+           console.log('[SignupForm] Phone signup - User document saved:', userDoc);
          } else {
-           // Existing user - update their role if signing up with different role
-           await setDoc(userDocRef, {
-            role: role,
-          }, { merge: true });
-          console.log(`Updated existing user role to: ${role}`);
+           // Existing user signing up again - DO NOT change their role
+           console.log('[SignupForm] Phone signup - User already exists, keeping existing role:', userDocSnap.data()?.role);
+           console.warn('[SignupForm] Phone signup - User tried to sign up again. Redirecting to login instead.');
          }
       }
       // TODO: Handle plan selection after signup if needed
     } catch (err: any) {
+      console.error('[SignupForm] Phone signup error:', err);
       setError(err.message || 'Failed to verify code.');
     } finally {
       setIsPhoneSubmitting(false);
