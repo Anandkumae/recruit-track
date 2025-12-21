@@ -882,3 +882,80 @@ export async function deleteEmployerAccount(
     return { errors: { _form: ['An unexpected error occurred while deleting your account. Please try again.'] } };
   }
 }
+
+// Delete Account Action (for Candidates/Employees)
+export async function deleteCandidateAccount(
+  prevState: DeleteAccountState,
+  formData: FormData
+): Promise<DeleteAccountState> {
+  const { db } = await getFirebaseAdmin();
+  
+  const validatedFields = DeleteAccountSchema.safeParse({
+    userId: formData.get('userId'),
+  });
+
+  if (!validatedFields.success) {
+    return { errors: { _form: ['Invalid data provided.'] } };
+  }
+
+  const { userId } = validatedFields.data;
+
+  try {
+    // 1. Verify user exists and is a candidate
+    const userDoc = await db.collection('users').doc(userId).get();
+    
+    if (!userDoc.exists) {
+      return { errors: { _form: ['User not found.'] } };
+    }
+
+    const userData = userDoc.data() as User;
+
+    // Verify user is NOT an employer (employers should use deleteEmployerAccount)
+    if (userData.role === 'Admin' || userData.role === 'HR') {
+      return { errors: { _form: ['Employers should use the employer account deletion feature.'] } };
+    }
+
+    // 2. Delete all job applications by this candidate
+    const applicationsSnapshot = await db.collection('candidates')
+      .where('userId', '==', userId)
+      .get();
+
+    const deleteApplicationPromises = applicationsSnapshot.docs.map((doc: any) => 
+      db.collection('candidates').doc(doc.id).delete()
+    );
+
+    await Promise.all(deleteApplicationPromises);
+    console.log(`[deleteCandidateAccount] Deleted ${applicationsSnapshot.docs.length} applications`);
+
+    // 3. Delete user's notifications subcollection
+    try {
+      const notificationsSnapshot = await db.collection('users').doc(userId).collection('notifications').get();
+      const deleteNotificationPromises = notificationsSnapshot.docs.map((doc: any) => 
+        db.collection('users').doc(userId).collection('notifications').doc(doc.id).delete()
+      );
+      await Promise.all(deleteNotificationPromises);
+      console.log(`[deleteCandidateAccount] Deleted ${notificationsSnapshot.docs.length} notifications`);
+    } catch (notifError) {
+      console.warn('[deleteCandidateAccount] Error deleting notifications:', notifError);
+      // Continue with deletion even if notifications fail
+    }
+
+    // 4. Delete user profile from Firestore
+    await db.collection('users').doc(userId).delete();
+    console.log(`[deleteCandidateAccount] Deleted user profile for ${userId}`);
+
+    // 5. Revalidate paths
+    revalidatePath('/profile');
+    revalidatePath('/dashboard');
+    revalidatePath('/candidates');
+
+    return { 
+      success: true, 
+      message: 'Your account and all associated data have been permanently deleted.' 
+    };
+  } catch (error) {
+    console.error('Delete Candidate Account Error:', error);
+    return { errors: { _form: ['An unexpected error occurred while deleting your account. Please try again.'] } };
+  }
+}
+

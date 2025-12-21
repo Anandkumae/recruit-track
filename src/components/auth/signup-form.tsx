@@ -86,6 +86,7 @@ export function SignupForm() {
       if (userCredential.user) {
         // For email signup, always create new document (new user)
         const userDoc = {
+          id: userCredential.user.uid,
           email: userCredential.user.email,
           role: role,
           createdAt: new Date().toISOString(),
@@ -116,6 +117,7 @@ export function SignupForm() {
          if (!userDocSnap.exists()) {
            // New user - create document with role
            const userDoc = {
+            id: userCredential.user.uid,
             email: userCredential.user.email,
             role: role,
             createdAt: new Date().toISOString(),

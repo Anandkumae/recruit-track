@@ -57,9 +57,7 @@ export default function CreateJobPage() {
     if (isUserLoading || isProfileLoading) return;
     
     let userRole: Role = 'Candidate';
-    if (user?.email === 'anandkumar.shinnovationco@gmail.com') {
-      userRole = 'Admin';
-    } else if (userProfile?.role) {
+    if (userProfile?.role) {
       userRole = userProfile.role;
     }
 

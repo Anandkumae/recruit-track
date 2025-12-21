@@ -25,6 +25,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { data: userProfile, isLoading: isProfileLoading } = useDoc<WithId<User>>(userProfileRef);
 
   React.useEffect(() => {
+    // Check if account is being deleted - if so, don't redirect
+    if (typeof window !== 'undefined' && localStorage.getItem('accountDeleting') === 'true') {
+      return;
+    }
+    
     if (isUserLoading) {
       // Still waiting for auth data, do nothing yet.
       return;
@@ -36,18 +41,18 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       return;
     }
     
-    // User is logged in, now check for profile (unless they are the admin)
-    const isAdmin = user.email === 'anandkumar.shinnovationco@gmail.com';
+    // For all users, wait until the profile has finished loading
+    if (isProfileLoading) {
+      return;
+    }
+    
+    // User is logged in, now check for profile (unless they have Admin role)
+    const isAdmin = userProfile?.role === 'Admin';
     if (isAdmin) {
       if (pathname === '/create-profile') {
         router.replace('/dashboard');
       }
       return; // Admin doesn't need a user profile, so skip further checks
-    }
-    
-    // For non-admins, wait until the profile has finished loading
-    if (isProfileLoading) {
-      return;
     }
 
     // Now we know the user exists and their profile has been checked
@@ -63,7 +68,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     }
   }, [user, isUserLoading, userProfile, isProfileLoading, router, pathname]);
 
-  const isLoading = isUserLoading || (user && isProfileLoading && user.email !== 'anandkumar.shinnovationco@gmail.com' && !pathname.startsWith('/apply/'));
+  const isLoading = isUserLoading || (user && isProfileLoading && !pathname.startsWith('/apply/'));
   
   if (pathname === '/create-profile' || pathname.startsWith('/apply/')) {
     // Render these pages within a simpler layout, or just the children directly

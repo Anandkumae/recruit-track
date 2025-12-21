@@ -11,7 +11,6 @@ import type { Role, WithId, Candidate, Job } from '@/lib/types';
 import { doc } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { CandidateActivityFeed } from '@/components/dashboard/candidate-activity-feed';
-import { InterviewPrepSection } from '@/components/dashboard/interview-prep-section';
 
 export default function DashboardPage() {
   const { user, isUserLoading } = useUser();
@@ -25,10 +24,9 @@ export default function DashboardPage() {
 
   const { data: userProfile, isLoading: isProfileLoading } = useDoc(userProfileRef);
 
+  // Determine user role from Firestore profile
   let userRole: Role = 'Candidate';
-  if (user?.email === 'anandkumar.shinnovationco@gmail.com') {
-    userRole = 'Admin';
-  } else if (userProfile?.role) {
+  if (userProfile?.role) {
     userRole = userProfile.role;
   }
   const isPrivilegedUser = userRole === 'Admin';
@@ -136,8 +134,6 @@ export default function DashboardPage() {
               description="Applications currently under review."
             />
           </div>
-
-          <InterviewPrepSection />
           
           <Card>
             <CardHeader>

@@ -95,8 +95,15 @@ function InterviewSchedulingSection({ candidateId, candidateName, jobTitle, isOw
     const [interviews, setInterviews] = useState<WithId<Interview>[]>([]);
     const [interviewsLoading, setInterviewsLoading] = useState(true);
 
-    // Check if user is admin or employer
-    const isAdminUser = user?.email === 'anandkumar.shinnovationco@gmail.com';
+    const firestore = useFirestore();
+    const userProfileRef = useMemoFirebase(() => {
+        if (!firestore || !user) return null;
+        return doc(firestore, 'users', user.uid);
+    }, [firestore, user]);
+    const { data: userProfile } = useDoc<User>(userProfileRef);
+    
+    // Check if user is admin or employer based on role
+    const isAdminUser = userProfile?.role === 'Admin';
     const isEmployer = user?.uid === employerId;
 
     type Interview = {
@@ -335,8 +342,15 @@ function InterviewSchedulingSection({ candidateId, candidateName, jobTitle, isOw
 }
 
 function CandidateDetailsView({ candidate, job }: { candidate: WithId<Candidate>, job: WithId<Job> | null}) {
-    const { storage, user } = useFirebase();
+    const { storage, user, firestore } = useFirebase();
     const isOwner = user?.uid === candidate.userId;
+    
+    // Fetch user profile to check role
+    const userProfileRef = useMemoFirebase(() => {
+        if (!firestore || !user) return null;
+        return doc(firestore, 'users', user.uid);
+    }, [firestore, user]);
+    const { data: userProfile } = useDoc<User>(userProfileRef);
     
     const formatDate = (timestamp: any) => {
         if (!timestamp) return 'N/A';
@@ -422,7 +436,7 @@ function CandidateDetailsView({ candidate, job }: { candidate: WithId<Candidate>
                         </CardContent>
                     </Card>
                     
-                    {(user?.email === 'anandkumar.shinnovationco@gmail.com' || isOwner || user?.uid === candidate.employerId) && (
+                    {(userProfile?.role === 'Admin' || isOwner || user?.uid === candidate.employerId) && (
                         <InterviewSchedulingSection
                             candidateId={candidate.id}
                             candidateName={candidate.name}
@@ -498,10 +512,7 @@ export default function CandidateDetailsPage() {
 
     const { data: userProfile, isLoading: userProfileLoading } = useDoc<WithId<User>>(userProfileRef);
 
-    const userRole: Role =
-        user?.email === 'anandkumar.shinnovationco@gmail.com'
-            ? 'Admin'
-            : userProfile?.role || 'Candidate';
+    const userRole: Role = userProfile?.role || 'Candidate';
 
     const rolesAdminDocRef = useMemoFirebase(() => {
         if (!firestore || !user) return null;

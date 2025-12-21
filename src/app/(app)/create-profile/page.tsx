@@ -13,10 +13,11 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
-import { Loader2, Save } from 'lucide-react';
+import { Loader2, Save, LogOut } from 'lucide-react';
 import { useUser, useFirestore, useFirebase, useDoc, useMemoFirebase } from '@/firebase';
 import { useRouter } from 'next/navigation';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { signOut } from 'firebase/auth';
 import React, { useEffect } from 'react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
@@ -46,7 +47,7 @@ type ProfileState = {
 
 export default function CreateProfilePage() {
   const { user } = useUser();
-  const { firestore } = useFirebase();
+  const { firestore, auth } = useFirebase();
   const router = useRouter();
   const [state, setState] = React.useState<ProfileState>({});
   
@@ -117,15 +118,35 @@ export default function CreateProfilePage() {
       setState({ errors: { _form: ['Failed to save profile. Please try again.'] } });
     }
   };
+  
+  const handleBackToLogin = async () => {
+    if (auth) {
+      await signOut(auth);
+      router.push('/login');
+    }
+  };
 
   return (
     <div className="flex h-screen w-full items-center justify-center bg-muted/40">
       <Card className="w-full max-w-md">
         <CardHeader>
-          <CardTitle className="text-2xl">Complete Your Profile</CardTitle>
-          <CardDescription>
-            Just a few more details to get you started.
-          </CardDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="text-2xl">Complete Your Profile</CardTitle>
+              <CardDescription>
+                Just a few more details to get you started.
+              </CardDescription>
+            </div>
+            <Button 
+              variant="ghost" 
+              size="sm"
+              onClick={handleBackToLogin}
+              className="text-muted-foreground hover:text-foreground"
+            >
+              <LogOut className="mr-2 h-4 w-4" />
+              Back to Login
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">

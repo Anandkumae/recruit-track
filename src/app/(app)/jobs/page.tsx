@@ -93,9 +93,7 @@ export default function JobsPage() {
   const { data: userProfile, isLoading: isProfileLoading } = useDoc<User>(userProfileRef);
 
   let userRole: Role = 'Candidate';
-  if (user?.email === 'anandkumar.shinnovationco@gmail.com') {
-    userRole = 'Admin';
-  } else if (userProfile?.role) {
+  if (userProfile?.role) {
     userRole = userProfile.role;
   }
 

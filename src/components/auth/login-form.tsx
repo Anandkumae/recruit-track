@@ -95,6 +95,7 @@ export function LoginForm() {
         // This only happens for NEW users logging in for the first time
         if (!userDocSnap.exists()) {
           await setDoc(userDocRef, {
+            id: userCredential.user.uid,
             email: userCredential.user.email,
             role: role,
             createdAt: new Date().toISOString(),
@@ -155,6 +156,7 @@ export function LoginForm() {
         // This only happens for NEW users logging in for the first time
         if (!userDocSnap.exists()) {
           await setDoc(userDocRef, {
+            id: userCredential.user.uid,
             phoneNumber: userCredential.user.phoneNumber,
             role: role,
             createdAt: new Date().toISOString(),

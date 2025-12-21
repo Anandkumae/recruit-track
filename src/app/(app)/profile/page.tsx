@@ -16,7 +16,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ProfileImageUpload } from '@/components/profile/ProfileImageUpload';
 import { updateProfileImage } from '@/lib/services/profileService';
-import { parseResumeAction, deleteEmployerAccount, type DeleteAccountState } from '@/lib/actions';
+import { parseResumeAction, deleteEmployerAccount, deleteCandidateAccount, type DeleteAccountState } from '@/lib/actions';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { DeleteAccountDialog } from '@/components/profile/delete-account-dialog';
@@ -86,6 +86,7 @@ export default function ProfilePage() {
     
     const initialDeleteState: DeleteAccountState = {};
     const [deleteState, deleteAction, isDeleting] = useActionState(deleteEmployerAccount, initialDeleteState);
+    const [candidateDeleteState, candidateDeleteAction, isCandidateDeleting] = useActionState(deleteCandidateAccount, initialDeleteState);
 
     const userProfileRef = useMemoFirebase(() => {
         if (!firestore || !user) return null;
@@ -252,36 +253,58 @@ export default function ProfilePage() {
         const formData = new FormData();
         formData.append('userId', user.uid);
         
-        // Wrap in startTransition to comply with useActionState requirements
+        // Use appropriate action based on role
         startTransition(() => {
-            deleteAction(formData);
+            if (isEmployer) {
+                deleteAction(formData);
+            } else {
+                candidateDeleteAction(formData);
+            }
         });
     };
     
     // Effect to handle successful deletion
     useEffect(() => {
-        if (deleteState.success && auth) {
+        const currentDeleteState = isEmployer ? deleteState : candidateDeleteState;
+        
+        if (currentDeleteState.success && auth) {
+            // Set flag to prevent layout from redirecting to create-profile
+            if (typeof window !== 'undefined') {
+                localStorage.setItem('accountDeleting', 'true');
+            }
+            
+            // Show success toast first
             toast({
                 title: "Account Deleted",
-                description: deleteState.message || "Your account has been deleted successfully.",
+                description: currentDeleteState.message || "Your account has been deleted successfully.",
             });
             
-            // Sign out and redirect to login
+            // Sign out and redirect immediately (no delay)
             signOut(auth).then(() => {
-                router.push('/login');
+                // Clear the flag and redirect
+                if (typeof window !== 'undefined') {
+                    localStorage.removeItem('accountDeleting');
+                }
+                // Immediate hard redirect to prevent layout from redirecting to create-profile
+                window.location.href = '/login';
             }).catch((error) => {
                 console.error('Sign out error:', error);
-                router.push('/login');
+                // Clear the flag even on error
+                if (typeof window !== 'undefined') {
+                    localStorage.removeItem('accountDeleting');
+                }
+                // Even if signout fails, redirect to login immediately
+                window.location.href = '/login';
             });
-        } else if (deleteState.errors?._form) {
+        } else if (currentDeleteState.errors?._form) {
             toast({
                 title: "Error",
-                description: deleteState.errors._form[0],
+                description: currentDeleteState.errors._form[0],
                 variant: "destructive",
             });
             setShowDeleteDialog(false);
         }
-    }, [deleteState, auth, router, toast]);
+    }, [deleteState, candidateDeleteState, isEmployer, auth, toast]);
 
     if (isLoading) {
         return (
@@ -577,6 +600,38 @@ export default function ProfilePage() {
                 </CardContent>
               </Card>
             )}
+            
+            {/* Delete Account Section - For Candidates */}
+            {!isEmployer && (
+              <Card className="border-destructive">
+                <CardHeader>
+                  <CardTitle className="text-destructive">Danger Zone</CardTitle>
+                  <CardDescription>
+                    Permanently delete your account and all associated data.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <Alert variant="destructive">
+                    <AlertDescription>
+                      Once you delete your account, there is no going back. This will permanently delete:
+                      <ul className="list-disc list-inside mt-2">
+                        <li>Your profile and account information</li>
+                        <li>All your job applications</li>
+                      </ul>
+                    </AlertDescription>
+                  </Alert>
+                  <Button
+                    variant="destructive"
+                    onClick={() => setShowDeleteDialog(true)}
+                    disabled={isCandidateDeleting}
+                    className="w-full sm:w-auto"
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Delete Account
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
         </div>
       </div>
       
@@ -585,7 +640,7 @@ export default function ProfilePage() {
         open={showDeleteDialog}
         onOpenChange={setShowDeleteDialog}
         onConfirm={handleDeleteAccount}
-        isDeleting={isDeleting}
+        isDeleting={isEmployer ? isDeleting : isCandidateDeleting}
       />
     </div>
   );
